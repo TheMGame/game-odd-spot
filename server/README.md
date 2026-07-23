@@ -16,6 +16,16 @@ $env:ODDSPOT_INSTALLATION_HMAC_KEY='至少 32 字符的独立随机密钥'
 go run ./cmd/migrate
 ```
 
+Windows 可直接使用本地环境文件启动三个命令：
+
+```powershell
+..\scripts\run-windows.ps1 -Target migrate
+..\scripts\run-windows.ps1 -Target api
+..\scripts\run-windows.ps1 -Target worker
+```
+
+Linux 源码环境使用 `scripts/run-linux.sh api|worker|migrate server/.env.linux`；正式发布时 systemd 从 `/etc/oddspot/oddspot.env` 加载同一组变量。
+
 安全约束：DSN、HMAC 和管理令牌只通过环境或服务器 Secret 文件提供；installation ID 仅存 HMAC-SHA256；access/refresh token 仅存 SHA-256；写操作使用稳定 `Idempotency-Key`。生产环境拒绝测试账号、Mock 广告和 Mock 购买凭据。
 
 设置 `ODDSPOT_TEST_MYSQL_DSN` 后可运行真实 MySQL 集成测试：

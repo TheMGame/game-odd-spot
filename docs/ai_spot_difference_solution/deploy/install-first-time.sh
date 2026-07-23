@@ -10,4 +10,4 @@ install -d -o root -g root -m 0750 /var/backups/oddspot
 install -m 0644 ./oddspot-api.service /etc/systemd/system/oddspot-api.service
 install -m 0644 ./oddspot-worker.service /etc/systemd/system/oddspot-worker.service
 systemctl daemon-reload
-echo "Create /etc/oddspot/api.env and worker.env with mode 0640, then deploy a release."
+echo "Create /etc/oddspot/oddspot.env from oddspot.env.example with owner root:oddspot and mode 0640, then deploy a release."

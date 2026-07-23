@@ -17,11 +17,16 @@ cd "$(dirname "$archive")"
 sha256sum --check "$checksum"
 test ! -e "$target"
 install -d -o oddspot -g oddspot "$target"
-tar --extract --gzip --file "$archive" --directory "$target" --no-same-owner
+tar --extract --gzip --file "$archive" --directory "$target" --strip-components=1 --no-same-owner
 test -x "$target/bin/oddspot-api"
 test -x "$target/bin/oddspot-migrate"
 
-sudo -u oddspot "$target/bin/oddspot-migrate" up
+set -a
+# shellcheck disable=SC1091
+source /etc/oddspot/oddspot.env
+set +a
+sudo --preserve-env=ODDSPOT_ENV,ODDSPOT_DATABASE_DSN,ODDSPOT_INSTALLATION_HMAC_KEY,ODDSPOT_ADMIN_TOKEN,ODDSPOT_DEFAULT_MARKET,ODDSPOT_DEFAULT_LOCALE,ODDSPOT_LOG_LEVEL \
+  -u oddspot "$target/bin/oddspot-migrate"
 ln -sfn "$target" "${current_link}.next"
 mv -Tf "${current_link}.next" "$current_link"
 systemctl restart oddspot-api.service oddspot-worker.service

@@ -8,11 +8,14 @@ extends Control
 func _ready() -> void:
 	retry_button.pressed.connect(_bootstrap)
 	start_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/home/home.tscn"))
+	start_button.visible = true
 	_bootstrap()
 
 
 func _bootstrap() -> void:
 	retry_button.visible = false
+	start_button.visible = true
+	start_button.text = "离线进入测试关卡"
 	status_label.text = "正在创建会话…"
 	var session_result := await ApiClient.ensure_session()
 	if not session_result.ok:
@@ -31,6 +34,7 @@ func _bootstrap() -> void:
 	Analytics.track("bootstrap_result", {"success": true, "market": data.get("market", "global"), "config_version": data.get("config_version", 0)})
 	Analytics.flush()
 	start_button.visible = true
+	start_button.text = "开始游戏"
 
 
 func _show_error(message: String) -> void:
@@ -38,3 +42,4 @@ func _show_error(message: String) -> void:
 	retry_button.visible = true
 	# P0 支持本地测试关卡，即使服务不可用也允许进入。
 	start_button.visible = true
+	start_button.text = "离线进入测试关卡"

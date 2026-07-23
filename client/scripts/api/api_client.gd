@@ -1,6 +1,7 @@
 extends Node
 
 const DEFAULT_BASE_URL := "http://127.0.0.1:8080"
+const REQUEST_TIMEOUT_SECONDS := 2.0
 
 var base_url := DEFAULT_BASE_URL
 
@@ -128,6 +129,7 @@ func logout() -> void:
 
 func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, authenticated: bool, allow_refresh := false, idempotency_key := "") -> Dictionary:
 	var request := HTTPRequest.new()
+	request.timeout = REQUEST_TIMEOUT_SECONDS
 	add_child(request)
 	var headers := PackedStringArray(["Accept: application/json"])
 	var encoded_body := ""

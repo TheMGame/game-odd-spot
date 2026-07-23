@@ -8,6 +8,10 @@
 
 config_version=5
 
+[accessibility]
+
+general/accessibility_support=true
+
 [application]
 
 config/name="Odd Spot"
@@ -33,12 +37,8 @@ window/size/window_width_override=540
 window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 
-[accessibility]
-
-general/accessibility_support=true
-
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-environment/defaults/default_clear_color=Color(0.956863, 0.964706, 0.976471, 1)
+environment/defaults/default_clear_color=Color(0.0431373, 0.0588235, 0.101961, 1)

@@ -28,6 +28,10 @@ func _check_scene(path: String, failures: Array[String]) -> void:
 	if instance == null:
 		failures.append("Could not instantiate scene: %s" % path)
 		return
+	if path == "res://scenes/bootstrap/bootstrap.tscn":
+		var offline_button := instance.get_node_or_null("SafeArea/Content/Start") as Button
+		if offline_button == null or not offline_button.visible:
+			failures.append("Offline start button must be visible immediately")
 	instance.free()
 
 

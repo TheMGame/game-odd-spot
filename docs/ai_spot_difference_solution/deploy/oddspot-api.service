@@ -1,13 +1,13 @@
 [Unit]
 Description=Odd Spot API
-After=network-online.target mysql.service redis-server.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=oddspot
 Group=oddspot
-EnvironmentFile=/etc/oddspot/api.env
+EnvironmentFile=/etc/oddspot/oddspot.env
 WorkingDirectory=/opt/oddspot/current
 ExecStart=/opt/oddspot/current/bin/oddspot-api
 Restart=on-failure

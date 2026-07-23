@@ -56,8 +56,7 @@ theme_override_font_sizes/font_size = 26
 text = "重试"
 
 [node name="Start" type="Button" parent="SafeArea/Content"]
-visible = false
 layout_mode = 2
 custom_minimum_size = Vector2(0, 90)
 theme_override_font_sizes/font_size = 30
-text = "开始测试关卡"
+text = "离线进入测试关卡"
