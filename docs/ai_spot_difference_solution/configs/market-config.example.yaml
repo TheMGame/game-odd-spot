@@ -1,0 +1,61 @@
+version: 1
+markets:
+  cn:
+    display_name: 中国大陆
+    default_locale: zh-CN
+    fallback_locales: [zh-Hans, en-US]
+    theme_weights:
+      chinese_new_year: 1.6
+      national_style: 1.4
+      ancient_china: 1.4
+      panda: 1.3
+      food_street: 1.3
+      family: 1.2
+      cozy_home: 1.2
+      global: 0.8
+    style_weights:
+      chinese_illustration: 1.4
+      cute: 1.2
+      watercolor: 1.1
+      realistic: 0.8
+    content_policy:
+      require_domestic_review: true
+      avoid: [politics, maps_and_borders, religious_sensitive, celebrity, trademark, real_person]
+    monetization:
+      interstitial_every_levels: 5
+      free_daily_hints: 3
+      rewarded_hint_enabled: true
+      subscriptions_enabled: false
+    platform:
+      apple_iap: true
+      google_play_billing: false
+      domestic_android_channels: true
+      domestic_ad_network_adapter: true
+  us:
+    display_name: United States
+    default_locale: en-US
+    theme_weights:
+      halloween: 1.5
+      christmas: 1.4
+      camping: 1.3
+      road_trip: 1.3
+      cozy_house: 1.4
+      global: 1.0
+    monetization:
+      interstitial_every_levels: 4
+      free_daily_hints: 2
+      subscriptions_enabled: false
+  jp:
+    display_name: 日本
+    default_locale: ja-JP
+    theme_weights:
+      sakura: 1.5
+      cats: 1.4
+      kawaii: 1.5
+      summer_festival: 1.3
+      cafe: 1.3
+      global: 0.9
+    monetization:
+      interstitial_every_levels: 6
+      free_daily_hints: 3
+      subscriptions_enabled: false

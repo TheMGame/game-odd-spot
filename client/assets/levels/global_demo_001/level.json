@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "level_id": "global_demo_001",
+  "level_version": 1,
+  "mode": "spot_difference",
+  "assets": {
+    "base": {"asset_id": "base_demo_001", "local_path": "res://assets/levels/global_demo_001/base.svg"},
+    "target": {"asset_id": "target_demo_001", "local_path": "res://assets/levels/global_demo_001/target.svg"},
+    "width": 1000,
+    "height": 700
+  },
+  "differences": [
+    {"id":"d1","shape":"circle","x":0.20,"y":0.30,"radius":0.065,"difficulty":1,"operation":"remove"},
+    {"id":"d2","shape":"polygon","points":[{"x":0.32,"y":0.44},{"x":0.50,"y":0.26},{"x":0.68,"y":0.44}],"difficulty":2,"operation":"color"},
+    {"id":"d3","shape":"circle","x":0.70,"y":0.60,"radius":0.055,"difficulty":3,"operation":"replace"},
+    {"id":"d4","shape":"polygon","points":[{"x":0.25,"y":0.73},{"x":0.30,"y":0.64},{"x":0.35,"y":0.73},{"x":0.30,"y":0.78}],"difficulty":3,"operation":"shape"},
+    {"id":"d5","shape":"circle","x":0.82,"y":0.22,"radius":0.060,"difficulty":4,"operation":"direction"}
+  ]
+}

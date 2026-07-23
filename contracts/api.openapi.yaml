@@ -1,0 +1,375 @@
+openapi: 3.1.0
+info:
+  title: Odd Spot Game API
+  version: 1.0.0
+servers:
+  - url: https://api.game.example.com
+security:
+  - bearerAuth: []
+paths:
+  /v1/sessions/anonymous:
+    post:
+      security: []
+      operationId: createAnonymousSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [installation_id, app_version, platform, locale]
+              properties:
+                installation_id: {type: string, minLength: 32, maxLength: 128}
+                app_version: {type: string}
+                platform: {enum: [ios, android, desktop]}
+                locale: {type: string}
+                store_country: {type: string, minLength: 2, maxLength: 3}
+      responses:
+        '200':
+          description: Created or restored anonymous session
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SessionResponse'}
+  /v1/sessions/refresh:
+    post:
+      security: []
+      operationId: refreshSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RefreshRequest'}
+      responses:
+        '200':
+          description: Rotated access and refresh tokens; the submitted refresh token becomes invalid
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SessionResponse'}
+        '401': {description: Refresh token invalid, expired, revoked, or already used}
+  /v1/sessions/logout:
+    post:
+      operationId: logoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RefreshRequest'}
+      responses:
+        '204': {description: Session revoked; repeated logout is successful}
+  /v1/bootstrap:
+    get:
+      operationId: getBootstrap
+      responses:
+        '200':
+          description: Runtime configuration snapshot
+          headers:
+            ETag: {schema: {type: string}}
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/Envelope'}
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [market, locale, config_version, minimum_app_version, features]
+                        properties:
+                          market: {type: string}
+                          locale: {type: string}
+                          config_version: {type: integer}
+                          minimum_app_version: {type: string}
+                          force_upgrade: {type: boolean}
+                          features: {type: object, additionalProperties: true}
+  /v1/home:
+    get:
+      operationId: getHome
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: Home catalog and recommendation reasons
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/Envelope'}
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [items]
+                        properties:
+                          items: {type: array, items: {$ref: '#/components/schemas/LevelSummary'}}
+  /v1/levels/{levelId}:
+    get:
+      operationId: getLevel
+      parameters:
+        - {$ref: '#/components/parameters/LevelId'}
+      responses:
+        '200':
+          description: Immutable runtime level document
+          content:
+            application/json:
+              schema: {$ref: './level.schema.json'}
+  /v1/levels/{levelId}/start:
+    post:
+      operationId: startLevel
+      parameters:
+        - {$ref: '#/components/parameters/LevelId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [attempt_id, level_version]
+              properties:
+                attempt_id: {type: string, format: uuid}
+                level_version: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Attempt created or existing response replayed
+          content: {application/json: {schema: {$ref: '#/components/schemas/AttemptEnvelope'}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/levels/{levelId}/progress:
+    post:
+      operationId: updateLevelProgress
+      parameters:
+        - {$ref: '#/components/parameters/LevelId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [attempt_id, found]
+              properties:
+                attempt_id: {type: string, format: uuid}
+                found:
+                  type: array
+                  maxItems: 12
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [difference_id, found_at_ms]
+                    properties:
+                      difference_id: {type: string}
+                      found_at_ms: {type: integer, minimum: 0}
+                hints_used: {type: integer, minimum: 0, maximum: 12}
+                duration_ms: {type: integer, minimum: 0}
+      responses:
+        '200':
+          description: Merged progress
+          content: {application/json: {schema: {$ref: '#/components/schemas/AttemptEnvelope'}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/levels/{levelId}/complete:
+    post:
+      operationId: completeLevel
+      parameters:
+        - {$ref: '#/components/parameters/LevelId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [attempt_id, difference_ids, duration_ms]
+              properties:
+                attempt_id: {type: string, format: uuid}
+                difference_ids: {type: array, uniqueItems: true, items: {type: string}}
+                duration_ms: {type: integer, minimum: 500}
+                hints_used: {type: integer, minimum: 0, maximum: 12}
+      responses:
+        '200':
+          description: Completion and reward result; replayed for duplicates
+          content: {application/json: {schema: {$ref: '#/components/schemas/AttemptEnvelope'}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/rewards/ad:
+    post:
+      operationId: claimAdReward
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Awaiting trusted ad callback or proof verification}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/purchases/verify:
+    post:
+      operationId: verifyPurchase
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Verified transaction and current entitlements}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/events/batch:
+    post:
+      operationId: ingestEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events: {type: array, minItems: 1, maxItems: 100, items: {$ref: '#/components/schemas/Event'}}
+      responses:
+        '202': {description: Accepted; duplicate event_id values ignored}
+  /v1/config/{version}:
+    get:
+      operationId: getConfigVersion
+      parameters: [{name: version, in: path, required: true, schema: {type: integer, minimum: 1}}]
+      responses: {'200': {description: Immutable runtime configuration snapshot}, '404': {description: Version not found}}
+  /v1/account/bind:
+    post:
+      operationId: bindAccount
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AccountProof'}}}}
+      responses: {'200': {description: Identity bound}, '409': {description: Identity belongs to another user}, '422': {description: Provider proof invalid}}
+  /v1/account/login:
+    post:
+      security: []
+      operationId: loginAccount
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AccountProof'}}}}
+      responses: {'200': {description: Cross-device session restored, content: {application/json: {schema: {$ref: '#/components/schemas/SessionResponse'}}}}, '401': {description: Invalid proof}}
+  /v1/daily-challenge:
+    get: {operationId: getDailyChallenge, responses: {'200': {description: Market daily challenge}, '404': {description: Challenge unavailable}}}
+  /v1/activities:
+    get: {operationId: listActivities, responses: {'200': {description: Active market activities}}}
+  /v1/experiments/{experimentKey}:
+    get:
+      operationId: getExperimentAssignment
+      parameters: [{name: experimentKey, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Stable experiment assignment}, '404': {description: Experiment unavailable}}
+  /v1/reports:
+    post:
+      operationId: reportContent
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, additionalProperties: false, required: [level_id, category], properties: {level_id: {type: string}, category: {enum: [wrong_difference, inappropriate, copyright, broken_asset, other]}, description: {type: string, maxLength: 500}}}}}
+      responses: {'201': {description: Report queued for review}}
+  /admin/v1/levels:
+    get: {security: [{adminToken: []}], operationId: adminListLevels, responses: {'200': {description: Content versions}}}
+  /admin/v1/levels/{levelId}/versions/{version}/transition:
+    post:
+      security: [{adminToken: []}]
+      operationId: adminTransitionLevel
+      parameters: [{$ref: '#/components/parameters/LevelId'}, {name: version, in: path, required: true, schema: {type: integer}}]
+      responses: {'200': {description: State transitioned}, '409': {description: Illegal transition}}
+  /admin/v1/reports:
+    get: {security: [{adminToken: []}], operationId: adminListReports, responses: {'200': {description: Content reports}}}
+  /admin/v1/reports/{reportId}/resolve:
+    post:
+      security: [{adminToken: []}]
+      operationId: adminResolveReport
+      parameters: [{name: reportId, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Report status updated}, '404': {description: Report not found}}
+  /admin/v1/generation/jobs:
+    post: {security: [{adminToken: []}], operationId: createGenerationJob, responses: {'201': {description: Job queued}}}
+  /admin/v1/generation/jobs/{jobId}:
+    get:
+      security: [{adminToken: []}]
+      operationId: getGenerationJob
+      parameters: [{name: jobId, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Generation job}, '404': {description: Job not found}}
+  /admin/v1/metrics/summary:
+    get: {security: [{adminToken: []}], operationId: getMetricsSummary, responses: {'200': {description: Operational KPI snapshot}}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: opaque}
+    adminToken: {type: apiKey, in: header, name: X-Admin-Token}
+  parameters:
+    LevelId: {name: levelId, in: path, required: true, schema: {type: string}}
+    Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    LevelSummary:
+      type: object
+      required: [level_id, level_version, difficulty, difference_count]
+      properties:
+        level_id: {type: string}
+        level_version: {type: integer}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        difference_count: {type: integer, minimum: 3, maximum: 12}
+    AttemptResult:
+      type: object
+      required: [attempt_id, state, found_count, total_count, hints_used, duration_ms, rewarded_hints]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        state: {enum: [in_progress, completed]}
+        found_count: {type: integer, minimum: 0}
+        total_count: {type: integer, minimum: 3, maximum: 12}
+        hints_used: {type: integer, minimum: 0}
+        duration_ms: {type: integer, minimum: 0}
+        rewarded_hints: {type: integer, minimum: 0}
+    AttemptEnvelope:
+      allOf:
+        - {$ref: '#/components/schemas/Envelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/AttemptResult'}
+    Envelope:
+      type: object
+      required: [request_id, server_time, config_version, data]
+      properties:
+        request_id: {type: string}
+        server_time: {type: string, format: date-time}
+        config_version: {type: integer}
+        data: {}
+    SessionResponse:
+      allOf:
+        - {$ref: '#/components/schemas/Envelope'}
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [user_id, access_token, refresh_token, expires_in]
+              properties:
+                user_id: {type: string}
+                access_token: {type: string}
+                refresh_token: {type: string}
+                expires_in: {type: integer}
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token: {type: string, minLength: 32, maxLength: 512}
+    AccountProof:
+      type: object
+      additionalProperties: false
+      required: [provider, proof]
+      properties:
+        provider: {type: string}
+        proof: {type: string, minLength: 8, maxLength: 4096}
+    Event:
+      type: object
+      additionalProperties: false
+      required: [event_id, session_id, event_type, market, locale, app_version, occurred_at, payload]
+      properties:
+        event_id: {type: string, format: uuid}
+        session_id: {type: string}
+        event_type: {type: string}
+        market: {type: string}
+        locale: {type: string}
+        app_version: {type: string}
+        occurred_at: {type: string, format: date-time}
+        payload: {type: object, additionalProperties: true}
+  responses:
+    Conflict:
+      description: Idempotency conflict, request in progress, or invalid state transition
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [request_id, error_code, message]
+            properties:
+              request_id: {type: string}
+              error_code: {enum: [IDEMPOTENCY_CONFLICT, REQUEST_IN_PROGRESS, INVALID_STATE, LEVEL_VERSION_MISMATCH]}
+              message: {type: string}

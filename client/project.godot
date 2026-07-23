@@ -1,0 +1,44 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Odd Spot"
+config/version="0.1.0"
+run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
+config/features=PackedStringArray("4.7")
+
+[autoload]
+
+SessionStore="*res://scripts/storage/session_store.gd"
+ApiClient="*res://scripts/api/api_client.gd"
+ProgressStore="*res://scripts/storage/progress_store.gd"
+Preferences="*res://scripts/storage/preferences.gd"
+SyncQueue="*res://scripts/storage/sync_queue.gd"
+Analytics="*res://scripts/analytics/analytics.gd"
+Monetization="*res://scripts/monetization/monetization.gd"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/window_width_override=540
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
+
+[accessibility]
+
+general/accessibility_support=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.956863, 0.964706, 0.976471, 1)

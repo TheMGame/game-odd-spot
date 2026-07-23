@@ -1,0 +1,27 @@
+[Unit]
+Description=Odd Spot Content Worker
+After=network-online.target mysql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=oddspot
+Group=oddspot
+EnvironmentFile=/etc/oddspot/worker.env
+WorkingDirectory=/opt/oddspot/current
+ExecStart=/opt/oddspot/current/bin/oddspot-worker
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/oddspot
+
+[Install]
+WantedBy=multi-user.target

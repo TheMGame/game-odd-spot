@@ -1,0 +1,81 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://scenes/settings/settings.gd" type="Script" id="1"]
+
+[node name="Settings" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 48.0
+offset_right = -48.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "设置与隐私"
+horizontal_alignment = 1
+
+[node name="Analytics" type="CheckButton" parent="Layout"]
+layout_mode = 2
+button_pressed = true
+text = "允许匿名使用分析"
+
+[node name="Vibration" type="CheckButton" parent="Layout"]
+layout_mode = 2
+button_pressed = true
+text = "震动反馈"
+
+[node name="LargeMarkers" type="CheckButton" parent="Layout"]
+layout_mode = 2
+text = "加大差异标记"
+
+[node name="Purchase" type="Button" parent="Layout"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 64)
+text = "永久移除强制广告（测试购买）"
+
+[node name="AccountName" type="LineEdit" parent="Layout"]
+layout_mode = 2
+placeholder_text = "测试账号名（用于跨设备恢复）"
+
+[node name="BindAccount" type="Button" parent="Layout"]
+layout_mode = 2
+text = "绑定当前进度到测试账号"
+
+[node name="LoginAccount" type="Button" parent="Layout"]
+layout_mode = 2
+text = "从测试账号恢复"
+
+[node name="Privacy" type="RichTextLabel" parent="Layout"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+text = "[b]隐私说明[/b]\n\n默认使用匿名账号，不收集姓名。安装标识在服务端仅保存 HMAC；访问令牌仅保存哈希。关闭匿名分析后不再产生新分析事件。广告和购买由平台适配器验证，正式接入前使用 Mock。"
+
+[node name="Status" type="Label" parent="Layout"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Logout" type="Button" parent="Layout"]
+layout_mode = 2
+text = "退出匿名会话"
+
+[node name="Back" type="Button" parent="Layout"]
+layout_mode = 2
+text = "返回"

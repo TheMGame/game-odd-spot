@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game.example.com/schemas/level.schema.json",
+  "title": "Spot Difference Runtime Level",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "level_id", "level_version", "mode", "assets", "differences", "tags", "difficulty"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "level_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,63}$"},
+    "level_version": {"type": "integer", "minimum": 1},
+    "mode": {"const": "spot_difference"},
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "target", "width", "height"],
+      "properties": {
+        "base": {"$ref": "#/$defs/asset"},
+        "target": {"$ref": "#/$defs/asset"},
+        "thumbnail": {"$ref": "#/$defs/asset"},
+        "width": {"type": "integer", "minimum": 512, "maximum": 8192},
+        "height": {"type": "integer", "minimum": 512, "maximum": 8192}
+      }
+    },
+    "differences": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 12,
+      "items": {"$ref": "#/$defs/difference"}
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["regions", "themes", "styles", "scenes", "risk"],
+      "properties": {
+        "regions": {"$ref": "#/$defs/stringSet"},
+        "themes": {"$ref": "#/$defs/stringSet"},
+        "styles": {"$ref": "#/$defs/stringSet"},
+        "scenes": {"$ref": "#/$defs/stringSet"},
+        "season": {"$ref": "#/$defs/stringSet"},
+        "audience": {"$ref": "#/$defs/stringSet"},
+        "risk": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "difficulty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "object_size", "color_similarity", "visual_density", "edge_distance", "semantic_obviousness"],
+      "properties": {
+        "total": {"$ref": "#/$defs/rating"},
+        "object_size": {"$ref": "#/$defs/rating"},
+        "color_similarity": {"$ref": "#/$defs/rating"},
+        "visual_density": {"$ref": "#/$defs/rating"},
+        "edge_distance": {"$ref": "#/$defs/rating"},
+        "semantic_obviousness": {"$ref": "#/$defs/rating"}
+      }
+    }
+  },
+  "$defs": {
+    "rating": {"type": "integer", "minimum": 1, "maximum": 5},
+    "stringSet": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"}},
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "url", "sha256", "bytes", "content_type"],
+      "properties": {
+        "asset_id": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{8,128}$"},
+        "url": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "content_type": {"enum": ["image/webp", "image/png"]}
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "shape", "difficulty", "operation"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,32}$"},
+        "shape": {"enum": ["circle", "polygon"]},
+        "x": {"type": "number", "minimum": 0, "maximum": 1},
+        "y": {"type": "number", "minimum": 0, "maximum": 1},
+        "radius": {"type": "number", "minimum": 0.005, "maximum": 0.25},
+        "points": {"type": "array", "minItems": 3, "maxItems": 64, "items": {"$ref": "#/$defs/point"}},
+        "difficulty": {"$ref": "#/$defs/rating"},
+        "operation": {"enum": ["add", "remove", "replace", "color", "shape", "count", "direction", "texture"]},
+        "mask": {"$ref": "#/$defs/asset"}
+      },
+      "allOf": [
+        {"if": {"properties": {"shape": {"const": "circle"}}}, "then": {"required": ["x", "y", "radius"], "not": {"required": ["points"]}}},
+        {"if": {"properties": {"shape": {"const": "polygon"}}}, "then": {"required": ["points"], "not": {"anyOf": [{"required": ["x"]}, {"required": ["y"]}, {"required": ["radius"]}]}}}
+      ]
+    }
+  }
+}

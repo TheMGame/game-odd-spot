@@ -1,0 +1,17 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+client/.godot/
+client/android/
+client/ios/
+client/export/
+
+# Summer Engine local-only state
+.summer/local/
+build
+dist/
+server/bin/
+*.exe
+*.test
+.env
+*.local.env
