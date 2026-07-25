@@ -199,6 +199,7 @@ func _finish_level() -> void:
 	$CompleteDim.visible = true
 	attempt_state["elapsed_ms"] = elapsed
 	ProgressStore.mark_completed(str(level_data.level_id), attempt_state)
+	_prefetch_next_level()
 	if not result.get("queued", false):
 		$CompletePanel/Margin/Content/Message.text = "全部找到了"
 	else:
@@ -207,6 +208,10 @@ func _finish_level() -> void:
 	$CompletePanel/Margin/Content/Stats.text = "发现 %d/%d  ·  提示 %d  ·  用时 %02d:%02d" % [found.size(), differences.size(), hints_used, int(seconds / 60), seconds % 60]
 	Analytics.track("level_complete", {"level_id": level_data.level_id, "duration_ms": elapsed, "hints_used": hints_used, "queued": result.get("queued", false)})
 	Analytics.flush()
+
+
+func _prefetch_next_level() -> void:
+	await LevelLoader.new().prefetch_next_level(self, str(level_data.get("level_id", "")))
 
 
 func _difference_center(difference: Dictionary) -> Vector2:
@@ -233,8 +238,11 @@ func _update_counter() -> void:
 
 
 func _next_level() -> void:
-	LevelLoader.clear_selection()
-	get_tree().reload_current_scene()
+	var has_next := await LevelLoader.new().select_next_level(str(level_data.get("level_id", "")))
+	if has_next:
+		get_tree().reload_current_scene()
+	else:
+		get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn")
 
 
 func _replay_level() -> void:

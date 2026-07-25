@@ -1,6 +1,22 @@
 const $=id=>document.getElementById(id);
 const state={catalog:[],assets:[],view:"overview",series:null,level:null,levelEntry:null,selected:0,dirty:false,adding:false};
-const token=()=>sessionStorage.getItem("oddspot_admin_token")||"";
+const ADMIN_SESSION_KEY="oddspot_admin_session";
+const ADMIN_SESSION_MS=30*24*60*60*1000;
+function token(){
+  try{
+    const session=JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY)||"null");
+    if(session?.token&&Number(session.expires_at)>Date.now())return session.token;
+  }catch(_){}
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  return "";
+}
+function saveAdminSession(value){
+  localStorage.setItem(ADMIN_SESSION_KEY,JSON.stringify({token:value,expires_at:Date.now()+ADMIN_SESSION_MS}));
+}
+function clearAdminSession(){
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  sessionStorage.removeItem("oddspot_admin_token");
+}
 const apiBase=()=>localStorage.getItem("oddspot_admin_api")||`${location.origin}/admin/v1`;
 const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const formatBytes=n=>n>1048576?`${(n/1048576).toFixed(1)} MB`:`${Math.ceil(n/1024)} KB`;
@@ -80,7 +96,7 @@ function renderSettings(){shell("settings","系统设置");$("view").innerHTML=`
 
 document.querySelectorAll(".nav-item").forEach(x=>x.onclick=()=>navigate(x.dataset.view));
 $("api-base").value=apiBase();
-$("logout").onclick=()=>{sessionStorage.removeItem("oddspot_admin_token");location.reload()};
-$("login-form").onsubmit=async event=>{event.preventDefault();sessionStorage.setItem("oddspot_admin_token",$("token").value);localStorage.setItem("oddspot_admin_api",$("api-base").value.replace(/\/$/,""));try{await loadData();$("login").classList.add("hidden");renderOverview()}catch(e){sessionStorage.removeItem("oddspot_admin_token");toast(e.message,"error")}};
+$("logout").onclick=()=>{clearAdminSession();location.reload()};
+$("login-form").onsubmit=async event=>{event.preventDefault();saveAdminSession($("token").value);localStorage.setItem("oddspot_admin_api",$("api-base").value.replace(/\/$/,""));try{await loadData();$("login").classList.add("hidden");renderOverview()}catch(e){clearAdminSession();toast(e.message,"error")}};
 window.addEventListener("beforeunload",e=>{if(state.dirty){e.preventDefault();e.returnValue=""}});
-if(token())loadData().then(()=>{$("login").classList.add("hidden");renderOverview()}).catch(()=>sessionStorage.removeItem("oddspot_admin_token"));
+if(token())loadData().then(()=>{$("login").classList.add("hidden");renderOverview()}).catch(()=>clearAdminSession());

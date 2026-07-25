@@ -1,25 +1,69 @@
 class_name LevelLoader
 extends RefCounted
 
-const LOCAL_DEMO := "res://assets/levels/global_demo_001/level.json"
-const CONTENT_CATALOG := "res://config/content_catalog.json"
-static var selected_level_path := ""
 static var selected_level_id := ""
+static var selected_series_id := ""
 
 
-static func select_level(path: String) -> void:
-	selected_level_path = path
-	selected_level_id = ""
+static func select_series(series_id: String) -> void:
+	selected_series_id = series_id
 
 
 static func select_remote_level(level_id: String) -> void:
 	selected_level_id = level_id
-	selected_level_path = ""
 
 
 static func clear_selection() -> void:
-	selected_level_path = ""
 	selected_level_id = ""
+
+
+func select_next_level(current_level_id: String) -> bool:
+	if not selected_series_id.is_empty():
+		var remote := await ApiClient.get_catalog()
+		if remote.ok:
+			var response_data: Dictionary = remote.data.get("data", {})
+			var remote_series := _array_or_empty(response_data.get("series"))
+			for raw_series in remote_series:
+				var series: Dictionary = raw_series
+				if str(series.get("id", "")) != selected_series_id:
+					continue
+				var levels := _array_or_empty(series.get("levels"))
+				for index in levels.size():
+					var level: Dictionary = levels[index]
+					if str(level.get("id", "")) == current_level_id and index + 1 < levels.size():
+						select_remote_level(str((levels[index + 1] as Dictionary).get("id", "")))
+						return not selected_level_id.is_empty()
+				return false
+
+	return false
+
+
+func prefetch_next_level(owner: Node, current_level_id: String) -> void:
+	if selected_series_id.is_empty() or not is_instance_valid(owner):
+		return
+	var remote := await ApiClient.get_catalog()
+	if not remote.ok:
+		return
+	var next_level_id := ""
+	var response_data: Dictionary = remote.data.get("data", {})
+	for raw_series in _array_or_empty(response_data.get("series")):
+		var series: Dictionary = raw_series
+		if str(series.get("id", "")) != selected_series_id:
+			continue
+		var levels := _array_or_empty(series.get("levels"))
+		for index in levels.size():
+			var level: Dictionary = levels[index]
+			if str(level.get("id", "")) == current_level_id and index + 1 < levels.size():
+				next_level_id = str((levels[index + 1] as Dictionary).get("id", ""))
+				break
+		break
+	if next_level_id.is_empty():
+		return
+	var level_result := await ApiClient.get_level(next_level_id)
+	if not level_result.ok or not is_instance_valid(owner):
+		return
+	var image_asset: Dictionary = level_result.data.get("data", {}).get("assets", {}).get("image", {})
+	await AssetCache.new().load_texture(owner, image_asset)
 
 
 func load_first_level() -> Dictionary:
@@ -27,80 +71,17 @@ func load_first_level() -> Dictionary:
 		var remote := await ApiClient.get_level(selected_level_id)
 		if remote.ok:
 			return _validate(remote.data.get("data", {}))
-	if not selected_level_path.is_empty():
-		return _load_local_level(selected_level_path)
-	var configured_path := _configured_ready_level_path()
-	if not configured_path.is_empty():
-		return _load_local_level(configured_path)
+		return remote
 	var home := await ApiClient.get_home()
 	if home.ok:
 		var items: Array = home.data.get("data", {}).get("items", [])
 		if not items.is_empty():
 			var remote := await ApiClient.get_level(str(items[0].get("level_id", "")))
 			if remote.ok:
-				var level_data: Dictionary = remote.data.get("data", {})
-				if level_data.get("level_id") == "global_demo_001":
-					# P0 demo images are bundled, so their geometry is sourced from the matching local fixture.
-					return _load_local_level(LOCAL_DEMO)
-				return _validate(level_data)
-	return _load_configured_level()
-
-
-func _load_configured_level() -> Dictionary:
-	var configured_path := _configured_ready_level_path()
-	if not configured_path.is_empty():
-		return _load_local_level(configured_path)
-	var catalog_result := _read_json(CONTENT_CATALOG)
-	if not catalog_result.ok:
-		return _load_local_level(LOCAL_DEMO)
-	var catalog: Dictionary = catalog_result.data
-	var fallback := str(catalog.get("fallback_level", LOCAL_DEMO))
-	return _load_local_level(fallback)
-
-
-func _configured_ready_level_path() -> String:
-	var catalog_result := _read_json(CONTENT_CATALOG)
-	if not catalog_result.ok:
-		return ""
-	var catalog: Dictionary = catalog_result.data
-	var default_region := str(catalog.get("default_region", ""))
-	var default_series := str(catalog.get("default_series", ""))
-	for series_value in catalog.get("series", []):
-		var series: Dictionary = series_value
-		if not bool(series.get("enabled", false)):
-			continue
-		if str(series.get("id", "")) != default_series:
-			continue
-		if str(series.get("region", "")) != default_region:
-			continue
-		var first_ready_path := ""
-		for level_value in series.get("levels", []):
-			var level: Dictionary = level_value
-			if bool(level.get("ready", false)):
-				var path := str(level.get("path", ""))
-				if first_ready_path.is_empty():
-					first_ready_path = path
-				if not ProgressStore.is_completed(str(level.get("id", "")), int(level.get("version", 1))):
-					return path
-		return first_ready_path
-	return ""
-
-
-func _load_local_level(path: String) -> Dictionary:
-	var parsed_result := _read_json(path)
-	if not parsed_result.ok:
-		return parsed_result
-	return _validate(parsed_result.data)
-
-
-func _read_json(path: String) -> Dictionary:
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return {"ok": false, "error": "LOCAL_LEVEL_MISSING"}
-	var parsed = JSON.parse_string(file.get_as_text())
-	if not parsed is Dictionary:
-		return {"ok": false, "error": "LOCAL_LEVEL_INVALID"}
-	return {"ok": true, "data": parsed}
+				return _validate(remote.data.get("data", {}))
+			return remote
+		return {"ok": false, "error": "NO_REMOTE_LEVEL"}
+	return home
 
 
 func _validate(level_data: Dictionary) -> Dictionary:
@@ -112,3 +93,7 @@ func _validate(level_data: Dictionary) -> Dictionary:
 	if differences.size() < 3 or differences.size() > 12:
 		return {"ok": false, "error": "LEVEL_DIFFERENCES_INVALID"}
 	return {"ok": true, "data": level_data}
+
+
+func _array_or_empty(value: Variant) -> Array:
+	return value if value is Array else []

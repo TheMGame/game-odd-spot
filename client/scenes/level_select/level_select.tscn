@@ -52,14 +52,14 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
 theme_override_font_sizes/font_size = 34
-text = "错置千年"
+text = "系列关卡"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Layout/Header/Titles"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.66, 0.72, 0.72, 1)
 theme_override_font_sizes/font_size = 18
-text = "中国历史 · 第一季"
+text = "正在加载系列…"
 horizontal_alignment = 1
 
 [node name="Settings" type="Button" parent="Layout/Header"]
@@ -67,12 +67,6 @@ custom_minimum_size = Vector2(72, 72)
 layout_mode = 2
 script = ExtResource("2")
 icon_kind = "settings"
-
-[node name="Timeline" type="HBoxContainer" parent="Layout"]
-custom_minimum_size = Vector2(0, 58)
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 18
 
 [node name="Scroll" type="ScrollContainer" parent="Layout"]
 layout_mode = 2

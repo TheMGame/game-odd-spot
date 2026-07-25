@@ -23,7 +23,7 @@ Go 二进制通过 `CGO_ENABLED=0 GOOS=linux GOARCH=amd64` 构建。VERSION 使�
 2. 将 `oddspot-api.service`、`oddspot-worker.service` 安装到 `/etc/systemd/system/`。
 3. 将环境文件按 `oddspot.env.example` 创建为 `/etc/oddspot/oddspot.env`，权限设为 root:oddspot 0640。API、Worker 和部署期 Migrate 共用该文件。
 4. 安装并修改 Nginx 配置，使用 ACME 客户端签发证书。
-5. 上传发布包后运行 `deploy-release.sh <archive> <sha256-file>`。
+5. 上传发布包和 `scripts/deploy/deploy-release.sh` 后，运行 `deploy-release.sh <archive> <sha256-file>`。
 
 首次安装可在 deploy 目录以 root 运行 `install-first-time.sh`。发布完成后运行 `smoke-test.sh https://api.game.example.com`。数据库备份通过 root-only 环境提供凭据后运行 `backup-db.sh`；脚本不会自动删除历史备份。
 

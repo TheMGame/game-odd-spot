@@ -222,5 +222,5 @@ text = "退出当前会话"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.36, 0.46, 0.46, 1)
 theme_override_font_sizes/font_size = 14
-text = "错置千年 · 版本 0.1.0"
+text = "火眼金睛 · 版本 0.1.0"
 horizontal_alignment = 1

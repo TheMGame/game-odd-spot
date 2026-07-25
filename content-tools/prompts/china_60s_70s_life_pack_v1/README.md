@@ -175,60 +175,28 @@ Prompt：
 
 > wrong historical period, 1950s rural village, ancient Chinese robes, Qing dynasty clothing, Japanese architecture, Korean clothing, western retro diner, Soviet military parade, modern city skyline, contemporary apartment interior, smartphones, laptops, tablet computers, flat-screen television, electric scooter, modern car, plastic shopping bags, aluminum beverage cans, modern sneakers, baseball caps, synthetic sportswear, modern kitchen appliances, air conditioner, microwave oven, induction cooker, satellite dish, extra modern objects, duplicate target objects, missing target objects, oversized hidden objects, cropped target objects, unreadable target silhouettes, random readable text, gibberish typography, brand names, logos, watermark, answer labels, circles, arrows, highlights, glowing outlines, collage, split screen, comparison image, borders, UI overlay, photorealism, 3D render, deformed hands, extra fingers, distorted faces
 
-## AI 答案定位与 Admin 导入协议
+## 图片生成批次
 
-图片生成和答案定位分为两个阶段：
+为降低一次任务的上下文长度和漏图概率，10 个关卡拆成两个独立批次：
 
-1. 按关卡 Prompt 生成候选图，选择并确认不再修改的最终成品。
-2. 将最终图片交给支持视觉分析的 AI，逐项检查目标是否实际存在且可辨认。
-3. AI 以最终图片左上角为原点重新测量答案。`x` 向右、`y` 向下，并归一化到 `0–1`。
-4. `x`、`y` 表示目标可见区域中心；`radius` 是圆形点击热区半径相对于图片宽度的比例，建议为 `0.018–0.055`。
-5. 热点覆盖目标可见部分并保留约 15–25% 点击容错，但不能覆盖相邻答案。
-6. 缺失、重复、严重变形、被裁切或无法公平辨认的目标必须写入校验结果，不得生成虚假坐标。
+- [BATCH_01_LEVELS_01_05.md](BATCH_01_LEVELS_01_05.md)：关卡 01–05，入门至普通。
+- [BATCH_02_LEVELS_06_10.md](BATCH_02_LEVELS_06_10.md)：关卡 06–10，进阶至专家。
 
-视觉定位 Prompt：
+两份批次文档都包含各自 5 个关卡的完整 Prompt，可以分别直接输入图片生成 AI；不需要同时输入本 README。
 
-> Inspect the final 1024 x 1536 hidden-object game image pixel by pixel. Locate only the expected anachronistic targets that are genuinely present and visually identifiable. For each valid target, estimate the center of its visible pixels and a fair circular tap radius. Convert values to normalized 0–1 coordinates using the full original image: x = center_px / 1024, y = center_py / 1536, radius = tap_radius_px / 1024. Do not infer coordinates from the generation prompt or intended semantic location. Do not invent a hotspot for a missing, duplicated, malformed, cropped or unrecognizable target. Return JSON only. Keep four decimal places for x, y and radius. Set shape to "circle" and operation to "anachronism". Report invalid targets and unexpected modern objects in validation.
+## 当前生产流程：先生成图片
 
-AI 输出格式：
+1. 每次只执行一个批次，一批 5 个关卡。
+2. 每个关卡根据对应 Prompt 先只生成 1 张图片。
+3. 逐关检查目标数量、目标可辨识度、额外现代物件和安全区。
+4. 检查不通过时，仅重新生成或局部修复当前关卡，直到图片定稿；不预先批量生成候选。
+5. 最终图片按 `<level_id>.png` 命名。
+6. 本阶段不要求图片生成 AI 输出答案坐标，也不生成占位坐标。
 
-```json
-{
-  "level_id": "<当前关卡 ID>",
-  "image_width": 1024,
-  "image_height": 1536,
-  "differences": [
-    {
-      "id": "<stable_snake_case_id>",
-      "shape": "circle",
-      "x": 0.0000,
-      "y": 0.0000,
-      "radius": 0.0400,
-      "label": "<中文答案名>",
-      "era": "<物品普及或出现年代>",
-      "explanation": "<为什么不属于本关年代>",
-      "difficulty": 5,
-      "operation": "anachronism"
-    }
-  ],
-  "validation": {
-    "expected_count": "<当前关卡答案数>",
-    "located_count": 0,
-    "missing_or_invalid": [],
-    "duplicate_targets": [],
-    "unexpected_anachronisms": [],
-    "ready_for_admin_import": false
-  }
-}
-```
+## 坐标与 Admin 导入：图片定稿后处理
 
-其中 `expected_count` 在实际输出中必须是整数，并与 `pack.json` 中当前关卡的 `answer_count` 一致。只有答案数量准确、所有异常数组为空、热点位于安全区且互不重叠时，`ready_for_admin_import` 才能设为 `true`。之后由导入流程补充图片资产字段，并将 `differences` 写入 Admin 关卡运行时 JSON；导入完成后仍需叠加热点做一次目视复核。
-
-## 使用流程
-
-1. 每个 Prompt 生成 3–4 个候选。
-2. 选择构图稳定、目标齐全且无额外现代物品的一张。
-3. 局部修复缺失、重复或变形目标，并锁定最终图片。
-4. 将最终图片命名为 `<level_id>.png`。
-5. 执行“AI 答案定位与 Admin 导入协议”。
-6. 仅在 `ready_for_admin_import` 为 `true` 时导入 Admin。
+- 坐标只能根据最终定稿图片标注，不能使用 Prompt 中描述的预定位置。
+- 当前默认在 Admin 编辑器中人工点击目标中心并调整 `radius`。
+- Admin 使用归一化 `x / y / radius`，其中左上角为 `(0, 0)`、右下角为 `(1, 1)`。
+- 每个热点应覆盖目标可见部分，并保留适当点击容错；热点不得互相重叠。
+- 图片和全部热点复核完成后再发布关卡。

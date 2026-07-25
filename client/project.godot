@@ -14,16 +14,11 @@ general/accessibility_support=true
 
 [application]
 
-config/name="Odd Spot"
+config/name="火眼金睛"
 config/version="0.1.0"
 run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 config/features=PackedStringArray("4.7")
-
-[oddspot]
-
-network/production_base_url="https://oddspot.guaguatu.com"
-network/user_server_base_url="https://api.guaguatu.com"
-network/user_server_app_id="game_odd_spot"
+config/icon="res://assets/branding/guagua-rabbit-logo.png"
 
 [autoload]
 
@@ -43,6 +38,16 @@ window/size/window_width_override=540
 window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 window/handheld/orientation=6
+
+[gui]
+
+theme/custom_font="res://assets/fonts/NotoSansSC-Game.ttf"
+
+[oddspot]
+
+network/production_base_url="https://oddspot.guaguatu.com"
+network/user_server_base_url="https://api.guaguatu.com"
+network/user_server_app_id="game_odd_spot"
 
 [rendering]
 

@@ -6,13 +6,6 @@ const CACHE_LIMIT_BYTES := 300 * 1024 * 1024
 
 
 func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
-	var local_path := str(asset.get("local_path", ""))
-	if not local_path.is_empty():
-		var texture := load(local_path) as Texture2D
-		if texture == null:
-			return {"ok": false, "error": "LOCAL_ASSET_INVALID"}
-		return {"ok": true, "texture": texture}
-
 	var asset_id := str(asset.get("asset_id", ""))
 	var expected_hash := str(asset.get("sha256", ""))
 	var url := str(asset.get("url", ""))
@@ -26,6 +19,7 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 			return _decode_texture(cached, str(asset.get("content_type", "")))
 
 	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
 	owner.add_child(request)
 	var start_error := request.request(url)
 	if start_error != OK:

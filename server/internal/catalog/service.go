@@ -109,6 +109,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool) ([]Series, error) {
 		if err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Mode, &item.CoverURL, &item.SortOrder, &item.Enabled); err != nil {
 			return nil, err
 		}
+		item.Levels = []Level{}
 		levelWhere := "AND sl.enabled=TRUE AND lv.status='published'"
 		if admin {
 			levelWhere = "AND sl.enabled=TRUE AND lv.status IN ('draft','pending_review','approved','staging','published','disabled')"

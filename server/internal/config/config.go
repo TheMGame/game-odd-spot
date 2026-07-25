@@ -23,6 +23,7 @@ type Config struct {
 	PublicBaseURL       string
 	UserServerBaseURL   string
 	UserServerAppID     string
+	CORSAllowedOrigins  []string
 }
 
 func FromEnv() (Config, error) {
@@ -39,6 +40,7 @@ func FromEnv() (Config, error) {
 		PublicBaseURL:       strings.TrimRight(valueOrDefault("ODDSPOT_PUBLIC_BASE_URL", "http://127.0.0.1:8080"), "/"),
 		UserServerBaseURL:   strings.TrimRight(valueOrDefault("ODDSPOT_USER_SERVER_BASE_URL", "https://api.guaguatu.com"), "/"),
 		UserServerAppID:     valueOrDefault("ODDSPOT_USER_SERVER_APP_ID", "game_odd_spot"),
+		CORSAllowedOrigins:  splitCSV(valueOrDefault("ODDSPOT_CORS_ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")),
 	}
 
 	switch strings.ToLower(valueOrDefault("ODDSPOT_LOG_LEVEL", "info")) {
@@ -83,4 +85,14 @@ func valueOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func splitCSV(value string) []string {
+	result := []string{}
+	for _, item := range strings.Split(value, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			result = append(result, strings.TrimRight(item, "/"))
+		}
+	}
+	return result
 }

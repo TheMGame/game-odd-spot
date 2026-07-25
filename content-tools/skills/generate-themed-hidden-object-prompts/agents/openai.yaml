@@ -1,0 +1,4 @@
+interface:
+  display_name: "主题找错图 Prompt 生成器"
+  short_description: "根据不同主题生成难度递进的十关完整隐藏物品图片提示词"
+  default_prompt: "使用 $generate-themed-hidden-object-prompts 根据我给出的主题生成两批隐藏物品游戏图片 Prompt。"

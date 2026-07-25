@@ -1,0 +1,140 @@
+# 火眼金睛官网与 Web 版本计划
+
+## 目标
+
+将 `oddspot.guaguatu.com` 建设为“火眼金睛”品牌官网，而不是只承载单个游戏。当前 Godot 游戏发布在 `/game/`，官网持续承载玩法介绍、版本入口、平台下载、更新公告和后续小游戏。
+
+## URL 规划
+
+| 路径 | 用途 |
+| --- | --- |
+| `/` | 官网首页与品牌介绍 |
+| `/game/` | 当前 Godot Web 游戏 |
+| `/games/` | 未来小游戏和玩法目录 |
+| `/download/` | Windows、Android、iOS 等平台下载 |
+| `/news/` | 版本更新和运营公告 |
+| `/v1/` | 玩家 API，继续代理到 Go 服务 |
+| `/content/` | 关卡图片与内容资源 |
+| `/admin/` | 内容管理后台 |
+
+## 代码目录
+
+- `website/`：静态官网源文件，独立发布。
+- `build/web/`：Godot Web 导出结果，独立发布。
+- 官网与游戏不组合发布，各自拥有版本目录、`current` 软链接和回滚流程。
+
+生产目录：
+
+```text
+/opt/oddspot/www/oddspot-site/
+├── releases/
+└── current -> releases/<site-version>/
+    ├── index.html
+    ├── styles.css
+    ├── app.js
+    └── assets/
+
+/opt/oddspot/www/oddspot-game/
+├── releases/
+└── current -> releases/<game-version>/
+    ├── index.html
+    ├── index.js
+    ├── index.wasm
+    └── index.pck
+```
+
+## Web 导出策略
+
+1. 使用与项目 Godot 版本完全匹配的 Web Export Templates。
+2. 使用 Compatibility 渲染器和单线程 Web 导出。
+3. 输出入口固定命名为 `index.html`，不重命名其配套文件。
+4. 第一阶段不启用 PWA，避免 Service Worker 缓存造成版本更新不及时。
+5. 游戏使用同域 `/v1/` 和 `/content/`，不新增跨域配置。
+6. Web 登录态依赖浏览器 IndexedDB；隐私模式或禁用站点存储时不承诺持久化。
+
+构建命令：
+
+```powershell
+.\scripts\build-web.ps1
+```
+
+官网直接发布 `website/`，Godot Web 游戏发布 `build/web/`，两者互不复制或嵌套。
+
+## Nginx 路由
+
+官网静态文件必须作为兜底路由，API 路由优先：
+
+```nginx
+root /opt/oddspot/www/oddspot-site/current;
+index index.html;
+
+location = /game {
+    return 301 /game/;
+}
+
+location ^~ /game/ {
+    alias /opt/oddspot/www/oddspot-game/current/;
+    index index.html;
+}
+
+location /v1/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+
+location /content/ {
+    proxy_pass http://127.0.0.1:8080;
+}
+
+location /health/ {
+    proxy_pass http://127.0.0.1:8080;
+}
+
+location /admin/ {
+    proxy_pass http://127.0.0.1:8080;
+}
+
+location / {
+    try_files $uri $uri/ /index.html;
+}
+
+location ~* \.html$ {
+    add_header Cache-Control "no-cache";
+}
+```
+
+## 发布流程
+
+### 官网
+
+1. 运行 `scripts/package-website.ps1 -Version <site-version>`。
+2. 上传生成的 `.tar.gz` 和 `.sha256`。
+3. 上传 `scripts/deploy/deploy-website.sh`，在服务器运行 `deploy-website.sh <archive> <checksum>`。
+4. 脚本原子切换 `/opt/oddspot/www/oddspot-site/current` 并验证 `/`。
+
+### Web 游戏
+
+1. 运行 `scripts/package-web-game.ps1 -Version <game-version>`。
+2. 上传生成的 `.tar.gz` 和 `.sha256`。
+3. 上传 `scripts/deploy/deploy-web-game.sh`，在服务器运行 `deploy-web-game.sh <archive> <checksum>`。
+4. 脚本原子切换 `/opt/oddspot/www/oddspot-game/current` 并验证 `/game/`。
+
+任一部分发布后执行 `nginx -t`；只有 Nginx 配置发生变化时才需要 reload。
+
+## 近期里程碑
+
+- [x] 第一版响应式游戏官网代码。
+- [x] Godot Web 导出预设与本地构建脚本。
+- [ ] 在测试服务器验证 WebGL、触控、音频和 IndexedDB。
+- [x] 为官网和 Web 游戏分别增加独立打包与部署脚本。
+- [ ] 更新生产 Nginx 配置并部署。
+- [ ] 增加 `/games/`、`/download/` 和 `/news/` 独立页面。
+
+## 后续扩展
+
+- 新玩法只需要新增官网卡片和独立入口，不改变现有 `/game/`。
+- App、桌面端和小游戏平台统一由 `/download/` 分发。
+- 官网内容和游戏运行资源分开缓存。
+- PWA、平台登录、广告 SDK 和小游戏容器适配分别评估，不写进同一套 Web 壳。

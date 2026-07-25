@@ -27,7 +27,7 @@ func _ready() -> void:
 	developer_account.visible = OS.is_debug_build()
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Identity.text = "已登录账号"
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Description.text = "关卡进度与游戏权益将跟随当前账号同步。"
-	$SafeArea/Layout/Scroll/Sections/Version.text = "错置千年 · 版本 %s" % ProjectSettings.get_setting("application/config/version", "0.1.0")
+	$SafeArea/Layout/Scroll/Sections/Version.text = "火眼金睛 · 版本 %s" % ProjectSettings.get_setting("application/config/version", "0.1.0")
 
 
 func _load_settings() -> void:

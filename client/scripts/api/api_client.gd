@@ -113,6 +113,7 @@ func _exchange_user_token(login_data: Dictionary) -> Dictionary:
 
 func _request_user_server(path: String, body: Dictionary) -> Dictionary:
 	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
 	request.timeout = 8.0
 	add_child(request)
 	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
@@ -193,7 +194,12 @@ func logout() -> void:
 
 
 func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, authenticated: bool, allow_refresh := false, idempotency_key := "") -> Dictionary:
+	if authenticated and allow_refresh and not SessionStore.has_valid_access_token():
+		var proactive_refresh := await refresh_session()
+		if not proactive_refresh.ok:
+			return proactive_refresh
 	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
 	request.timeout = REQUEST_TIMEOUT_SECONDS
 	add_child(request)
 	var headers := PackedStringArray(["Accept: application/json"])

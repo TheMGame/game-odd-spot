@@ -239,9 +239,41 @@ func TestAnonymousSessionRejectsUnknownFields(t *testing.T) {
 	}
 }
 
+func TestCORSPreflightAllowsLocalWebBuild(t *testing.T) {
+	request := httptest.NewRequest(http.MethodOptions, "/v1/sessions/user-server", nil)
+	request.Header.Set("Origin", "http://localhost:8000")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	request.Header.Set("Access-Control-Request-Headers", "content-type")
+	response := httptest.NewRecorder()
+	newTestHandler().ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8000" {
+		t.Fatalf("Access-Control-Allow-Origin = %q", got)
+	}
+}
+
+func TestCORSDoesNotExposeContentToLocalWebBuild(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/content/example.png", nil)
+	request.Header.Set("Origin", "http://localhost:8000")
+	response := httptest.NewRecorder()
+	newTestHandler().ServeHTTP(response, request)
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("content Access-Control-Allow-Origin = %q, want empty", got)
+	}
+}
+
 func newTestHandler() http.Handler {
 	return httpapi.NewRouter(httpapi.Dependencies{
-		Config:     config.Config{Environment: "test", HTTPAddr: "127.0.0.1:0", Market: "global", Locale: "en-US", AdminToken: "test-admin-token"},
+		Config: config.Config{
+			Environment:        "test",
+			HTTPAddr:           "127.0.0.1:0",
+			Market:             "global",
+			Locale:             "en-US",
+			AdminToken:         "test-admin-token",
+			CORSAllowedOrigins: []string{"http://localhost:8000"},
+		},
 		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Sessions:   session.NewMemoryService(),
 		Levels:     level.NewMemoryService(),

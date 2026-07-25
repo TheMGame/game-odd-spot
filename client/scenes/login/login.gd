@@ -17,6 +17,26 @@ func _ready() -> void:
 	account_input.text_submitted.connect(func(_value: String): _login())
 	_apply_style()
 	account_input.grab_focus()
+	_restore_session()
+
+
+func _restore_session() -> void:
+	if SessionStore.access_token.is_empty() and SessionStore.refresh_token.is_empty():
+		return
+	login_button.disabled = true
+	create_button.disabled = true
+	status_label.text = "正在恢复登录状态…"
+	var result: Dictionary
+	if not SessionStore.has_valid_access_token():
+		result = await ApiClient.refresh_session()
+	else:
+		result = await ApiClient.get_bootstrap()
+	if result.ok:
+		get_tree().change_scene_to_file("res://scenes/home/home.tscn")
+		return
+	login_button.disabled = false
+	create_button.disabled = false
+	status_label.text = "登录已过期，请重新登录"
 
 
 func _login() -> void:

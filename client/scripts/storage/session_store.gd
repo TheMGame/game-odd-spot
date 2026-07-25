@@ -6,6 +6,7 @@ var installation_id: String = ""
 var user_id: String = ""
 var access_token: String = ""
 var refresh_token: String = ""
+var access_expires_at: int = 0
 
 
 func _ready() -> void:
@@ -19,6 +20,8 @@ func update_session(data: Dictionary) -> void:
 	user_id = str(data.get("user_id", ""))
 	access_token = str(data.get("access_token", ""))
 	refresh_token = str(data.get("refresh_token", ""))
+	var expires_in := int(data.get("expires_in", 0))
+	access_expires_at = int(Time.get_unix_time_from_system()) + expires_in if expires_in > 0 else 0
 	_save()
 
 
@@ -26,11 +29,18 @@ func clear_session() -> void:
 	user_id = ""
 	access_token = ""
 	refresh_token = ""
+	access_expires_at = 0
 	_save()
 
 
 func has_access_token() -> bool:
 	return not access_token.is_empty()
+
+
+func has_valid_access_token() -> bool:
+	if access_token.is_empty() or access_expires_at <= 0:
+		return false
+	return int(Time.get_unix_time_from_system()) + 30 < access_expires_at
 
 
 func _load() -> void:
@@ -46,6 +56,7 @@ func _load() -> void:
 	user_id = str(parsed.get("user_id", ""))
 	access_token = str(parsed.get("access_token", ""))
 	refresh_token = str(parsed.get("refresh_token", ""))
+	access_expires_at = int(parsed.get("access_expires_at", 0))
 
 
 func _save() -> void:
@@ -58,6 +69,7 @@ func _save() -> void:
 		"user_id": user_id,
 		"access_token": access_token,
 		"refresh_token": refresh_token,
+		"access_expires_at": access_expires_at,
 	}))
 
 

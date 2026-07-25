@@ -118,7 +118,33 @@ func NewRouter(deps Dependencies) http.Handler {
 	_ = os.MkdirAll(deps.Config.ContentDir, 0755)
 	mux.Handle("GET /content/", http.StripPrefix("/content/", http.FileServer(http.Dir(deps.Config.ContentDir))))
 	mux.Handle("GET /admin/", http.StripPrefix("/admin/", http.FileServer(http.Dir(deps.Config.AdminDir))))
-	return a.recoverPanic(a.requestLog(mux))
+	return a.recoverPanic(a.requestLog(a.cors(mux)))
+}
+
+func (a *api) cors(next http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(a.deps.Config.CORSAllowedOrigins))
+	for _, origin := range a.deps.Config.CORSAllowedOrigins {
+		allowed[strings.TrimRight(origin, "/")] = struct{}{}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+		if _, ok := allowed[origin]; ok {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, Idempotency-Key")
+			w.Header().Set("Access-Control-Max-Age", "600")
+			w.Header().Add("Vary", "Origin")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {

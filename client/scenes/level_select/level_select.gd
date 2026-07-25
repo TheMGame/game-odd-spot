@@ -1,12 +1,10 @@
 extends Control
 
-const CATALOG := "res://config/content_catalog.json"
 const INK := Color("#0b1b29")
 const PAPER := Color("#ead9b5")
 const GOLD := Color("#d5a64e")
 const CINNABAR := Color("#a33b2b")
 const JADE := Color("#516f62")
-const DYNASTIES := ["汉", "唐", "宋", "元", "明", "清"]
 
 @onready var cards: VBoxContainer = $Layout/Scroll/Cards
 
@@ -14,56 +12,42 @@ const DYNASTIES := ["汉", "唐", "宋", "元", "明", "清"]
 func _ready() -> void:
 	$Layout/Header/Back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/home/home.tscn"))
 	$Layout/Header/Settings.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/settings/settings.tscn"))
-	_build_timeline()
 	await _build_cards()
-
-
-func _build_timeline() -> void:
-	for dynasty in DYNASTIES:
-		var seal := Label.new()
-		seal.text = dynasty
-		seal.custom_minimum_size = Vector2(48, 48)
-		seal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		seal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		seal.add_theme_font_size_override("font_size", 21)
-		seal.add_theme_color_override("font_color", PAPER)
-		seal.add_theme_stylebox_override("normal", _round_box(Color(CINNABAR, 0.72), GOLD, 24, 2))
-		$Layout/Timeline.add_child(seal)
 
 
 func _build_cards() -> void:
 	var remote := await ApiClient.get_catalog()
-	if remote.ok:
-		var remote_series: Array = remote.data.get("data", {}).get("series", [])
-		if not remote_series.is_empty():
-			await _build_remote_cards(remote_series)
-			return
-	var catalog := _read_json(CATALOG)
-	if catalog.is_empty():
+	if not remote.ok:
+		var error := str(remote.get("error", "CATALOG_LOAD_FAILED"))
+		push_error("Catalog request failed: %s" % error)
+		_show_catalog_message("关卡加载失败：%s" % error)
 		return
-	var series_id := str(catalog.get("default_series", ""))
-	var levels: Array = []
-	for raw_series in catalog.get("series", []):
-		var series: Dictionary = raw_series
-		if str(series.get("id", "")) == series_id:
-			levels = series.get("levels", [])
-			break
-	var first_incomplete := levels.size()
-	for i in levels.size():
-		var entry: Dictionary = levels[i]
-		if not ProgressStore.is_completed(str(entry.get("id", "")), int(entry.get("version", 1))):
-			first_incomplete = i
-			break
-	for i in levels.size():
-		await _add_level_card(i, levels[i], i > first_incomplete)
+	var response_data: Dictionary = remote.data.get("data", {})
+	var remote_series := _array_or_empty(response_data.get("series"))
+	if not remote_series.is_empty():
+		await _build_remote_cards(remote_series)
+		return
+	_show_catalog_message("该系列暂无已发布关卡")
+
+
+func _show_catalog_message(message: String) -> void:
+	var label := Label.new()
+	label.text = message
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", PAPER)
+	label.add_theme_font_size_override("font_size", 22)
+	cards.add_child(label)
 
 
 func _build_remote_cards(series_items: Array) -> void:
 	var levels: Array = []
 	for raw_series in series_items:
 		var series: Dictionary = raw_series
-		if bool(series.get("enabled", true)):
-			levels.append_array(series.get("levels", []))
+		var is_selected := LevelLoader.selected_series_id.is_empty() or str(series.get("id", "")) == LevelLoader.selected_series_id
+		if bool(series.get("enabled", true)) and is_selected:
+			if levels.is_empty():
+				_apply_series_header(series)
+			levels.append_array(_array_or_empty(series.get("levels")))
 	var first_incomplete := levels.size()
 	for i in levels.size():
 		var entry: Dictionary = levels[i]
@@ -72,15 +56,20 @@ func _build_remote_cards(series_items: Array) -> void:
 			break
 	for i in levels.size():
 		var entry: Dictionary = levels[i]
-		var result := await ApiClient.get_level(str(entry.get("id", "")))
-		if result.ok:
-			await _add_level_card(i, entry, i > first_incomplete, result.data.get("data", {}), true)
+		_add_level_card(i, entry, i > first_incomplete)
 
 
-func _add_level_card(index: int, entry: Dictionary, locked: bool, remote_data := {}, remote := false) -> void:
-	var data: Dictionary = remote_data if remote else _read_json(str(entry.get("path", "")))
-	if data.is_empty():
-		return
+func _apply_series_header(series: Dictionary) -> void:
+	$Layout/Header/Titles/Title.text = str(series.get("title", series.get("display_name", series.get("id", "系列关卡"))))
+	var description := str(series.get("description", series.get("period", "")))
+	$Layout/Header/Titles/Subtitle.text = description
+	$Layout/Header/Titles/Subtitle.visible = not description.is_empty()
+
+
+func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
+	var data: Dictionary = {
+		"title": entry.get("title", entry.get("id", "")),
+	}
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, 220)
 	button.disabled = locked
@@ -90,10 +79,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool, remote_data :=
 	button.add_theme_stylebox_override("pressed", _round_box(Color("#0f2532"), CINNABAR, 18, 3))
 	button.add_theme_stylebox_override("disabled", _round_box(Color("#101c24"), Color("#34434a"), 18, 1))
 	button.pressed.connect(func():
-		if remote:
-			LevelLoader.select_remote_level(str(entry.get("id", "")))
-		else:
-			LevelLoader.select_level(str(entry.get("path", "")))
+		LevelLoader.select_remote_level(str(entry.get("id", "")))
 		get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 	)
 	cards.add_child(button)
@@ -115,13 +101,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool, remote_data :=
 	image.custom_minimum_size = Vector2(230, 190)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	var image_asset: Dictionary = data.get("assets", {}).get("image", {})
-	if remote:
-		var texture_result := await AssetCache.new().load_texture(self, image_asset)
-		if texture_result.ok:
-			image.texture = texture_result.texture
-	else:
-		image.texture = load(str(image_asset.get("local_path", "")))
+	_load_thumbnail(image, str(entry.get("thumbnail_url", "")))
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(image)
 
@@ -141,14 +121,14 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool, remote_data :=
 	title.add_theme_color_override("font_color", PAPER if not locked else Color(PAPER, 0.38))
 	title.add_theme_font_size_override("font_size", 28)
 	info.add_child(title)
-	var count: int = data.get("differences", []).size()
+	var count := int(entry.get("difference_count", 0))
 	var detail := Label.new()
-	detail.text = "%d 个时代错误" % count
+	detail.text = "%d 个找茬目标" % count
 	detail.add_theme_color_override("font_color", Color("#aab8b5"))
 	detail.add_theme_font_size_override("font_size", 18)
 	info.add_child(detail)
 	var seals := Label.new()
-	var total := int(data.get("difficulty", {}).get("total", 1))
+	var total := int(entry.get("difficulty", 1))
 	seals.text = ("印 ".repeat(total)).strip_edges()
 	seals.add_theme_color_override("font_color", CINNABAR if not locked else Color("#4d4d4d"))
 	seals.add_theme_font_size_override("font_size", 18)
@@ -161,12 +141,29 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool, remote_data :=
 	info.add_child(state)
 
 
-func _read_json(path: String) -> Dictionary:
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return {}
-	var parsed = JSON.parse_string(file.get_as_text())
-	return parsed if parsed is Dictionary else {}
+func _load_thumbnail(target: TextureRect, url: String) -> void:
+	if url.is_empty():
+		return
+	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
+	request.timeout = 8.0
+	add_child(request)
+	if request.request(url) != OK:
+		request.queue_free()
+		return
+	var response: Array = await request.request_completed
+	request.queue_free()
+	if not is_instance_valid(target) or response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
+		return
+	var bytes: PackedByteArray = response[3]
+	var image := Image.new()
+	var error := image.load_jpg_from_buffer(bytes)
+	if error != OK:
+		error = image.load_png_from_buffer(bytes)
+	if error != OK:
+		error = image.load_webp_from_buffer(bytes)
+	if error == OK:
+		target.texture = ImageTexture.create_from_image(image)
 
 
 func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBoxFlat:
@@ -180,3 +177,7 @@ func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBox
 	box.content_margin_top = 10
 	box.content_margin_bottom = 10
 	return box
+
+
+func _array_or_empty(value: Variant) -> Array:
+	return value if value is Array else []

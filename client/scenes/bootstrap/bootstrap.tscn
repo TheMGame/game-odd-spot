@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource path="res://scenes/bootstrap/bootstrap.gd" type="Script" id="1"]
+[ext_resource path="res://assets/branding/guagua-rabbit-logo.png" type="Texture2D" id="2"]
 
 [node name="Bootstrap" type="Control"]
 layout_mode = 3
@@ -37,27 +38,25 @@ layout_mode = 2
 theme_override_constants/separation = 20
 alignment = 1
 
-[node name="Seal" type="Label" parent="SafeArea/Content"]
-custom_minimum_size = Vector2(0, 150)
+[node name="Seal" type="TextureRect" parent="SafeArea/Content"]
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.72, 0.24, 0.16, 1)
-theme_override_font_sizes/font_size = 84
-text = "寻"
-horizontal_alignment = 1
-vertical_alignment = 1
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Title" type="Label" parent="SafeArea/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
 theme_override_font_sizes/font_size = 64
-text = "错置千年"
+text = "火眼金睛"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="SafeArea/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.67, 0.74, 0.72, 1)
 theme_override_font_sizes/font_size = 21
-text = "圈出不属于那个时代的物件"
+text = "发现画面中的异常之处"
 horizontal_alignment = 1
 autowrap_mode = 2
 
@@ -83,3 +82,16 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 84)
 theme_override_font_sizes/font_size = 26
 text = "开始游戏"
+
+[node name="GameAdvisory" type="Label" parent="SafeArea/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.48, 0.59, 0.57, 1)
+theme_override_font_sizes/font_size = 20
+text = "抵制不良游戏，拒绝盗版游戏
+注意自我保护，谨防受骗上当
+适度游戏益脑，沉迷游戏伤身
+合理安排时间，享受健康生活"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+theme_override_constants/line_spacing = 8
