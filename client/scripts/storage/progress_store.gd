@@ -46,6 +46,11 @@ func clear_level(level_id: String) -> void:
 	_save()
 
 
+func is_completed(level_id: String, level_version: int) -> bool:
+	var saved: Dictionary = _levels.get(level_id, {})
+	return str(saved.get("state", "")) == "completed" and int(saved.get("level_version", 0)) == level_version
+
+
 func _load() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
 		return

@@ -7,39 +7,34 @@ extends Control
 
 func _ready() -> void:
 	retry_button.pressed.connect(_bootstrap)
-	start_button.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/home/home.tscn"))
-	start_button.visible = true
+	start_button.pressed.connect(_enter_game)
+	_apply_style()
 	_bootstrap()
 
 
 func _bootstrap() -> void:
 	retry_button.visible = false
-	start_button.visible = true
-	start_button.text = "离线进入测试关卡"
-	status_label.text = "正在创建会话…"
-	var session_result := await ApiClient.ensure_session()
-	if not session_result.ok:
-		_show_error(session_result.error)
-		return
-
-	status_label.text = "正在加载配置…"
-	var bootstrap_result := await ApiClient.get_bootstrap()
-	if not bootstrap_result.ok:
-		_show_error(bootstrap_result.error)
-		return
-
-	var data: Dictionary = bootstrap_result.data.get("data", {})
-	status_label.text = "连接成功\n市场：%s　语言：%s" % [data.get("market", "unknown"), data.get("locale", "unknown")]
-	SyncQueue.flush()
-	Analytics.track("bootstrap_result", {"success": true, "market": data.get("market", "global"), "config_version": data.get("config_version", 0)})
-	Analytics.flush()
-	start_button.visible = true
-	start_button.text = "开始游戏"
+	status_label.text = "正在准备旅程…"
+	status_label.text = "一切就绪"
+	await get_tree().create_timer(0.35).timeout
+	_enter_game()
 
 
-func _show_error(message: String) -> void:
-	status_label.text = "连接失败：%s" % message
+func _show_error() -> void:
+	status_label.text = "暂时无法连接服务器\n你仍然可以继续本地游戏"
 	retry_button.visible = true
-	# P0 支持本地测试关卡，即使服务不可用也允许进入。
 	start_button.visible = true
-	start_button.text = "离线进入测试关卡"
+	start_button.text = "继续离线游戏"
+
+
+func _enter_game() -> void:
+	get_tree().change_scene_to_file("res://scenes/login/login.tscn")
+
+
+func _apply_style() -> void:
+	var primary := StyleBoxFlat.new()
+	primary.bg_color = Color("#a33b2b")
+	primary.border_color = Color("#d8ae62")
+	primary.set_border_width_all(2)
+	primary.set_corner_radius_all(18)
+	start_button.add_theme_stylebox_override("normal", primary)

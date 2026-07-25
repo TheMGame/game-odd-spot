@@ -1,8 +1,41 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Odd Spot CMS</title><link rel="stylesheet" href="styles.css"></head><body>
-<header><div><h1>Odd Spot CMS</h1><p>内容审核、举报与生成任务</p></div><button id="logout">清除令牌</button></header><main>
-<section class="card"><h2>管理认证</h2><div class="row"><input id="token" type="password" placeholder="X-Admin-Token"><button id="save-token">保存并连接</button></div><p class="muted">令牌仅保存在当前浏览器 sessionStorage。</p></section>
-<section class="card"><div class="section-title"><h2>运营概览</h2><button id="refresh-metrics">刷新</button></div><div id="metrics" class="list"></div></section>
-<section class="card"><div class="section-title"><h2>关卡版本</h2><div><select id="status"><option value="">全部状态</option><option>pending_review</option><option>approved</option><option>staging</option><option>published</option><option>disabled</option></select><button id="refresh">刷新</button></div></div><div id="levels" class="list"></div></section>
-<section class="card"><div class="section-title"><h2>玩家举报</h2><div><select id="report-status"><option value="">全部状态</option><option>open</option><option>reviewing</option><option>resolved</option><option>dismissed</option></select><button id="refresh-reports">刷新</button></div></div><div id="reports" class="list"></div></section>
-<section class="card"><h2>创建质检任务</h2><div class="grid"><input id="job-id" placeholder="任务 ID（可留空）"><input id="prompt-version" value="manual-v1" placeholder="Prompt 版本"><input id="model" value="mock" placeholder="模型"><textarea id="job-input" rows="8">{"level":{"assets":{"base":"asset-a","target":"asset-b"},"differences":["d1","d2","d3","d4","d5"]}}</textarea></div><button id="create-job">创建任务</button><pre id="job-result"></pre></section>
-<div id="toast"></div></main><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Odd Spot Content Studio</title>
+  <link rel="stylesheet" href="/admin/styles.css?v=2">
+</head>
+<body>
+<div id="login" class="login-layer">
+  <form id="login-form" class="login-card">
+    <div class="brand-mark">OS</div><h1>Odd Spot Studio</h1><p>连接内容管理服务</p>
+    <label>Admin API<input id="api-base" placeholder="https://api.example.com/admin/v1"></label>
+    <label>管理令牌<input id="token" type="password" autocomplete="current-password"></label>
+    <button class="btn primary" type="submit">进入工作台</button>
+  </form>
+</div>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark small">OS</span><div><b>Odd Spot</b><small>CONTENT STUDIO</small></div></div>
+    <nav>
+      <button data-view="overview" class="nav-item active"><span>▦</span>总览</button>
+      <button data-view="series" class="nav-item"><span>▤</span>内容系列</button>
+      <button data-view="levels" class="nav-item"><span>◫</span>关卡管理</button>
+      <button data-view="library" class="nav-item"><span>▧</span>素材库</button>
+      <button data-view="review" class="nav-item"><span>✓</span>审核中心</button>
+      <button data-view="feedback" class="nav-item"><span>◇</span>问题反馈</button>
+      <button data-view="analytics" class="nav-item"><span>⌁</span>数据分析</button>
+      <button data-view="settings" class="nav-item nav-bottom"><span>⚙</span>系统设置</button>
+    </nav>
+    <div class="user"><span class="avatar">AD</span><div><b>内容管理员</b><small>Administrator</small></div><button id="logout" title="退出">↪</button></div>
+  </aside>
+  <section class="workspace">
+    <header class="topbar"><div id="breadcrumb">工作台 / 总览</div><div class="top-actions"><span class="environment">本地环境</span><span id="save-state">已同步</span><button class="icon-btn">◌</button><span class="avatar purple">AD</span></div></header>
+    <main id="view"></main>
+  </section>
+</div>
+<div id="modal-root"></div><div id="toast"></div>
+<script src="/admin/app.js?v=4"></script>
+</body>
+</html>

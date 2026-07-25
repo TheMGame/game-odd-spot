@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "level_id": "cn_qing_painting_001",
+  "level_version": 2,
+  "mode": "find_anachronism",
+  "title": "乾隆宫廷画坊",
+  "instruction": "圈出 6 个不属于这个年代的物件",
+  "assets": {
+    "image": {
+      "asset_id": "cn_qing_painting_001_image",
+      "local_path": "res://assets/levels/cn_qing_painting_001/image.png"
+    },
+    "width": 1024,
+    "height": 1536
+  },
+  "differences": [
+    {
+      "id": "camera",
+      "shape": "circle",
+      "x": 0.061,
+      "y": 0.31,
+      "radius": 0.06,
+      "label": "折叠式照相机",
+      "era": "19—20世纪",
+      "explanation": "摄影技术在19世纪才诞生，乾隆时期没有照相机。",
+      "difficulty": 2,
+      "operation": "anachronism"
+    },
+    {
+      "id": "telephone",
+      "shape": "circle",
+      "x": 0.762,
+      "y": 0.445,
+      "radius": 0.065,
+      "label": "旋转拨号电话",
+      "era": "19—20世纪",
+      "explanation": "电话发明于19世纪，乾隆时期远距离通信依靠驿传。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "typewriter",
+      "shape": "circle",
+      "x": 0.866,
+      "y": 0.57,
+      "radius": 0.075,
+      "label": "打字机",
+      "era": "19世纪",
+      "explanation": "实用打字机形成于19世纪，清代画坊使用手写文字。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "electric_fan",
+      "shape": "circle",
+      "x": 0.868,
+      "y": 0.39,
+      "radius": 0.065,
+      "label": "电风扇",
+      "era": "19—20世纪",
+      "explanation": "电风扇依赖电动机，乾隆时期没有电力设施。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "fountain_pen",
+      "shape": "circle",
+      "x": 0.717,
+      "y": 0.84,
+      "radius": 0.045,
+      "label": "现代钢笔",
+      "era": "19世纪",
+      "explanation": "图中带金属笔尖和储墨结构的钢笔属于近代产品。",
+      "difficulty": 3,
+      "operation": "anachronism"
+    },
+    {
+      "id": "plastic_palette",
+      "shape": "circle",
+      "x": 0.382,
+      "y": 0.715,
+      "radius": 0.075,
+      "label": "塑料调色板",
+      "era": "20世纪",
+      "explanation": "这种白色塑料调色板依赖现代合成材料。",
+      "difficulty": 2,
+      "operation": "anachronism"
+    }
+  ],
+  "tags": {
+    "regions": [
+      "china"
+    ],
+    "themes": [
+      "anachronism",
+      "ancient_china"
+    ],
+    "styles": [
+      "gongbi_historical_illustration"
+    ],
+    "scenes": [
+      "qing_palace_workshop"
+    ],
+    "risk": []
+  },
+  "difficulty": {
+    "total": 3,
+    "object_size": 3,
+    "color_similarity": 3,
+    "visual_density": 3,
+    "edge_distance": 2,
+    "semantic_obviousness": 2
+  }
+}

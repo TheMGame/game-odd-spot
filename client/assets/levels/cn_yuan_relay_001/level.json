@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "level_id": "cn_yuan_relay_001",
+  "level_version": 3,
+  "mode": "find_anachronism",
+  "title": "元代北方驿站",
+  "instruction": "圈出 8 个不属于这个年代的物件",
+  "assets": {
+    "image": {
+      "asset_id": "cn_yuan_relay_001_image",
+      "local_path": "res://assets/levels/cn_yuan_relay_001/image.png"
+    },
+    "width": 1024,
+    "height": 1536
+  },
+  "differences": [
+    {
+      "id": "pocket_watch_rider",
+      "shape": "circle",
+      "x": 0.519,
+      "y": 0.647,
+      "radius": 0.04,
+      "label": "怀表",
+      "era": "16世纪以后",
+      "explanation": "机械怀表在元代以后才出现。",
+      "difficulty": 4,
+      "operation": "anachronism"
+    },
+    {
+      "id": "vacuum_flask",
+      "shape": "circle",
+      "x": 0.947,
+      "y": 0.638,
+      "radius": 0.05,
+      "label": "不锈钢保温瓶",
+      "era": "20世纪",
+      "explanation": "真空保温瓶和不锈钢外壳属于现代工业。",
+      "difficulty": 2,
+      "operation": "anachronism"
+    },
+    {
+      "id": "enamel_mug",
+      "shape": "circle",
+      "x": 0.758,
+      "y": 0.687,
+      "radius": 0.05,
+      "label": "搪瓷杯",
+      "era": "19世纪普及",
+      "explanation": "这种白底蓝边工业搪瓷杯不属于元代。",
+      "difficulty": 3,
+      "operation": "anachronism"
+    },
+    {
+      "id": "newspaper",
+      "shape": "circle",
+      "label": "现代报纸",
+      "era": "近现代",
+      "explanation": "这种版式和批量印刷的新闻报纸并非元代驿站用品。",
+      "difficulty": 4,
+      "operation": "anachronism",
+      "x": 0.316,
+      "y": 0.694,
+      "radius": 0.075
+    },
+    {
+      "id": "rolling_suitcase",
+      "shape": "circle",
+      "label": "拉杆行李箱",
+      "era": "20世纪",
+      "explanation": "带滚轮和伸缩结构的硬壳行李箱属于现代旅行用品。",
+      "difficulty": 2,
+      "operation": "anachronism",
+      "x": 0.56,
+      "y": 0.793,
+      "radius": 0.085
+    },
+    {
+      "id": "matchbox",
+      "shape": "circle",
+      "x": 0.677,
+      "y": 0.857,
+      "radius": 0.04,
+      "label": "火柴盒",
+      "era": "19世纪",
+      "explanation": "实用摩擦火柴在19世纪出现，元代取火方式不同。",
+      "difficulty": 4,
+      "operation": "anachronism"
+    },
+    {
+      "id": "kerosene_lamp",
+      "shape": "circle",
+      "x": 0.849,
+      "y": 0.632,
+      "radius": 0.055,
+      "label": "玻璃煤油灯",
+      "era": "19世纪",
+      "explanation": "煤油灯依赖近代石油炼制和玻璃灯具结构。",
+      "difficulty": 3,
+      "operation": "anachronism"
+    },
+    {
+      "id": "doorbell",
+      "shape": "circle",
+      "x": 0.967,
+      "y": 0.35,
+      "radius": 0.035,
+      "label": "电门铃按钮",
+      "era": "19—20世纪",
+      "explanation": "电门铃需要电路，元代建筑不可能安装。",
+      "difficulty": 3,
+      "operation": "anachronism"
+    }
+  ],
+  "tags": {
+    "regions": [
+      "china"
+    ],
+    "themes": [
+      "anachronism",
+      "ancient_china"
+    ],
+    "styles": [
+      "gongbi_historical_illustration"
+    ],
+    "scenes": [
+      "yuan_relay_station"
+    ],
+    "risk": []
+  },
+  "difficulty": {
+    "total": 4,
+    "object_size": 4,
+    "color_similarity": 4,
+    "visual_density": 4,
+    "edge_distance": 3,
+    "semantic_obviousness": 3
+  }
+}

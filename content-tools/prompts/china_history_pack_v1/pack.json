@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "pack_id": "china_history_pack_v1",
+  "mode": "find_anachronism",
+  "image_spec": {
+    "width": 1024,
+    "height": 1536,
+    "format": "png",
+    "aspect_ratio": "2:3",
+    "orientation": "portrait"
+  },
+  "levels": [
+    {
+      "level_id": "cn_song_bianjing_001",
+      "period": "北宋末年，约1100年",
+      "scene": "汴京市集",
+      "tier": "beginner",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 1,
+        "object_size": 1,
+        "occlusion": 1,
+        "color_similarity": 1,
+        "visual_density": 2,
+        "edge_distance": 1,
+        "semantic_obviousness": 1,
+        "decoy_similarity": 1,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_tang_changan_001",
+      "period": "盛唐，约740年",
+      "scene": "长安夜市",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 2,
+        "object_size": 2,
+        "occlusion": 1,
+        "color_similarity": 2,
+        "visual_density": 2,
+        "edge_distance": 2,
+        "semantic_obviousness": 1,
+        "decoy_similarity": 1,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_ming_academy_001",
+      "period": "明代中期，约1500年",
+      "scene": "江南书院",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 2,
+        "object_size": 2,
+        "occlusion": 1,
+        "color_similarity": 2,
+        "visual_density": 2,
+        "edge_distance": 2,
+        "semantic_obviousness": 2,
+        "decoy_similarity": 2,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_han_frontier_001",
+      "period": "西汉，约公元前100年",
+      "scene": "边塞军营",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {
+        "total": 3,
+        "object_size": 3,
+        "occlusion": 2,
+        "color_similarity": 3,
+        "visual_density": 3,
+        "edge_distance": 2,
+        "semantic_obviousness": 2,
+        "decoy_similarity": 2,
+        "knowledge_depth": 2
+      }
+    },
+    {
+      "level_id": "cn_qing_painting_001",
+      "period": "清乾隆时期，约1750年",
+      "scene": "宫廷画坊",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {
+        "total": 3,
+        "object_size": 3,
+        "occlusion": 2,
+        "color_similarity": 3,
+        "visual_density": 3,
+        "edge_distance": 2,
+        "semantic_obviousness": 2,
+        "decoy_similarity": 3,
+        "knowledge_depth": 2
+      }
+    },
+    {
+      "level_id": "cn_three_kingdoms_camp_001",
+      "period": "东汉末年至三国初期，约210年",
+      "scene": "江边军寨",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 3,
+        "object_size": 3,
+        "occlusion": 3,
+        "color_similarity": 3,
+        "visual_density": 4,
+        "edge_distance": 3,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 3,
+        "knowledge_depth": 2
+      }
+    },
+    {
+      "level_id": "cn_yuan_relay_001",
+      "period": "元代中期，约1300年",
+      "scene": "北方驿站",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 4,
+        "object_size": 4,
+        "occlusion": 3,
+        "color_similarity": 4,
+        "visual_density": 4,
+        "edge_distance": 3,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 3,
+        "knowledge_depth": 3
+      }
+    },
+    {
+      "level_id": "cn_song_quanzhou_001",
+      "period": "北宋末年，约1120年",
+      "scene": "泉州海港",
+      "tier": "hard",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 4,
+        "object_size": 4,
+        "occlusion": 4,
+        "color_similarity": 4,
+        "visual_density": 5,
+        "edge_distance": 4,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 4,
+        "knowledge_depth": 3
+      }
+    },
+    {
+      "level_id": "cn_ming_clinic_001",
+      "period": "明嘉靖时期，约1550年",
+      "scene": "传统医馆",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {
+        "total": 5,
+        "object_size": 5,
+        "occlusion": 4,
+        "color_similarity": 5,
+        "visual_density": 5,
+        "edge_distance": 4,
+        "semantic_obviousness": 4,
+        "decoy_similarity": 5,
+        "knowledge_depth": 4
+      }
+    },
+    {
+      "level_id": "cn_tang_silkroad_001",
+      "period": "唐代中期，约750年",
+      "scene": "丝路驿馆",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {
+        "total": 5,
+        "object_size": 5,
+        "occlusion": 5,
+        "color_similarity": 5,
+        "visual_density": 5,
+        "edge_distance": 5,
+        "semantic_obviousness": 4,
+        "decoy_similarity": 4,
+        "knowledge_depth": 3
+      }
+    }
+  ]
+}

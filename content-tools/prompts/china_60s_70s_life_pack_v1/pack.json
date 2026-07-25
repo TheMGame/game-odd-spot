@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "pack_id": "china_60s_70s_life_pack_v1",
+  "mode": "find_anachronism",
+  "image_spec": {
+    "width": 1024,
+    "height": 1536,
+    "format": "png",
+    "aspect_ratio": "2:3",
+    "orientation": "portrait"
+  },
+  "levels": [
+    {
+      "level_id": "cn_1960s_rural_courtyard_001",
+      "period": "中国20世纪60年代中期，约1965年",
+      "scene": "北方农村院落",
+      "tier": "beginner",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 1,
+        "object_size": 1,
+        "occlusion": 1,
+        "color_similarity": 1,
+        "visual_density": 2,
+        "edge_distance": 1,
+        "semantic_obviousness": 1,
+        "decoy_similarity": 1,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_1970s_primary_classroom_001",
+      "period": "中国20世纪70年代初期，约1972年",
+      "scene": "小学教室",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 2,
+        "object_size": 2,
+        "occlusion": 1,
+        "color_similarity": 2,
+        "visual_density": 2,
+        "edge_distance": 2,
+        "semantic_obviousness": 1,
+        "decoy_similarity": 2,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_1960s_bus_station_001",
+      "period": "中国20世纪60年代末期，约1968年",
+      "scene": "县城汽车站",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {
+        "total": 2,
+        "object_size": 2,
+        "occlusion": 1,
+        "color_similarity": 2,
+        "visual_density": 3,
+        "edge_distance": 2,
+        "semantic_obviousness": 2,
+        "decoy_similarity": 2,
+        "knowledge_depth": 1
+      }
+    },
+    {
+      "level_id": "cn_1970s_supply_coop_001",
+      "period": "中国20世纪70年代中期，约1975年",
+      "scene": "供销社",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {
+        "total": 3,
+        "object_size": 3,
+        "occlusion": 2,
+        "color_similarity": 3,
+        "visual_density": 3,
+        "edge_distance": 2,
+        "semantic_obviousness": 2,
+        "decoy_similarity": 3,
+        "knowledge_depth": 2
+      }
+    },
+    {
+      "level_id": "cn_1960s_communal_canteen_001",
+      "period": "中国20世纪60年代初期，约1962年",
+      "scene": "单位公共食堂",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {
+        "total": 3,
+        "object_size": 3,
+        "occlusion": 2,
+        "color_similarity": 3,
+        "visual_density": 3,
+        "edge_distance": 3,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 3,
+        "knowledge_depth": 2
+      }
+    },
+    {
+      "level_id": "cn_1970s_factory_workshop_001",
+      "period": "中国20世纪70年代中期，约1976年",
+      "scene": "国营机械厂车间",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 4,
+        "object_size": 3,
+        "occlusion": 3,
+        "color_similarity": 4,
+        "visual_density": 4,
+        "edge_distance": 3,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 4,
+        "knowledge_depth": 3
+      }
+    },
+    {
+      "level_id": "cn_1960s_neighborhood_clinic_001",
+      "period": "中国20世纪60年代中期，约1966年",
+      "scene": "街道卫生所",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 4,
+        "object_size": 4,
+        "occlusion": 3,
+        "color_similarity": 4,
+        "visual_density": 4,
+        "edge_distance": 3,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 4,
+        "knowledge_depth": 3
+      }
+    },
+    {
+      "level_id": "cn_1970s_train_carriage_001",
+      "period": "中国20世纪70年代末期，约1978年",
+      "scene": "绿皮火车硬座车厢",
+      "tier": "hard",
+      "answer_count": 8,
+      "difficulty": {
+        "total": 4,
+        "object_size": 4,
+        "occlusion": 4,
+        "color_similarity": 4,
+        "visual_density": 5,
+        "edge_distance": 4,
+        "semantic_obviousness": 3,
+        "decoy_similarity": 4,
+        "knowledge_depth": 3
+      }
+    },
+    {
+      "level_id": "cn_1960s_photo_studio_001",
+      "period": "中国20世纪60年代末期，约1969年",
+      "scene": "县城照相馆",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {
+        "total": 5,
+        "object_size": 5,
+        "occlusion": 4,
+        "color_similarity": 5,
+        "visual_density": 5,
+        "edge_distance": 4,
+        "semantic_obviousness": 4,
+        "decoy_similarity": 5,
+        "knowledge_depth": 4
+      }
+    },
+    {
+      "level_id": "cn_1970s_factory_compound_001",
+      "period": "中国20世纪70年代中期，约1975年",
+      "scene": "国营工厂家属院",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {
+        "total": 5,
+        "object_size": 5,
+        "occlusion": 4,
+        "color_similarity": 5,
+        "visual_density": 5,
+        "edge_distance": 4,
+        "semantic_obviousness": 4,
+        "decoy_similarity": 5,
+        "knowledge_depth": 4
+      }
+    }
+  ]
+}

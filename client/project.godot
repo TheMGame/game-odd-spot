@@ -19,6 +19,12 @@ config/version="0.1.0"
 run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 config/features=PackedStringArray("4.7")
 
+[oddspot]
+
+network/production_base_url="https://oddspot.guaguatu.com"
+network/user_server_base_url="https://api.guaguatu.com"
+network/user_server_app_id="game_odd_spot"
+
 [autoload]
 
 SessionStore="*res://scripts/storage/session_store.gd"
@@ -36,6 +42,7 @@ window/size/viewport_height=1920
 window/size/window_width_override=540
 window/size/window_height_override=960
 window/stretch/mode="canvas_items"
+window/handheld/orientation=6
 
 [rendering]
 

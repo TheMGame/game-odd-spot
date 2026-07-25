@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "level_id": "cn_tang_changan_001",
+  "level_version": 3,
+  "mode": "find_anachronism",
+  "title": "盛唐长安夜市",
+  "instruction": "圈出 5 个不属于这个年代的物件",
+  "assets": {
+    "image": {
+      "asset_id": "cn_tang_changan_001_image",
+      "local_path": "res://assets/levels/cn_tang_changan_001/image.png"
+    },
+    "width": 1024,
+    "height": 1536
+  },
+  "differences": [
+    {
+      "id": "smartphone",
+      "shape": "circle",
+      "x": 0.432,
+      "y": 0.528,
+      "radius": 0.04,
+      "label": "智能手机",
+      "era": "21世纪",
+      "explanation": "智能手机依赖现代电子、通信和显示技术，唐代不可能存在。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "aluminum_can",
+      "shape": "circle",
+      "x": 0.786,
+      "y": 0.674,
+      "radius": 0.04,
+      "label": "铝制易拉罐",
+      "era": "20世纪",
+      "explanation": "易拉罐是现代工业包装，唐代饮品使用陶瓷、金属或皮制容器。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "sunglasses",
+      "shape": "circle",
+      "x": 0.884,
+      "y": 0.493,
+      "radius": 0.045,
+      "label": "现代太阳镜",
+      "era": "20世纪普及",
+      "explanation": "这种镜架和深色镜片太阳镜属于现代用品。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "skateboard",
+      "shape": "circle",
+      "x": 0.79,
+      "y": 0.84,
+      "radius": 0.09,
+      "label": "滑板",
+      "era": "20世纪",
+      "explanation": "滑板源于现代轮式运动，唐代没有聚氨酯轮和这种结构。",
+      "difficulty": 2,
+      "operation": "anachronism"
+    },
+    {
+      "id": "led_lights",
+      "shape": "circle",
+      "label": "LED灯串",
+      "era": "20—21世纪",
+      "explanation": "LED依赖半导体技术，唐代夜市只能使用火烛和油灯。",
+      "difficulty": 3,
+      "operation": "anachronism",
+      "x": 0.77,
+      "y": 0.306,
+      "radius": 0.07
+    }
+  ],
+  "tags": {
+    "regions": [
+      "china"
+    ],
+    "themes": [
+      "anachronism",
+      "ancient_china"
+    ],
+    "styles": [
+      "gongbi_historical_illustration"
+    ],
+    "scenes": [
+      "tang_changan_night_market"
+    ],
+    "risk": []
+  },
+  "difficulty": {
+    "total": 2,
+    "object_size": 2,
+    "color_similarity": 2,
+    "visual_density": 2,
+    "edge_distance": 2,
+    "semantic_obviousness": 1
+  }
+}

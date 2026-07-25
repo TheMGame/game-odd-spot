@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource path="res://scenes/settings/settings.gd" type="Script" id="1"]
+[ext_resource path="res://scripts/ui/icon_button.gd" type="Script" id="2"]
 
 [node name="Settings" type="Control"]
 layout_mode = 3
@@ -11,71 +12,215 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="Layout" type="VBoxContainer" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 48.0
-offset_top = 48.0
-offset_right = -48.0
-offset_bottom = -48.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 14
+color = Color(0.027, 0.071, 0.106, 1)
 
-[node name="Title" type="Label" parent="Layout"]
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = 34.0
+offset_right = -28.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Layout" type="VBoxContainer" parent="SafeArea"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
-text = "设置与隐私"
+theme_override_constants/separation = 18
+
+[node name="Header" type="HBoxContainer" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 82)
+layout_mode = 2
+
+[node name="Back" type="Button" parent="SafeArea/Layout/Header"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+script = ExtResource("2")
+icon_kind = "back"
+
+[node name="Titles" type="VBoxContainer" parent="SafeArea/Layout/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Header/Titles"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
+theme_override_font_sizes/font_size = 36
+text = "设置"
 horizontal_alignment = 1
 
-[node name="Analytics" type="CheckButton" parent="Layout"]
+[node name="Subtitle" type="Label" parent="SafeArea/Layout/Header/Titles"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.66, 0.65, 1)
+theme_override_font_sizes/font_size = 16
+text = "账户、体验与隐私"
+horizontal_alignment = 1
+
+[node name="HeaderSpacer" type="Control" parent="SafeArea/Layout/Header"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="SafeArea/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Sections" type="VBoxContainer" parent="SafeArea/Layout/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 22
+
+[node name="AccountTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.66, 0.34, 1)
+theme_override_font_sizes/font_size = 20
+text = "账户"
+
+[node name="AccountCard" type="PanelContainer" parent="SafeArea/Layout/Scroll/Sections"]
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Scroll/Sections/AccountCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Identity" type="Label" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.93, 0.87, 0.73, 1)
+theme_override_font_sizes/font_size = 26
+text = "游客玩家"
+
+[node name="Description" type="Label" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.64, 0.72, 0.70, 1)
+theme_override_font_sizes/font_size = 17
+text = "当前进度保存在这台设备。绑定账号后可跨设备恢复。"
+autowrap_mode = 2
+
+[node name="Login" type="Button" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "登录并同步进度"
+
+[node name="DeveloperAccount" type="VBoxContainer" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AccountName" type="LineEdit" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+placeholder_text = "Debug 测试账号"
+
+[node name="Actions" type="HBoxContainer" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BindAccount" type="Button" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "绑定当前进度"
+
+[node name="LoginAccount" type="Button" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "恢复账号"
+
+[node name="ExperienceTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.66, 0.34, 1)
+theme_override_font_sizes/font_size = 20
+text = "游戏体验"
+
+[node name="ExperienceCard" type="PanelContainer" parent="SafeArea/Layout/Scroll/Sections"]
+layout_mode = 2
+
+[node name="Rows" type="VBoxContainer" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Vibration" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 button_pressed = true
-text = "允许匿名使用分析"
+theme_override_font_sizes/font_size = 20
+text = "触感反馈"
 
-[node name="Vibration" type="CheckButton" parent="Layout"]
+[node name="LargeMarkers" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-button_pressed = true
-text = "震动反馈"
-
-[node name="LargeMarkers" type="CheckButton" parent="Layout"]
-layout_mode = 2
+theme_override_font_sizes/font_size = 20
 text = "加大差异标记"
 
-[node name="Purchase" type="Button" parent="Layout"]
+[node name="PrivacyTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.66, 0.34, 1)
+theme_override_font_sizes/font_size = 20
+text = "隐私与支持"
+
+[node name="PrivacyCard" type="PanelContainer" parent="SafeArea/Layout/Scroll/Sections"]
+layout_mode = 2
+
+[node name="Rows" type="VBoxContainer" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Analytics" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
 custom_minimum_size = Vector2(0, 64)
-text = "永久移除强制广告（测试购买）"
-
-[node name="AccountName" type="LineEdit" parent="Layout"]
 layout_mode = 2
-placeholder_text = "测试账号名（用于跨设备恢复）"
+button_pressed = true
+theme_override_font_sizes/font_size = 20
+text = "帮助改进游戏"
 
-[node name="BindAccount" type="Button" parent="Layout"]
+[node name="AnalyticsNote" type="Label" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
 layout_mode = 2
-text = "绑定当前进度到测试账号"
+theme_override_colors/font_color = Color(0.52, 0.62, 0.61, 1)
+theme_override_font_sizes/font_size = 15
+text = "仅发送匿名使用数据，不包含姓名或图片内容。"
+autowrap_mode = 2
 
-[node name="LoginAccount" type="Button" parent="Layout"]
+[node name="PrivacyPolicy" type="Button" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
-text = "从测试账号恢复"
+text = "隐私政策"
+alignment = 0
 
-[node name="Privacy" type="RichTextLabel" parent="Layout"]
-custom_minimum_size = Vector2(0, 180)
+[node name="Purchase" type="Button" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-text = "[b]隐私说明[/b]\n\n默认使用匿名账号，不收集姓名。安装标识在服务端仅保存 HMAC；访问令牌仅保存哈希。关闭匿名分析后不再产生新分析事件。广告和购买由平台适配器验证，正式接入前使用 Mock。"
+text = "移除广告"
+alignment = 0
 
-[node name="Status" type="Label" parent="Layout"]
+[node name="Status" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.71, 0.44, 1)
+theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1
+autowrap_mode = 2
 
-[node name="Logout" type="Button" parent="Layout"]
+[node name="Logout" type="Button" parent="SafeArea/Layout/Scroll/Sections"]
+custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
-text = "退出匿名会话"
+theme_override_colors/font_color = Color(0.84, 0.38, 0.29, 1)
+text = "退出当前会话"
 
-[node name="Back" type="Button" parent="Layout"]
+[node name="Version" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
-text = "返回"
+theme_override_colors/font_color = Color(0.36, 0.46, 0.46, 1)
+theme_override_font_sizes/font_size = 14
+text = "错置千年 · 版本 0.1.0"
+horizontal_alignment = 1

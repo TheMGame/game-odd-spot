@@ -9,12 +9,15 @@
     "schema_version": {"const": 1},
     "level_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,63}$"},
     "level_version": {"type": "integer", "minimum": 1},
-    "mode": {"const": "spot_difference"},
+    "mode": {"enum": ["spot_difference", "find_anachronism"]},
+    "title": {"type": "string", "minLength": 1, "maxLength": 100},
+    "instruction": {"type": "string", "minLength": 1, "maxLength": 160},
     "assets": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["base", "target", "width", "height"],
+      "required": ["width", "height"],
       "properties": {
+        "image": {"$ref": "#/$defs/asset"},
         "base": {"$ref": "#/$defs/asset"},
         "target": {"$ref": "#/$defs/asset"},
         "thumbnail": {"$ref": "#/$defs/asset"},
@@ -56,6 +59,16 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "spot_difference"}}},
+      "then": {"properties": {"assets": {"required": ["base", "target"]}}}
+    },
+    {
+      "if": {"properties": {"mode": {"const": "find_anachronism"}}},
+      "then": {"properties": {"assets": {"required": ["image"], "not": {"anyOf": [{"required": ["base"]}, {"required": ["target"]}]}}}}
+    }
+  ],
   "$defs": {
     "rating": {"type": "integer", "minimum": 1, "maximum": 5},
     "stringSet": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"}},
@@ -86,13 +99,16 @@
       "required": ["id", "shape", "difficulty", "operation"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-zA-Z0-9_-]{1,32}$"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 64},
+        "era": {"type": "string", "minLength": 1, "maxLength": 64},
+        "explanation": {"type": "string", "minLength": 1, "maxLength": 300},
         "shape": {"enum": ["circle", "polygon"]},
         "x": {"type": "number", "minimum": 0, "maximum": 1},
         "y": {"type": "number", "minimum": 0, "maximum": 1},
         "radius": {"type": "number", "minimum": 0.005, "maximum": 0.25},
         "points": {"type": "array", "minItems": 3, "maxItems": 64, "items": {"$ref": "#/$defs/point"}},
         "difficulty": {"$ref": "#/$defs/rating"},
-        "operation": {"enum": ["add", "remove", "replace", "color", "shape", "count", "direction", "texture"]},
+        "operation": {"enum": ["add", "remove", "replace", "color", "shape", "count", "direction", "texture", "anachronism"]},
         "mask": {"$ref": "#/$defs/asset"}
       },
       "allOf": [

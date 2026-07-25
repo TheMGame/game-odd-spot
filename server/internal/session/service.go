@@ -29,7 +29,17 @@ type Service interface {
 	Refresh(ctx context.Context, refreshToken string) (Session, error)
 	Revoke(ctx context.Context, refreshToken string) error
 	Issue(ctx context.Context, userID string) (Session, error)
+	IssueExternal(ctx context.Context, userID, market, locale string) (Session, error)
+	EnsureExternalUser(ctx context.Context, userID, market, locale string) error
 	Profile(ctx context.Context, userID string) (string, string, error)
+}
+
+func (s *MemoryService) IssueExternal(ctx context.Context, userID, _ string, _ string) (Session, error) {
+	return s.Issue(ctx, userID)
+}
+
+func (s *MemoryService) EnsureExternalUser(_ context.Context, _ string, _ string, _ string) error {
+	return nil
 }
 
 func (s *MemoryService) Issue(_ context.Context, userID string) (Session, error) {

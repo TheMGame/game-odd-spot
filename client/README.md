@@ -20,4 +20,4 @@
 
 start、progress、complete 在发送前写入 `user://sync_queue.json`，每项保存稳定的 Idempotency-Key。队列严格按顺序重放；成功后删除，网络错误、401、408、429 和 5xx 会保留，其他确定性 4xx 会记录警告后丢弃。Bootstrap 和首页刷新都会触发同步。
 
-本地 API 默认地址为 `http://127.0.0.1:8080`。Android 模拟器调试时应通过运行配置将其改为宿主机可访问地址，正式环境必须使用 HTTPS。
+客户端默认连接生产 API `https://oddspot.guaguatu.com`。仅在需要本地调试时，通过运行环境变量 `ODDSPOT_API_BASE_URL` 显式覆盖，例如 `http://127.0.0.1:8080`；Android 模拟器应填写宿主机可访问地址。

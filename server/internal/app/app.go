@@ -8,6 +8,7 @@ import (
 
 	"game-odd-spot/server/internal/account"
 	"game-odd-spot/server/internal/analytics"
+	"game-odd-spot/server/internal/catalog"
 	"game-odd-spot/server/internal/config"
 	"game-odd-spot/server/internal/content"
 	"game-odd-spot/server/internal/database"
@@ -28,6 +29,7 @@ func NewHandler(ctx context.Context, cfg config.Config, logger *slog.Logger) (ht
 	var levels level.Service = level.NewMemoryService()
 	var configs remoteconfig.Service = remoteconfig.NewMemoryService()
 	var contents content.Service = content.NewMemoryService()
+	var catalogs catalog.Service = catalog.NewMemoryService()
 	var events analytics.Service = analytics.NewMemoryService()
 	var money monetization.Service = monetization.NewMemoryService(cfg.Environment == "development" || cfg.Environment == "test")
 	var ops operations.Service = operations.NewMemoryService()
@@ -48,6 +50,7 @@ func NewHandler(ctx context.Context, cfg config.Config, logger *slog.Logger) (ht
 		levels = level.NewMySQLService(db)
 		configs = remoteconfig.NewMySQLService(db)
 		contents = content.NewMySQLService(db)
+		catalogs = catalog.NewMySQLService(db)
 		events = analytics.NewMySQLService(db)
 		money = monetization.NewMySQLService(db, cfg.Environment == "development" || cfg.Environment == "test")
 		ops = operations.NewMySQLService(db)
@@ -76,6 +79,7 @@ func NewHandler(ctx context.Context, cfg config.Config, logger *slog.Logger) (ht
 		Levels:     levels,
 		Configs:    configs,
 		Contents:   contents,
+		Catalog:    catalogs,
 		Analytics:  events,
 		Money:      money,
 		Operations: ops,

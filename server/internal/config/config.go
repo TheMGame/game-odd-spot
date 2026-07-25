@@ -18,6 +18,11 @@ type Config struct {
 	DatabaseDSN         string
 	InstallationHMACKey string
 	AdminToken          string
+	ContentDir          string
+	AdminDir            string
+	PublicBaseURL       string
+	UserServerBaseURL   string
+	UserServerAppID     string
 }
 
 func FromEnv() (Config, error) {
@@ -29,6 +34,11 @@ func FromEnv() (Config, error) {
 		DatabaseDSN:         os.Getenv("ODDSPOT_DATABASE_DSN"),
 		InstallationHMACKey: os.Getenv("ODDSPOT_INSTALLATION_HMAC_KEY"),
 		AdminToken:          os.Getenv("ODDSPOT_ADMIN_TOKEN"),
+		ContentDir:          valueOrDefault("ODDSPOT_CONTENT_DIR", "./storage/content"),
+		AdminDir:            valueOrDefault("ODDSPOT_ADMIN_DIR", "../admin"),
+		PublicBaseURL:       strings.TrimRight(valueOrDefault("ODDSPOT_PUBLIC_BASE_URL", "http://127.0.0.1:8080"), "/"),
+		UserServerBaseURL:   strings.TrimRight(valueOrDefault("ODDSPOT_USER_SERVER_BASE_URL", "https://api.guaguatu.com"), "/"),
+		UserServerAppID:     valueOrDefault("ODDSPOT_USER_SERVER_APP_ID", "game_odd_spot"),
 	}
 
 	switch strings.ToLower(valueOrDefault("ODDSPOT_LOG_LEVEL", "info")) {

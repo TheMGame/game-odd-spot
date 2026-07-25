@@ -1,28 +1,18 @@
 extends Node
 
-const DEFAULT_BASE_URL := "http://127.0.0.1:8080"
+const DEFAULT_BASE_URL := "https://oddspot.guaguatu.com"
+const DEFAULT_USER_SERVER_URL := "https://api.guaguatu.com"
+const USER_SERVER_APP_ID := "game_odd_spot"
 const REQUEST_TIMEOUT_SECONDS := 2.0
 
 var base_url := DEFAULT_BASE_URL
 
 
 func ensure_session() -> Dictionary:
+	_configure_base_url()
 	if SessionStore.has_access_token():
 		return {"ok": true, "data": {}}
-	var response := await _request_json(
-		HTTPClient.METHOD_POST,
-		"/v1/sessions/anonymous",
-		{
-			"installation_id": SessionStore.installation_id,
-			"app_version": ProjectSettings.get_setting("application/config/version", "0.1.0"),
-			"platform": _platform_name(),
-			"locale": TranslationServer.get_locale(),
-		},
-		false
-	)
-	if response.ok:
-		SessionStore.update_session(response.data.get("data", {}))
-	return response
+	return {"ok": false, "error": "LOGIN_REQUIRED"}
 
 
 func get_bootstrap() -> Dictionary:
@@ -31,6 +21,9 @@ func get_bootstrap() -> Dictionary:
 
 func get_home() -> Dictionary:
 	return await _request_json(HTTPClient.METHOD_GET, "/v1/home", {}, true, true)
+
+func get_catalog() -> Dictionary:
+	return await _request_json(HTTPClient.METHOD_GET, "/v1/catalog", {}, true, true)
 
 
 func get_daily_challenge() -> Dictionary:
@@ -66,6 +59,78 @@ func login_test_account(account_name: String) -> Dictionary:
 	if response.ok:
 		SessionStore.update_session(response.data.get("data", {}))
 	return response
+
+
+func login_user(account_name: String, password: String) -> Dictionary:
+	var body := {
+		"app_id": USER_SERVER_APP_ID,
+		"login_type": 1,
+		"password": password,
+	}
+	if account_name.contains("@"):
+		body["email"] = account_name.strip_edges().to_lower()
+	else:
+		body["username"] = account_name.strip_edges()
+	var result := await _request_user_server("/api/v1/user/login", body)
+	if not result.ok:
+		return result
+	var login_data: Dictionary = result.data.get("data", {})
+	return await _exchange_user_token(login_data)
+
+
+func register_user(account_name: String, password: String) -> Dictionary:
+	var result := await _request_user_server("/api/v1/user/register", {
+		"app_id": USER_SERVER_APP_ID,
+		"username": account_name,
+		"nickname": account_name,
+		"password": password,
+	})
+	if not result.ok:
+		return result
+	var register_data: Dictionary = result.data.get("data", {})
+	var login_data: Dictionary = register_data.get("login_info", register_data)
+	return await _exchange_user_token(login_data)
+
+
+func _exchange_user_token(login_data: Dictionary) -> Dictionary:
+	var user_token := str(login_data.get("token", ""))
+	if user_token.is_empty():
+		return {"ok": false, "error": "USER_TOKEN_MISSING"}
+	var response := await _request_json(HTTPClient.METHOD_POST, "/v1/sessions/user-server", {
+		"token": user_token,
+		"locale": TranslationServer.get_locale(),
+	}, false, false)
+	if response.ok:
+		SessionStore.update_session(response.data.get("data", {}))
+		var identity_refresh := str(login_data.get("refresh_token", ""))
+		if not identity_refresh.is_empty():
+			await _request_user_server("/api/v1/user/logout", {
+				"app_id": USER_SERVER_APP_ID,
+				"refresh_token": identity_refresh,
+			})
+	return response
+
+
+func _request_user_server(path: String, body: Dictionary) -> Dictionary:
+	var request := HTTPRequest.new()
+	request.timeout = 8.0
+	add_child(request)
+	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
+	var start_error := request.request(user_server_url + path,
+		PackedStringArray(["Accept: application/json", "Content-Type: application/json"]),
+		HTTPClient.METHOD_POST, JSON.stringify(body))
+	if start_error != OK:
+		request.queue_free()
+		return {"ok": false, "error": "request could not start"}
+	var result: Array = await request.request_completed
+	request.queue_free()
+	var status_code: int = result[1]
+	var parsed = JSON.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
+	if result[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
+		return {"ok": false, "error": "USER_SERVER_UNAVAILABLE"}
+	if status_code < 200 or status_code >= 300 or int(parsed.get("code", -1)) != 0:
+		return {"ok": false, "error": str(parsed.get("message", "LOGIN_FAILED")), "data": parsed}
+	return {"ok": true, "data": parsed}
 
 
 func report_level(level_id: String, category: String, description: String) -> Dictionary:
@@ -175,3 +240,15 @@ func _platform_name() -> String:
 func new_request_id() -> String:
 	var value := Crypto.new().generate_random_bytes(16).hex_encode()
 	return "%s-%s-%s-%s-%s" % [value.substr(0, 8), value.substr(8, 4), value.substr(12, 4), value.substr(16, 4), value.substr(20, 12)]
+
+
+func _configure_base_url() -> void:
+	var environment_url := OS.get_environment("ODDSPOT_API_BASE_URL").strip_edges()
+	if not environment_url.is_empty():
+		base_url = environment_url.trim_suffix("/")
+		return
+	var production_url := str(ProjectSettings.get_setting("oddspot/network/production_base_url", "")).strip_edges()
+	if not production_url.is_empty():
+		base_url = production_url.trim_suffix("/")
+		return
+	base_url = DEFAULT_BASE_URL

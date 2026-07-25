@@ -162,6 +162,22 @@ func (s *MySQLService) Issue(ctx context.Context, userID string) (Session, error
 	created.UserID = userID
 	return created, nil
 }
+
+func (s *MySQLService) IssueExternal(ctx context.Context, userID, market, locale string) (Session, error) {
+	if err := s.EnsureExternalUser(ctx, userID, market, locale); err != nil {
+		return Session{}, err
+	}
+	return s.Issue(ctx, userID)
+}
+
+func (s *MySQLService) EnsureExternalUser(ctx context.Context, userID, market, locale string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO users(id,market_id,locale) VALUES(?,?,?)
+		ON DUPLICATE KEY UPDATE id=VALUES(id)`, userID, market, locale)
+	if err != nil {
+		return fmt.Errorf("upsert external user: %w", err)
+	}
+	return nil
+}
 func (s *MySQLService) Profile(ctx context.Context, userID string) (string, string, error) {
 	var market, locale string
 	err := s.db.QueryRowContext(ctx, `SELECT market_id,locale FROM users WHERE id=?`, userID).Scan(&market, &locale)

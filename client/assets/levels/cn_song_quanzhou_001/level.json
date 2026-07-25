@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "level_id": "cn_song_quanzhou_001",
+  "level_version": 3,
+  "mode": "find_anachronism",
+  "title": "北宋泉州海港",
+  "instruction": "圈出 8 个不属于这个年代的物件",
+  "assets": {
+    "image": {
+      "asset_id": "cn_song_quanzhou_001_image",
+      "local_path": "res://assets/levels/cn_song_quanzhou_001/image.png"
+    },
+    "width": 1024,
+    "height": 1536
+  },
+  "differences": [
+    {
+      "id": "telescope",
+      "shape": "circle",
+      "x": 0.232,
+      "y": 0.392,
+      "radius": 0.055,
+      "label": "黄铜望远镜",
+      "era": "17世纪",
+      "explanation": "望远镜在17世纪初出现，北宋港口瞭望依靠肉眼。",
+      "difficulty": 2,
+      "operation": "anachronism"
+    },
+    {
+      "id": "life_ring",
+      "shape": "circle",
+      "x": 0.911,
+      "y": 0.494,
+      "radius": 0.07,
+      "label": "现代救生圈",
+      "era": "19世纪以后",
+      "explanation": "这种标准化软木或合成材料救生圈属于近现代航海设备。",
+      "difficulty": 1,
+      "operation": "anachronism"
+    },
+    {
+      "id": "plastic_buoy",
+      "shape": "circle",
+      "x": 0.839,
+      "y": 0.861,
+      "radius": 0.05,
+      "label": "塑料浮标",
+      "era": "20世纪",
+      "explanation": "红色塑料浮标依赖现代合成材料。",
+      "difficulty": 5,
+      "operation": "anachronism"
+    },
+    {
+      "id": "shipping_container",
+      "shape": "circle",
+      "label": "金属集装箱",
+      "era": "20世纪",
+      "explanation": "标准化钢制集装箱是现代物流体系的产物。",
+      "difficulty": 5,
+      "operation": "anachronism",
+      "x": 0.448,
+      "y": 0.353,
+      "radius": 0.055
+    },
+    {
+      "id": "outboard_motor",
+      "shape": "circle",
+      "x": 0.876,
+      "y": 0.784,
+      "radius": 0.065,
+      "label": "舷外发动机",
+      "era": "20世纪",
+      "explanation": "北宋船只依靠帆、桨和橹，没有内燃机。",
+      "difficulty": 3,
+      "operation": "anachronism"
+    },
+    {
+      "id": "marine_chronometer",
+      "shape": "circle",
+      "x": 0.657,
+      "y": 0.741,
+      "radius": 0.055,
+      "label": "航海钟",
+      "era": "18世纪",
+      "explanation": "高精度航海钟在18世纪发展成熟，北宋没有这种仪器。",
+      "difficulty": 4,
+      "operation": "anachronism"
+    },
+    {
+      "id": "sextant",
+      "shape": "circle",
+      "x": 0.526,
+      "y": 0.761,
+      "radius": 0.065,
+      "label": "六分仪",
+      "era": "18世纪",
+      "explanation": "六分仪是18世纪航海测角仪器。",
+      "difficulty": 4,
+      "operation": "anachronism"
+    },
+    {
+      "id": "barcode",
+      "shape": "circle",
+      "label": "条形码标签",
+      "era": "20世纪",
+      "explanation": "条形码依赖现代印刷、编码和扫描系统。",
+      "difficulty": 3,
+      "operation": "anachronism",
+      "x": 0.355,
+      "y": 0.838,
+      "radius": 0.045
+    }
+  ],
+  "tags": {
+    "regions": [
+      "china"
+    ],
+    "themes": [
+      "anachronism",
+      "ancient_china"
+    ],
+    "styles": [
+      "gongbi_historical_illustration"
+    ],
+    "scenes": [
+      "song_quanzhou_harbor"
+    ],
+    "risk": []
+  },
+  "difficulty": {
+    "total": 4,
+    "object_size": 4,
+    "color_similarity": 4,
+    "visual_density": 5,
+    "edge_distance": 4,
+    "semantic_obviousness": 3
+  }
+}

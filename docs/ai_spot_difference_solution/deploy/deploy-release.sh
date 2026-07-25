@@ -8,35 +8,40 @@ fi
 
 archive="$(readlink -f "$1")"
 checksum="$(readlink -f "$2")"
-release_root=/opt/oddspot/releases
-current_link=/opt/oddspot/current
-version="$(basename "$archive" .tar.gz)"
-target="$release_root/$version"
+install_root=/opt/oddspot
+stage="$(mktemp -d "$install_root/.deploy.XXXXXX")"
+trap 'rm -rf -- "$stage"' EXIT
 
 cd "$(dirname "$archive")"
+echo "verifying $archive"
 sha256sum --check "$checksum"
-test ! -e "$target"
-install -d -o oddspot -g oddspot "$target"
-tar --extract --gzip --file "$archive" --directory "$target" --strip-components=1 --no-same-owner
-test -x "$target/bin/oddspot-api"
-test -x "$target/bin/oddspot-migrate"
+echo "extracting files to temporary directory"
+tar --extract --gzip --file "$archive" --directory "$stage" --strip-components=1 --no-same-owner
+test -f "$stage/bin/oddspot-api"
+test -f "$stage/bin/oddspot-worker"
 
-set -a
-# shellcheck disable=SC1091
-source /etc/oddspot/oddspot.env
-set +a
-sudo --preserve-env=ODDSPOT_ENV,ODDSPOT_DATABASE_DSN,ODDSPOT_INSTALLATION_HMAC_KEY,ODDSPOT_ADMIN_TOKEN,ODDSPOT_DEFAULT_MARKET,ODDSPOT_DEFAULT_LOCALE,ODDSPOT_LOG_LEVEL \
-  -u oddspot "$target/bin/oddspot-migrate"
-ln -sfn "$target" "${current_link}.next"
-mv -Tf "${current_link}.next" "$current_link"
+echo "replacing application files in $install_root"
+install -d -o root -g root -m 0755 "$install_root/bin" "$install_root/admin"
+install -o root -g root -m 0755 "$stage/bin/oddspot-api" "$install_root/bin/oddspot-api.next"
+install -o root -g root -m 0755 "$stage/bin/oddspot-worker" "$install_root/bin/oddspot-worker.next"
+mv -f "$install_root/bin/oddspot-api.next" "$install_root/bin/oddspot-api"
+mv -f "$install_root/bin/oddspot-worker.next" "$install_root/bin/oddspot-worker"
+cp -a "$stage/admin/." "$install_root/admin/"
+chmod -R a+rX "$install_root/admin"
+if [[ -f "$stage/VERSION" ]]; then
+  install -o root -g root -m 0644 "$stage/VERSION" "$install_root/VERSION"
+fi
+
+echo "restarting Odd Spot services"
 systemctl restart oddspot-api.service oddspot-worker.service
 
 for _ in {1..20}; do
   if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+    echo "release deployed successfully to $install_root"
     exit 0
   fi
   sleep 1
 done
 
-echo "release failed readiness check; switch current to the previous release and restart services" >&2
+echo "release failed readiness check; inspect systemd status and service logs" >&2
 exit 1
