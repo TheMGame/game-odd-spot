@@ -40,15 +40,24 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 
 
 func _decode_texture(bytes: PackedByteArray, content_type: String) -> Dictionary:
-	var image := Image.new()
-	var error := ERR_INVALID_DATA
-	match content_type:
-		"image/webp": error = image.load_webp_from_buffer(bytes)
-		"image/png": error = image.load_png_from_buffer(bytes)
-		"image/svg+xml": error = image.load_svg_from_buffer(bytes)
-	if error != OK:
+	var image := decode_image(bytes, content_type)
+	if image == null:
 		return {"ok": false, "error": "ASSET_DECODE_FAILED"}
 	return {"ok": true, "texture": ImageTexture.create_from_image(image)}
+
+
+static func decode_image(bytes: PackedByteArray, content_type := "") -> Image:
+	var image := Image.new()
+	var error := ERR_INVALID_DATA
+	if bytes.size() >= 8 and bytes[0] == 0x89 and bytes[1] == 0x50 and bytes[2] == 0x4e and bytes[3] == 0x47:
+		error = image.load_png_from_buffer(bytes)
+	elif bytes.size() >= 3 and bytes[0] == 0xff and bytes[1] == 0xd8 and bytes[2] == 0xff:
+		error = image.load_jpg_from_buffer(bytes)
+	elif bytes.size() >= 12 and bytes[0] == 0x52 and bytes[1] == 0x49 and bytes[2] == 0x46 and bytes[3] == 0x46 and bytes[8] == 0x57 and bytes[9] == 0x45 and bytes[10] == 0x42 and bytes[11] == 0x50:
+		error = image.load_webp_from_buffer(bytes)
+	elif content_type == "image/svg+xml":
+		error = image.load_svg_from_buffer(bytes)
+	return image if error == OK else null
 
 
 func _sha256(bytes: PackedByteArray) -> String:

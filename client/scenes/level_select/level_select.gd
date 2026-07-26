@@ -41,10 +41,12 @@ func _show_catalog_message(message: String) -> void:
 
 func _build_remote_cards(series_items: Array) -> void:
 	var levels: Array = []
+	var is_daily_task := false
 	for raw_series in series_items:
 		var series: Dictionary = raw_series
 		var is_selected := LevelLoader.selected_series_id.is_empty() or str(series.get("id", "")) == LevelLoader.selected_series_id
 		if bool(series.get("enabled", true)) and is_selected:
+			is_daily_task = str(series.get("id", "")) == "daily_task"
 			if levels.is_empty():
 				_apply_series_header(series)
 			levels.append_array(_array_or_empty(series.get("levels")))
@@ -57,7 +59,8 @@ func _build_remote_cards(series_items: Array) -> void:
 	for i in levels.size():
 		var entry: Dictionary = levels[i]
 		var completed := _is_completed(entry)
-		_add_level_card(i, entry, not completed and i > first_unfinished)
+		var locked := false if is_daily_task else (not completed and i > first_unfinished)
+		_add_level_card(i, entry, locked)
 
 
 func _apply_series_header(series: Dictionary) -> void:
@@ -164,13 +167,8 @@ func _load_thumbnail(target: TextureRect, url: String) -> void:
 	if not is_instance_valid(target) or response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
 		return
 	var bytes: PackedByteArray = response[3]
-	var image := Image.new()
-	var error := image.load_jpg_from_buffer(bytes)
-	if error != OK:
-		error = image.load_png_from_buffer(bytes)
-	if error != OK:
-		error = image.load_webp_from_buffer(bytes)
-	if error == OK:
+	var image := AssetCache.decode_image(bytes)
+	if image != null:
 		target.texture = ImageTexture.create_from_image(image)
 
 

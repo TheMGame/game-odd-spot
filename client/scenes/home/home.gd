@@ -162,13 +162,8 @@ func _download_texture(url: String) -> Texture2D:
 	if response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
 		return null
 	var bytes: PackedByteArray = response[3]
-	var image := Image.new()
-	var error := image.load_png_from_buffer(bytes)
-	if error != OK:
-		error = image.load_jpg_from_buffer(bytes)
-	if error != OK:
-		error = image.load_webp_from_buffer(bytes)
-	return ImageTexture.create_from_image(image) if error == OK else null
+	var image := AssetCache.decode_image(bytes)
+	return ImageTexture.create_from_image(image) if image != null else null
 
 
 func _refresh_sync() -> void:
