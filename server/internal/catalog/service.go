@@ -19,6 +19,8 @@ type Level struct {
 	DifferenceCount int    `json:"difference_count"`
 	ThumbnailURL    string `json:"thumbnail_url"`
 	SortOrder       int    `json:"sort_order"`
+	AvailableDate   string `json:"available_date"`
+	Completed       bool   `json:"completed"`
 }
 
 type Series struct {
@@ -40,7 +42,7 @@ type UpsertLevel struct {
 }
 
 type Service interface {
-	Public(context.Context) ([]Series, error)
+	Public(context.Context, string) ([]Series, error)
 	Admin(context.Context) ([]Series, error)
 	GetLevel(context.Context, string) (json.RawMessage, error)
 	UpsertSeries(context.Context, Series) error
@@ -54,8 +56,10 @@ type MemoryService struct {
 
 func NewMemoryService() *MemoryService { return &MemoryService{series: map[string]Series{}} }
 
-func (s *MemoryService) Public(_ context.Context) ([]Series, error) { return s.list(false), nil }
-func (s *MemoryService) Admin(_ context.Context) ([]Series, error)  { return s.list(true), nil }
+func (s *MemoryService) Public(_ context.Context, _ string) ([]Series, error) {
+	return s.list(false), nil
+}
+func (s *MemoryService) Admin(_ context.Context) ([]Series, error) { return s.list(true), nil }
 func (s *MemoryService) GetLevel(context.Context, string) (json.RawMessage, error) {
 	return nil, ErrNotFound
 }
@@ -80,9 +84,13 @@ func (s *MemoryService) UpsertLevel(context.Context, string, UpsertLevel) error 
 
 type MySQLService struct{ db *sql.DB }
 
-func NewMySQLService(db *sql.DB) *MySQLService                       { return &MySQLService{db: db} }
-func (s *MySQLService) Public(ctx context.Context) ([]Series, error) { return s.list(ctx, false) }
-func (s *MySQLService) Admin(ctx context.Context) ([]Series, error)  { return s.list(ctx, true) }
+func NewMySQLService(db *sql.DB) *MySQLService { return &MySQLService{db: db} }
+func (s *MySQLService) Public(ctx context.Context, userID string) ([]Series, error) {
+	return s.list(ctx, false, userID)
+}
+func (s *MySQLService) Admin(ctx context.Context) ([]Series, error) {
+	return s.list(ctx, true, "")
+}
 func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage, error) {
 	var raw []byte
 	err := s.db.QueryRowContext(ctx, `SELECT runtime_json FROM level_versions WHERE level_id=? ORDER BY version DESC LIMIT 1`, id).Scan(&raw)
@@ -92,13 +100,14 @@ func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage
 	return json.RawMessage(raw), err
 }
 
-func (s *MySQLService) list(ctx context.Context, admin bool) ([]Series, error) {
+func (s *MySQLService) list(ctx context.Context, admin bool, userID string) ([]Series, error) {
 	where := "WHERE s.enabled=TRUE"
 	if admin {
 		where = ""
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT s.id,s.title,s.description,s.mode,s.cover_url,s.sort_order,s.enabled
-		FROM content_series s `+where+` ORDER BY s.sort_order,s.id`)
+		FROM content_series s `+where+`
+		ORDER BY (s.id='daily_task') ASC,s.sort_order ASC,s.created_at DESC,s.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list series: %w", err)
 	}
@@ -114,6 +123,19 @@ func (s *MySQLService) list(ctx context.Context, admin bool) ([]Series, error) {
 		if admin {
 			levelWhere = "AND sl.enabled=TRUE AND lv.status IN ('draft','pending_review','approved','staging','published','disabled')"
 		}
+		levelOrder := "ORDER BY sl.sort_order ASC,sl.created_at DESC,sl.level_id"
+		if item.ID == "daily_task" {
+			if !admin {
+				levelWhere += ` AND COALESCE(
+					NULLIF(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.available_date')),'null'),
+					DATE_FORMAT(COALESCE(lv.published_at,lv.created_at),'%Y-%m-%d')
+				) <= DATE_FORMAT(DATE_ADD(UTC_TIMESTAMP(),INTERVAL 8 HOUR),'%Y-%m-%d')`
+			}
+			levelOrder = `ORDER BY COALESCE(
+				NULLIF(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.available_date')),'null'),
+				DATE_FORMAT(COALESCE(lv.published_at,lv.created_at),'%Y-%m-%d')
+			) DESC,sl.created_at DESC,sl.level_id`
+		}
 		levelRows, err := s.db.QueryContext(ctx, `SELECT sl.level_id,lv.version,
 			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.title')),sl.level_id),
 			lv.difficulty,
@@ -123,17 +145,25 @@ func (s *MySQLService) list(ctx context.Context, admin bool) ([]Series, error) {
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),
 			  ''
 			),
-			sl.sort_order
+			sl.sort_order,
+			COALESCE(
+			  NULLIF(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.available_date')),'null'),
+			  DATE_FORMAT(COALESCE(lv.published_at,lv.created_at),'%Y-%m-%d')
+			),
+			EXISTS(
+			  SELECT 1 FROM level_attempts a
+			  WHERE a.user_id=? AND a.level_id=sl.level_id AND a.state='completed'
+			)
 			FROM content_series_levels sl
 			JOIN level_versions lv ON lv.level_id=sl.level_id
 			AND lv.version=(SELECT MAX(v2.version) FROM level_versions v2 WHERE v2.level_id=sl.level_id)
-			WHERE sl.series_id=? `+levelWhere+` ORDER BY sl.sort_order,sl.level_id`, item.ID)
+			WHERE sl.series_id=? `+levelWhere+" "+levelOrder, userID, item.ID)
 		if err != nil {
 			return nil, err
 		}
 		for levelRows.Next() {
 			var level Level
-			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.ThumbnailURL, &level.SortOrder); err != nil {
+			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.ThumbnailURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
 				levelRows.Close()
 				return nil, err
 			}

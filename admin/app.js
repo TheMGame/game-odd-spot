@@ -46,7 +46,11 @@ function levelTable(levels,series){
 function renderSeries(){
   shell("series","内容系列");$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>内容系列</h1><p>管理所有游戏模式与系列内容</p></div><button class="btn primary" onclick="showSeriesModal()">＋ 新建系列</button></div><div class="filters"><input id="series-search" placeholder="搜索系列名称或 ID" oninput="filterSeries(this.value)"><select><option>全部状态</option><option>已启用</option><option>已停用</option></select></div><div id="series-list" class="series-list">${seriesRows(state.catalog)}</div></div>`;
 }
-function seriesRows(items){return items.map(s=>{const cover=s.cover_url||(s.levels?.[0]?.thumbnail_url||"");return`<article class="series-row" data-search="${escapeHtml((s.title+" "+s.id).toLowerCase())}"><img class="series-cover" src="${escapeHtml(cover)}"><div><h3>${escapeHtml(s.title)} <span class="badge ${s.enabled?"published":"draft"}">${s.enabled?"ACTIVE":"DISABLED"}</span></h3><div class="meta"><span>${s.levels?.length||0} 个关卡</span><span>${escapeHtml(s.mode)}</span><span>${escapeHtml(s.description||"暂无说明")}</span></div></div><div class="actions"><button class="btn small" onclick="openSeries('${s.id}')">查看关卡</button><button class="btn small" onclick="showSeriesModal('${s.id}')">编辑系列</button></div></article>`}).join("")||`<div class="empty">还没有系列，创建第一个系列吧</div>`}
+function seriesRows(items){return items.map(s=>{const cover=s.cover_url||(s.levels?.[0]?.thumbnail_url||"");return`<article class="series-row" draggable="${s.id!=="daily_task"}" data-id="${s.id}" data-search="${escapeHtml((s.title+" "+s.id).toLowerCase())}" ondragstart="seriesDragStart(event)" ondragover="seriesDragOver(event)" ondrop="seriesDrop(event)"><span class="drag-handle" title="拖动排序">${s.id==="daily_task"?"◆":"⋮⋮"}</span><img class="series-cover" src="${escapeHtml(cover)}"><div><h3>${escapeHtml(s.title)} <span class="badge ${s.enabled?"published":"draft"}">${s.enabled?"ACTIVE":"DISABLED"}</span></h3><div class="meta"><span>${s.levels?.length||0} 个关卡</span><span>${escapeHtml(s.mode)}</span><span>排序 ${s.sort_order??0}</span><span>${escapeHtml(s.description||"暂无说明")}</span></div></div><div class="actions"><button class="btn small" onclick="openSeries('${s.id}')">查看关卡</button><button class="btn small" onclick="showSeriesModal('${s.id}')">编辑系列</button></div></article>`}).join("")||`<div class="empty">还没有系列，创建第一个系列吧</div>`}
+let draggedSeriesId="";
+function seriesDragStart(event){draggedSeriesId=event.currentTarget.dataset.id;event.dataTransfer.effectAllowed="move"}
+function seriesDragOver(event){if(event.currentTarget.dataset.id!=="daily_task"){event.preventDefault();event.dataTransfer.dropEffect="move"}}
+async function seriesDrop(event){event.preventDefault();const targetId=event.currentTarget.dataset.id;if(!draggedSeriesId||draggedSeriesId===targetId||targetId==="daily_task")return;const movable=state.catalog.filter(s=>s.id!=="daily_task"),from=movable.findIndex(s=>s.id===draggedSeriesId),to=movable.findIndex(s=>s.id===targetId);if(from<0||to<0)return;const [moved]=movable.splice(from,1);movable.splice(to,0,moved);const daily=state.catalog.find(s=>s.id==="daily_task");state.catalog=daily?[...movable,daily]:movable;renderSeries();try{for(let i=0;i<movable.length;i++){const s=movable[i];await api("/series",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:s.id,title:s.title,description:s.description,mode:s.mode,cover_url:s.cover_url,sort_order:(i+1)*10,enabled:s.enabled})})}await loadData();renderSeries();toast("系列顺序已保存，游戏端将保持一致")}catch(e){toast(e.message,"error");await loadData();renderSeries()}}
 function filterSeries(value){document.querySelectorAll(".series-row").forEach(x=>x.hidden=!x.dataset.search.includes(value.toLowerCase()))}
 function openSeries(id){const s=state.catalog.find(x=>x.id===id);state.series=s;shell("series",s.title);$("view").innerHTML=`<div class="page"><div class="page-header"><div><button class="btn ghost" onclick="renderSeries()">← 返回系列</button><h1>${escapeHtml(s.title)}</h1><p>${escapeHtml(s.description)}</p></div><div class="actions"><button class="btn" onclick="showSeriesModal('${s.id}')">编辑系列</button><button class="btn primary" onclick="newLevel('${s.id}')">＋ 新建关卡</button></div></div><section class="card">${levelTable(s.levels||[],s)}</section></div>`}
 function renderLevels(){shell("levels","关卡管理");$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>关卡管理</h1><p>跨系列查看与编辑全部关卡</p></div><button class="btn primary" onclick="newLevel()">＋ 新建关卡</button></div>${levelTable(state.catalog.flatMap(s=>s.levels||[]))}</div>`}
@@ -88,11 +92,100 @@ function showMobilePreview(){const a=state.level.assets.image;$("modal-root").in
 function closeModal(){$("modal-root").innerHTML=""}
 
 function showSeriesModal(id=""){const s=state.catalog.find(x=>x.id===id)||{id:"",title:"",description:"",mode:"find_anachronism",cover_url:"",sort_order:10,enabled:true};$("modal-root").innerHTML=`<div class="modal-backdrop"><form class="modal" onsubmit="saveSeries(event)"><div class="modal-header"><h2>${id?"编辑":"新建"}系列</h2><button type="button" class="btn ghost" onclick="closeModal()">✕</button></div><div class="modal-body form-stack"><label>系列 ID<input id="series-id" value="${escapeHtml(s.id)}" ${id?"readonly":""} required></label><label>系列名称<input id="series-title" value="${escapeHtml(s.title)}" required></label><label>说明<textarea id="series-description">${escapeHtml(s.description)}</textarea></label><label>游戏模式<select id="series-mode"><option value="find_anachronism">寻找时代错置</option><option value="spot_difference">找不同</option></select></label><label>封面 URL<input id="series-cover" value="${escapeHtml(s.cover_url)}"></label><label><input id="series-enabled" type="checkbox" ${s.enabled?"checked":""}> 启用系列</label></div><div class="modal-footer"><button type="button" class="btn" onclick="closeModal()">取消</button><button class="btn primary">保存系列</button></div></form></div>`}
-async function saveSeries(event){event.preventDefault();try{await api("/series",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:$("series-id").value,title:$("series-title").value,description:$("series-description").value,mode:$("series-mode").value,cover_url:$("series-cover").value,sort_order:10,enabled:$("series-enabled").checked})});closeModal();await loadData();renderSeries();toast("系列已保存")}catch(e){toast(e.message,"error")}}
+async function saveSeries(event){event.preventDefault();const existing=state.catalog.find(x=>x.id===$("series-id").value);const nextOrder=Math.max(0,...state.catalog.filter(x=>x.id!=="daily_task").map(x=>Number(x.sort_order)||0))+10;try{await api("/series",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:$("series-id").value,title:$("series-title").value,description:$("series-description").value,mode:$("series-mode").value,cover_url:$("series-cover").value,sort_order:existing?.sort_order??nextOrder,enabled:$("series-enabled").checked})});closeModal();await loadData();renderSeries();toast("系列已保存")}catch(e){toast(e.message,"error")}}
 function newLevel(seriesId=""){const series=state.catalog.find(s=>s.id===seriesId)||state.catalog[0];if(!series)return showSeriesModal();state.series=series;state.levelEntry={sort_order:(series.levels?.length||0)*10+10};state.level={schema_version:1,level_id:`level_${Date.now()}`,level_version:1,mode:series.mode,title:"未命名关卡",instruction:"圈出 5 个不属于这个年代的物件",assets:{image:{asset_id:"",url:"",sha256:"",bytes:0,content_type:"image/png"},width:1024,height:1536},differences:[],difficulty:{total:1}};state.selected=0;renderEditor()}
 async function uploadLibraryAsset(file){if(!file)return;try{const id=`asset_${Date.now()}`,asset=await api(`/assets/${id}`,{method:"POST",headers:{"Content-Type":file.type},body:file});toast("素材上传成功");await loadData();renderLibrary();return asset}catch(e){toast(e.message,"error")}}
 function renderReview(){shell("review","审核中心");const levels=state.catalog.flatMap(s=>s.levels||[]);$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>审核中心</h1><p>检查图片、热点位置与历史解释</p></div></div>${levelTable(levels)}</div>`}
 function renderSettings(){shell("settings","系统设置");$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>系统设置</h1><p>环境与 API 连接</p></div></div><section class="card form-stack" style="max-width:600px"><label>Admin API<input id="settings-api" value="${escapeHtml(apiBase())}"></label><label>生产客户端 API<input value="在 client/project.godot 配置 oddspot/network/production_base_url" readonly></label><button class="btn primary" onclick="localStorage.setItem('oddspot_admin_api',$('settings-api').value);toast('设置已保存')">保存设置</button></section></div>`}
+
+const baseShowSeriesModal=showSeriesModal;
+const baseRenderEditor=renderEditor;
+renderEditor=function(){
+  baseRenderEditor();
+  const editorHead=document.querySelector(".editor-left .editor-head");
+  if(editorHead){
+    editorHead.insertAdjacentHTML("afterbegin",`<button type="button" class="btn ghost editor-back" onclick="returnFromEditor()">← 返回</button>`);
+  }
+  if(state.series?.id!=="daily_task")return;
+  const stack=$("level-difficulty")?.closest(".form-stack");
+  if(!stack)return;
+  const dateLabel=document.createElement("label");
+  dateLabel.innerHTML=`挑战日期<input id="level-available-date" type="date" value="${escapeHtml(state.level.available_date||new Date().toISOString().slice(0,10))}" onchange="updateLevelField('available_date',this.value)">`;
+  stack.appendChild(dateLabel);
+}
+function returnFromEditor(){
+  if(state.dirty&&!confirm("当前关卡有未保存修改，确定直接返回吗？"))return;
+  state.dirty=false;
+  setSave("已同步",false);
+  if(state.series?.id)openSeries(state.series.id);else renderLevels();
+}
+showSeriesModal=function(id=""){
+  baseShowSeriesModal(id);
+  const input=$("series-cover");
+  if(!input)return;
+  const current=input.value;
+  const label=input.closest("label");
+  label.innerHTML=`<span>系列封面</span><input id="series-cover" type="hidden" value="${escapeHtml(current)}">
+    <div class="cover-picker-current">
+      <img id="series-cover-preview" src="${escapeHtml(current)}" alt="封面预览">
+      <div><b id="series-cover-state">${current?"已选择封面":"尚未选择封面"}</b><small>推荐 5:3，最低 1000×600，PNG/JPG，最大 15 MB</small>
+      <div class="actions"><button class="btn small" type="button" onclick="openCoverLibraryDialog()">从素材库选择</button><button class="btn small primary" type="button" onclick="$('series-cover-file').click()">直接上传</button></div></div>
+      <input id="series-cover-file" type="file" accept="image/png,image/jpeg" hidden onchange="uploadSeriesCover(this.files[0])">
+    </div>`;
+}
+function coverLibraryItems(){
+  return state.assets.map(a=>`<button type="button" class="cover-asset" data-search="${escapeHtml(String(a.name||"").toLowerCase())}" onclick="selectSeriesCover('${escapeHtml(a.url)}')" title="${escapeHtml(a.name)}"><img src="${escapeHtml(a.thumbnail_url||a.url)}" loading="lazy"><span>${escapeHtml(a.name)}</span></button>`).join("")||`<div class="empty">素材库为空，请直接上传第一张封面</div>`;
+}
+function openCoverLibraryDialog(){
+  closeCoverLibraryDialog();
+  document.body.insertAdjacentHTML("beforeend",`<div id="cover-library-dialog" class="cover-dialog-backdrop" onclick="if(event.target===this)closeCoverLibraryDialog()">
+    <section class="cover-dialog" role="dialog" aria-modal="true" aria-labelledby="cover-dialog-title">
+      <header class="modal-header"><div><h2 id="cover-dialog-title">从素材库选择封面</h2><small>请选择符合 5:3、最低 1000×600 的图片</small></div><button type="button" class="btn ghost" onclick="closeCoverLibraryDialog()">✕</button></header>
+      <div class="cover-dialog-toolbar"><input id="cover-library-search" type="search" placeholder="搜索素材文件名…" oninput="filterCoverLibrary(this.value)" autofocus><span id="cover-search-count">${state.assets.length} 个素材</span></div>
+      <div class="cover-dialog-scroll">${coverLibraryItems()}</div>
+      <footer class="modal-footer"><span>共 ${state.assets.length} 个素材</span><button type="button" class="btn" onclick="closeCoverLibraryDialog()">取消</button></footer>
+    </section>
+  </div>`);
+  $("cover-library-search").focus();
+}
+function closeCoverLibraryDialog(){$("cover-library-dialog")?.remove()}
+function filterCoverLibrary(value){
+  const query=value.trim().toLowerCase();
+  let visible=0;
+  document.querySelectorAll("#cover-library-dialog .cover-asset").forEach(item=>{item.hidden=!item.dataset.search.includes(query);if(!item.hidden)visible++});
+  $("cover-search-count").textContent=`找到 ${visible} 个素材`;
+}
+async function selectSeriesCover(url){
+  try{
+    const size=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve({width:image.naturalWidth,height:image.naturalHeight});image.onerror=()=>reject(new Error("无法读取素材尺寸"));image.src=url});
+    const ratio=size.width/size.height;
+    if(size.width<1000||size.height<600)return toast(`该素材至少需要 1000×600，当前为 ${size.width}×${size.height}`,"error");
+    if(Math.abs(ratio-5/3)>.035)return toast(`该素材不是 5:3，当前为 ${size.width}×${size.height}`,"error");
+  }catch(e){return toast(e.message,"error")}
+  $("series-cover").value=url;
+  $("series-cover-preview").src=url;
+  $("series-cover-state").textContent="已选择素材库封面";
+  closeCoverLibraryDialog();
+}
+async function readImageSize(file){
+  return await new Promise((resolve,reject)=>{const image=new Image(),url=URL.createObjectURL(file);image.onload=()=>{URL.revokeObjectURL(url);resolve({width:image.naturalWidth,height:image.naturalHeight})};image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("无法读取图片"))};image.src=url});
+}
+async function uploadSeriesCover(file){
+  if(!file)return;
+  if(!["image/png","image/jpeg"].includes(file.type))return toast("封面仅支持 PNG 或 JPG","error");
+  if(file.size>15*1024*1024)return toast("封面不能超过 15 MB","error");
+  try{
+    const size=await readImageSize(file),ratio=size.width/size.height;
+    if(size.width<1000||size.height<600)return toast(`封面至少需要 1000×600，当前为 ${size.width}×${size.height}`,"error");
+    if(Math.abs(ratio-5/3)>.035)return toast(`封面必须为 5:3，当前为 ${size.width}×${size.height}`,"error");
+    $("series-cover-state").textContent="正在上传…";
+    const asset=await api(`/assets/series_cover_${Date.now()}`,{method:"POST",headers:{"Content-Type":file.type},body:file});
+    await loadData();
+    await selectSeriesCover(asset.url);
+    $("series-cover-state").textContent=`上传成功 · ${size.width}×${size.height}`;
+    toast("封面已上传并加入素材库");
+  }catch(e){$("series-cover-state").textContent="上传失败";toast(e.message,"error")}
+}
 
 document.querySelectorAll(".nav-item").forEach(x=>x.onclick=()=>navigate(x.dataset.view));
 $("api-base").value=apiBase();

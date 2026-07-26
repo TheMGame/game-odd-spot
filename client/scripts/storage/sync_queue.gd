@@ -17,6 +17,7 @@ func submit(path: String, body: Dictionary) -> Dictionary:
 func submit_with_key(path: String, body: Dictionary, idempotency_key: String) -> Dictionary:
 	var item := {
 		"id": ApiClient.new_request_id(),
+		"user_id": SessionStore.user_id,
 		"path": path,
 		"body": body,
 		"idempotency_key": idempotency_key,
@@ -35,17 +36,24 @@ func flush() -> void:
 	if _flushing or not SessionStore.has_access_token():
 		return
 	_flushing = true
-	while not _items.is_empty():
-		var item: Dictionary = _items[0]
+	while true:
+		var item_index := -1
+		for index in _items.size():
+			if str((_items[index] as Dictionary).get("user_id", "")) == SessionStore.user_id:
+				item_index = index
+				break
+		if item_index < 0:
+			break
+		var item: Dictionary = _items[item_index]
 		var result := await ApiClient.write_level(str(item.path), item.body, str(item.idempotency_key))
 		if result.ok:
-			_items.pop_front()
+			_items.remove_at(item_index)
 			_save()
 			continue
 		var status := int(result.get("status", 0))
 		if status >= 400 and status < 500 and status != 401 and status != 408 and status != 429:
 			push_warning("Discarding permanent sync failure: %s" % result.get("error", "unknown"))
-			_items.pop_front()
+			_items.remove_at(item_index)
 			_save()
 			continue
 		break
@@ -53,7 +61,11 @@ func flush() -> void:
 
 
 func pending_count() -> int:
-	return _items.size()
+	var count := 0
+	for item in _items:
+		if item is Dictionary and str(item.get("user_id", "")) == SessionStore.user_id:
+			count += 1
+	return count
 
 
 func _load() -> void:
@@ -64,7 +76,8 @@ func _load() -> void:
 		return
 	var parsed = JSON.parse_string(file.get_as_text())
 	if parsed is Array:
-		_items = parsed
+		# Legacy queue entries had no user_id and cannot safely be submitted as another account.
+		_items = (parsed as Array).filter(func(item): return item is Dictionary and not str(item.get("user_id", "")).is_empty())
 
 
 func _save() -> void:

@@ -36,7 +36,7 @@ func (s *MemoryService) Version(_ context.Context, market string, version int64,
 	return defaultSnapshot(market, locale), nil
 }
 func defaultSnapshot(market, locale string) Snapshot {
-	return Snapshot{Market: market, Locale: locale, Version: 1, Values: map[string]any{"minimum_app_version": "0.1.0", "force_upgrade": false, "features": map[string]any{"daily_challenge": false, "rewarded_ads": false, "iap": false}}}
+	return Snapshot{Market: market, Locale: locale, Version: 1, Values: map[string]any{"minimum_app_version": "0.1.0", "force_upgrade": false, "app_timezone": "Asia/Shanghai", "features": map[string]any{"daily_challenge": false, "rewarded_ads": false, "iap": false}}}
 }
 
 type MySQLService struct{ db *sql.DB }

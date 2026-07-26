@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1.0">
+	<title>$GODOT_PROJECT_NAME</title>
+	<style>
+		html,body,#canvas{margin:0;padding:0;border:0;width:100%;height:100%}
+		body{color:#ead9b5;background:#07121b;overflow:hidden;touch-action:none}
+		#canvas{display:block}
+		#canvas:focus{outline:none}
+		#status{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;padding:4vh 5vw;background:#07121b;font-family:"Microsoft YaHei","Noto Sans SC",sans-serif;visibility:visible}
+		#brand-logo{display:block;width:min(38vw,420px);max-height:47vh;object-fit:contain;filter:drop-shadow(0 10px 28px #0006)}
+		#brand-title{margin:1.4vh 0 .4vh;color:#efd49b;font-size:clamp(28px,3.6vw,54px);font-weight:500;letter-spacing:.12em}
+		#brand-subtitle{margin:0;color:#91a39f;font-size:clamp(14px,1.5vw,20px)}
+		#status-progress{display:none;width:min(72vw,920px);height:12px;margin:4vh auto 0;accent-color:#d5a64e}
+		#advisory{margin-top:3vh;color:#82928f;font-size:clamp(12px,1.2vw,16px);line-height:1.75;text-align:center}
+		#status-notice{display:none;max-width:720px;margin:2rem;padding:1rem;border:1px solid #9b3943;border-radius:.5rem;background:#5b3943;color:#fff;line-height:1.4;text-align:center}
+		@media(max-height:680px){#brand-logo{max-height:34vh}#advisory{margin-top:2vh;line-height:1.45}#status-progress{margin-top:2vh}}
+	</style>
+	$GODOT_HEAD_INCLUDE
+</head>
+<body>
+	<canvas id="canvas">你的浏览器不支持 Canvas。</canvas>
+	<noscript>请启用 JavaScript 后运行游戏。</noscript>
+	<div id="status">
+		<img id="brand-logo" src="$GODOT_SPLASH" alt="火眼金睛">
+		<h1 id="brand-title">火眼金睛</h1>
+		<p id="brand-subtitle">正在加载游戏内容…</p>
+		<progress id="status-progress"></progress>
+		<div id="advisory">
+			抵制不良游戏，拒绝盗版游戏<br>
+			注意自我保护，谨防受骗上当<br>
+			适度游戏益脑，沉迷游戏伤身<br>
+			合理安排时间，享受健康生活
+		</div>
+		<div id="status-notice"></div>
+	</div>
+	<script src="$GODOT_URL"></script>
+	<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+(function(){
+	const overlay=document.getElementById("status");
+	const progress=document.getElementById("status-progress");
+	const notice=document.getElementById("status-notice");
+	const subtitle=document.getElementById("brand-subtitle");
+	let initializing=true;
+	function setMode(mode){
+		if(!initializing)return;
+		if(mode==="hidden"){overlay.remove();initializing=false;return}
+		progress.style.display=mode==="progress"?"block":"none";
+		notice.style.display=mode==="notice"?"block":"none";
+		subtitle.style.display=mode==="notice"?"none":"block";
+	}
+	function fail(err){
+		console.error(err);
+		notice.textContent=err instanceof Error?err.message:String(err||"游戏加载失败");
+		setMode("notice");
+		initializing=false;
+	}
+	const missing=Engine.getMissingFeatures({threads:GODOT_THREADS_ENABLED});
+	if(missing.length){fail("浏览器缺少运行游戏所需功能："+missing.join("、"));return}
+	setMode("progress");
+	engine.startGame({onProgress:function(current,total){
+		if(current>0&&total>0){progress.value=current;progress.max=total}
+		else{progress.removeAttribute("value");progress.removeAttribute("max")}
+	}}).then(function(){setMode("hidden")},fail);
+}());
+	</script>
+</body>
+</html>

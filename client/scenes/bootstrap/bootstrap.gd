@@ -3,6 +3,7 @@ extends Control
 @onready var status_label: Label = $SafeArea/Content/Status
 @onready var retry_button: Button = $SafeArea/Content/Retry
 @onready var start_button: Button = $SafeArea/Content/Start
+@onready var loading_progress: ProgressBar = $SafeArea/Content/LoadingProgress
 
 
 func _ready() -> void:
@@ -15,8 +16,16 @@ func _ready() -> void:
 func _bootstrap() -> void:
 	retry_button.visible = false
 	status_label.text = "正在准备旅程…"
+	loading_progress.value = 18
+	await get_tree().create_timer(0.25).timeout
+	loading_progress.value = 55
+	status_label.text = "正在加载游戏内容…"
+	await get_tree().create_timer(0.25).timeout
+	loading_progress.value = 82
 	status_label.text = "一切就绪"
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.25).timeout
+	loading_progress.value = 100
+	await get_tree().create_timer(0.2).timeout
 	_enter_game()
 
 

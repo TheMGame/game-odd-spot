@@ -15,6 +15,7 @@ import (
 	_ "image/png"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -148,7 +149,7 @@ func (a *api) cors(next http.Handler) http.Handler {
 }
 
 func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
-	items, err := a.deps.Catalog.Public(r.Context())
+	items, err := a.deps.Catalog.Public(r.Context(), authenticatedUser(r))
 	if err != nil {
 		writeError(w, 500, "INTERNAL_ERROR", "could not load catalog")
 		return
@@ -252,6 +253,18 @@ func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(body) == 0 {
 		writeError(w, 400, "VALIDATION_FAILED", "invalid image body")
 		return
+	}
+	if strings.HasPrefix(assetID, "series_cover_") {
+		config, _, decodeErr := image.DecodeConfig(bytes.NewReader(body))
+		if decodeErr != nil {
+			writeError(w, 400, "ASSET_DECODE_FAILED", "could not decode series cover")
+			return
+		}
+		ratio := float64(config.Width) / float64(config.Height)
+		if config.Width < 1000 || config.Height < 600 || math.Abs(ratio-(5.0/3.0)) > 0.035 {
+			writeError(w, 422, "SERIES_COVER_DIMENSIONS_INVALID", "series cover must be 5:3 and at least 1000x600")
+			return
+		}
 	}
 	sum := sha256.Sum256(body)
 	name := assetID + "-" + fmt.Sprintf("%x", sum[:8]) + ext
@@ -563,7 +576,13 @@ func (a *api) anonymousSession(w http.ResponseWriter, r *http.Request) {
 	}))
 }
 
-func (a *api) validateUserServerToken(ctx context.Context, token string) (string, bool) {
+type userServerProfile struct {
+	UserID    string
+	Username  string
+	AvatarURL string
+}
+
+func (a *api) validateUserServerToken(ctx context.Context, token string) (userServerProfile, bool) {
 	body, _ := json.Marshal(map[string]string{
 		"token":  token,
 		"app_id": a.deps.Config.UserServerAppID,
@@ -573,12 +592,12 @@ func (a *api) validateUserServerToken(ctx context.Context, token string) (string
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		a.deps.Config.UserServerBaseURL+"/api/v1/user/validate_token", bytes.NewReader(body))
 	if err != nil {
-		return "", false
+		return userServerProfile{}, false
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", false
+		return userServerProfile{}, false
 	}
 	defer resp.Body.Close()
 	var validated struct {
@@ -586,15 +605,32 @@ func (a *api) validateUserServerToken(ctx context.Context, token string) (string
 		Data struct {
 			Valid    bool `json:"valid"`
 			UserInfo struct {
-				UserID string `json:"user_id"`
+				UserID    string `json:"user_id"`
+				Username  string `json:"username"`
+				Nickname  string `json:"nickname"`
+				Name      string `json:"name"`
+				Avatar    string `json:"avatar"`
+				AvatarURL string `json:"avatar_url"`
 			} `json:"user_info"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&validated); err != nil ||
 		resp.StatusCode != http.StatusOK || validated.Code != 0 || !validated.Data.Valid || validated.Data.UserInfo.UserID == "" {
-		return "", false
+		return userServerProfile{}, false
 	}
-	return validated.Data.UserInfo.UserID, true
+	info := validated.Data.UserInfo
+	username := info.Nickname
+	if username == "" {
+		username = info.Username
+	}
+	if username == "" {
+		username = info.Name
+	}
+	avatarURL := info.AvatarURL
+	if avatarURL == "" {
+		avatarURL = info.Avatar
+	}
+	return userServerProfile{UserID: info.UserID, Username: username, AvatarURL: avatarURL}, true
 }
 
 func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
@@ -609,7 +645,7 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", "token is required")
 		return
 	}
-	userID, valid := a.validateUserServerToken(r.Context(), input.Token)
+	profile, valid := a.validateUserServerToken(r.Context(), input.Token)
 	if !valid {
 		writeError(w, http.StatusUnauthorized, "USER_LOGIN_INVALID", "user login is invalid")
 		return
@@ -618,7 +654,7 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = a.deps.Config.Locale
 	}
-	created, err := a.deps.Sessions.IssueExternal(r.Context(), userID, a.deps.Config.Market, locale)
+	created, err := a.deps.Sessions.IssueExternal(r.Context(), profile.UserID, a.deps.Config.Market, locale)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create game session")
 		return
@@ -626,6 +662,7 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{
 		"user_id": created.UserID, "access_token": created.AccessToken,
 		"refresh_token": created.RefreshToken, "expires_in": 900,
+		"username": profile.Username, "avatar_url": profile.AvatarURL,
 	}))
 }
 
@@ -640,6 +677,17 @@ func (a *api) bootstrap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := snapshot.Values
+	timezoneName, _ := data["app_timezone"].(string)
+	if timezoneName == "" {
+		timezoneName = "Asia/Shanghai"
+	}
+	location, timezoneErr := time.LoadLocation(timezoneName)
+	if timezoneErr != nil {
+		timezoneName = "Asia/Shanghai"
+		location, _ = time.LoadLocation(timezoneName)
+	}
+	data["app_timezone"] = timezoneName
+	data["business_date"] = time.Now().In(location).Format("2006-01-02")
 	data["market"] = snapshot.Market
 	data["config_source_market"] = snapshot.SourceMarket
 	data["locale"] = snapshot.Locale

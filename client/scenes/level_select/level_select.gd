@@ -48,15 +48,16 @@ func _build_remote_cards(series_items: Array) -> void:
 			if levels.is_empty():
 				_apply_series_header(series)
 			levels.append_array(_array_or_empty(series.get("levels")))
-	var first_incomplete := levels.size()
+	var first_unfinished := levels.size()
 	for i in levels.size():
 		var entry: Dictionary = levels[i]
-		if not ProgressStore.is_completed(str(entry.get("id", "")), int(entry.get("version", 1))):
-			first_incomplete = i
+		if not _is_completed(entry):
+			first_unfinished = i
 			break
 	for i in levels.size():
 		var entry: Dictionary = levels[i]
-		_add_level_card(i, entry, i > first_incomplete)
+		var completed := _is_completed(entry)
+		_add_level_card(i, entry, not completed and i > first_unfinished)
 
 
 func _apply_series_header(series: Dictionary) -> void:
@@ -129,16 +130,23 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	info.add_child(detail)
 	var seals := Label.new()
 	var total := int(entry.get("difficulty", 1))
-	seals.text = ("印 ".repeat(total)).strip_edges()
+	seals.text = "难度 %s" % "◆".repeat(clampi(total, 1, 5))
 	seals.add_theme_color_override("font_color", CINNABAR if not locked else Color("#4d4d4d"))
 	seals.add_theme_font_size_override("font_size", 18)
 	info.add_child(seals)
 	var state := Label.new()
-	var completed := ProgressStore.is_completed(str(entry.get("id", "")), int(entry.get("version", 1)))
+	var completed := _is_completed(entry)
 	state.text = "✓ 已完成" if completed else ("🔒 尚未解锁" if locked else "◆ 当前关卡")
 	state.add_theme_color_override("font_color", JADE if completed else GOLD)
 	state.add_theme_font_size_override("font_size", 18)
 	info.add_child(state)
+
+
+func _is_completed(entry: Dictionary) -> bool:
+	return bool(entry.get("completed", false)) or ProgressStore.is_completed(
+		str(entry.get("id", "")),
+		int(entry.get("version", 1))
+	)
 
 
 func _load_thumbnail(target: TextureRect, url: String) -> void:

@@ -17,8 +17,9 @@ func _ready() -> void:
 	$Layout/TopBar/Identity.pressed.connect(_open_settings)
 	$Layout/Footer/Daily.pressed.connect(_open_daily)
 	_apply_style()
+	await ApiClient.refresh_user_profile()
 	await _refresh_series()
-	_refresh_identity()
+	await _refresh_identity()
 	_refresh_sync()
 	Analytics.track("home_impression")
 
@@ -199,13 +200,40 @@ func _open_settings() -> void:
 
 func _refresh_identity() -> void:
 	var short_id := SessionStore.user_id.right(6) if SessionStore.user_id.length() >= 6 else SessionStore.user_id
-	$Layout/TopBar/Identity.text = "已登录 · %s" % short_id
+	$Layout/TopBar/Identity.text = SessionStore.username if not SessionStore.username.is_empty() else "玩家 · %s" % short_id
+	if not SessionStore.avatar_url.is_empty():
+		var avatar := await _download_texture(SessionStore.avatar_url)
+		if avatar != null:
+			$Layout/TopBar/Identity.icon = avatar
 
 
 func _open_daily() -> void:
-	var result := await ApiClient.get_daily_challenge()
-	Analytics.track("theme_click", {"source": "daily_challenge", "online": result.ok})
-	get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn")
+	LevelLoader.select_series("daily_task")
+	var remote := await ApiClient.get_catalog()
+	if remote.ok:
+		var response_data: Dictionary = remote.data.get("data", {})
+		for raw_series in _array_or_empty(response_data.get("series")):
+			var series: Dictionary = raw_series
+			if str(series.get("id", "")) != "daily_task":
+				continue
+			var levels := _array_or_empty(series.get("levels"))
+			if not levels.is_empty():
+				var latest: Dictionary = levels[0]
+				var level_id := str(latest.get("id", ""))
+				if not level_id.is_empty():
+					LevelLoader.select_remote_level(level_id)
+					Analytics.track("theme_click", {"source": "daily_challenge", "level_id": level_id, "fallback": false})
+					get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+					return
+			break
+	Analytics.track("theme_click", {"source": "daily_challenge", "available": false})
+	_show_daily_unavailable()
+
+
+func _show_daily_unavailable() -> void:
+	$Layout/Footer/Daily.text = "暂无每日挑战"
+	$Layout/Footer/Daily.disabled = true
+	sync_status.text = "每日挑战系列中还没有已发布关卡"
 
 
 func _button_box(fill: Color, border: Color, radius: int, width: int) -> StyleBoxFlat:

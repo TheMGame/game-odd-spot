@@ -21,6 +21,9 @@ var _syncing_view := false
 var attempt_state: Dictionary = {}
 var elapsed_before_session := 0
 var is_anachronism_mode := false
+const DAILY_FREE_HINTS := 3
+const HINTS_PATH := "user://daily_hints.cfg"
+var hint_limit_dialog: AcceptDialog
 
 
 func _ready() -> void:
@@ -34,6 +37,7 @@ func _ready() -> void:
 	$CompletePanel/Margin/Content/Actions/Next.pressed.connect(_next_level)
 	$CompletePanel/Margin/Content/Actions/Map.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn"))
 	$CompletePanel/Margin/Content/Actions/Replay.pressed.connect(_replay_level)
+	_create_hint_limit_dialog()
 	resized.connect(_apply_responsive_layout)
 	_apply_visual_style()
 	_apply_responsive_layout()
@@ -162,18 +166,61 @@ func _finish_after_feedback() -> void:
 
 
 func _use_hint() -> void:
-	if hints_used >= 3:
-		status_label.text = "正在加载激励广告…"
-		var reward := await Monetization.show_rewarded_hint()
-		if not reward.ok:
-			status_label.text = "暂时无法获得广告提示"
-			return
+	var business_date := await _business_date()
+	var remaining := _daily_hints_remaining(business_date)
+	if remaining <= 0:
+		status_label.text = "今天的 3 次免费提示已经用完了"
+		# 预留：接入激励广告后，可在这里调用 Monetization.show_rewarded_hint() 增加次数。
+		hint_limit_dialog.popup_centered()
+		return
 	for difference in differences:
 		if not found.has(str(difference.id)):
 			hints_used += 1
-			Analytics.track("hint_request", {"level_id": level_data.level_id, "source": "free" if hints_used <= 3 else "rewarded_ad"})
+			_consume_daily_hint(business_date)
+			Analytics.track("hint_request", {"level_id": level_data.level_id, "source": "daily_free", "remaining": remaining - 1})
 			_mark_found(difference)
 			return
+
+
+func _create_hint_limit_dialog() -> void:
+	hint_limit_dialog = AcceptDialog.new()
+	hint_limit_dialog.title = "今日提示已用完"
+	hint_limit_dialog.dialog_text = "每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来，后续也可以通过观看广告增加提示次数。"
+	hint_limit_dialog.ok_button_text = "知道了"
+	hint_limit_dialog.min_size = Vector2i(620, 300)
+	add_child(hint_limit_dialog)
+
+
+func _business_date() -> String:
+	var result := await ApiClient.get_business_date()
+	var config := ConfigFile.new()
+	config.load(HINTS_PATH)
+	if result.ok:
+		var date := str(result.get("business_date", ""))
+		config.set_value("server", "last_business_date", date)
+		config.set_value("server", "app_timezone", str(result.get("app_timezone", "")))
+		config.save(HINTS_PATH)
+		return date
+	return str(config.get_value("server", "last_business_date", "1970-01-01"))
+
+
+func _daily_hints_remaining(today: String) -> int:
+	var config := ConfigFile.new()
+	config.load(HINTS_PATH)
+	var section := "hints_%s" % SessionStore.user_id
+	if str(config.get_value(section, "date", "")) != today:
+		return DAILY_FREE_HINTS
+	return maxi(0, DAILY_FREE_HINTS - int(config.get_value(section, "used", 0)))
+
+
+func _consume_daily_hint(today: String) -> void:
+	var config := ConfigFile.new()
+	config.load(HINTS_PATH)
+	var section := "hints_%s" % SessionStore.user_id
+	var used := int(config.get_value(section, "used", 0)) if str(config.get_value(section, "date", "")) == today else 0
+	config.set_value(section, "date", today)
+	config.set_value(section, "used", used + 1)
+	config.save(HINTS_PATH)
 
 
 func _sync_progress(difference_id: String) -> void:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "每日热点挑战生成器"
+  short_description: "联网筛选当天热点并生成一张高难度隐藏物品每日挑战关卡"
+  default_prompt: "使用 $generate-daily-trending-challenge 根据今天的热点生成一张高难度每日挑战关卡。"

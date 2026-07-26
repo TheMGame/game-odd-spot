@@ -1,0 +1,169 @@
+{
+  "series": {
+    "id": "china_heritage_crafts_pack_v1",
+    "title": "匠心错位·非遗工坊",
+    "description": "走进十种中国传统手艺现场，找出混入纯手工作坊的现代工具与材料",
+    "mode": "find_anachronism",
+    "sort_order": 40,
+    "enabled": true
+  },
+  "levels": [
+    {
+      "id": "cn_craft_xuan_paper_001",
+      "title": "泾县宣纸作坊",
+      "scene": "xuan_paper_workshop",
+      "tier": "beginner",
+      "sort_order": 10,
+      "differences": [
+        {"id":"led_worklight","label":"LED工作灯","x":0.824,"y":0.137,"radius":0.045,"explanation":"竹制晾纸架下安装了现代LED工作灯。"},
+        {"id":"electric_mixer","label":"电动搅拌机","x":0.454,"y":0.495,"radius":0.060,"explanation":"传统纸浆池中插着带电线的现代电动搅拌机。"},
+        {"id":"plastic_bucket","label":"塑料水桶","x":0.765,"y":0.637,"radius":0.060,"explanation":"石槽旁出现了蓝色注塑水桶。"},
+        {"id":"nitrile_gloves","label":"一次性丁腈手套","x":0.345,"y":0.709,"radius":0.055,"explanation":"木桌上放着一双现代蓝色一次性手套。"},
+        {"id":"digital_scale","label":"数字电子秤","x":0.506,"y":0.735,"radius":0.075,"explanation":"纸料旁摆着带液晶屏的电子秤。"}
+      ]
+    },
+    {
+      "id": "cn_craft_jingdezhen_porcelain_001",
+      "title": "景德镇制瓷作坊",
+      "scene": "jingdezhen_porcelain_workshop",
+      "tier": "easy",
+      "sort_order": 20,
+      "differences": [
+        {"id":"spray_glaze_gun","label":"喷釉枪","x":0.410,"y":0.215,"radius":0.050,"explanation":"工匠手中拿着现代金属喷釉枪。"},
+        {"id":"infrared_thermometer","label":"红外测温枪","x":0.865,"y":0.193,"radius":0.040,"explanation":"窑口旁有人使用数字红外测温枪。"},
+        {"id":"plastic_glaze_bucket","label":"塑料釉料桶","x":0.079,"y":0.329,"radius":0.060,"explanation":"木架下出现了白色塑料桶。"},
+        {"id":"electric_pottery_wheel","label":"电动拉坯机","x":0.315,"y":0.456,"radius":0.090,"explanation":"传统拉坯区放着带电源踏板的现代电动拉坯机。"},
+        {"id":"bubble_wrap","label":"气泡膜","x":0.788,"y":0.834,"radius":0.090,"explanation":"成品瓷器旁放着一卷透明塑料气泡膜。"}
+      ]
+    },
+    {
+      "id": "cn_craft_taohuawu_print_001",
+      "title": "桃花坞木版年画",
+      "scene": "taohuawu_woodblock_print",
+      "tier": "easy",
+      "sort_order": 30,
+      "differences": [
+        {"id":"inkjet_printer","label":"喷墨打印机","x":0.347,"y":0.398,"radius":0.075,"explanation":"手工印刷桌后摆着现代喷墨打印机。"},
+        {"id":"electric_engraver","label":"电动雕刻笔","x":0.176,"y":0.764,"radius":0.050,"explanation":"传统刻刀旁混入了带电线的电动雕刻笔。"},
+        {"id":"acrylic_paint_tube","label":"丙烯颜料软管","x":0.587,"y":0.688,"radius":0.050,"explanation":"天然颜料碗旁放着现代颜料软管。"},
+        {"id":"plastic_ruler","label":"透明塑料直尺","x":0.513,"y":0.833,"radius":0.065,"explanation":"纸堆上摆着透明塑料刻度尺。"},
+        {"id":"self_inking_stamp","label":"自动回墨印章","x":0.859,"y":0.798,"radius":0.060,"explanation":"印版旁出现了现代自动回墨印章。"}
+      ]
+    },
+    {
+      "id": "cn_craft_yunjin_brocade_001",
+      "title": "南京云锦织造坊",
+      "scene": "nanjing_yunjin_brocade",
+      "tier": "normal",
+      "sort_order": 40,
+      "differences": [
+        {"id":"led_strip","label":"LED灯带","x":0.510,"y":0.103,"radius":0.040,"explanation":"大花楼木织机上沿装有现代LED灯带。"},
+        {"id":"pattern_tablet","label":"平板电脑","x":0.102,"y":0.418,"radius":0.055,"explanation":"左侧桌面用平板电脑显示织物图样。"},
+        {"id":"electric_sewing_machine","label":"电动缝纫机","x":0.166,"y":0.598,"radius":0.085,"explanation":"传统织机旁放着现代电动缝纫机。"},
+        {"id":"polyester_spool","label":"涤纶线轴","x":0.503,"y":0.681,"radius":0.040,"explanation":"木盒中混入一轴鲜红色现代合成纤维线。"},
+        {"id":"plastic_bobbin","label":"塑料梭芯","x":0.553,"y":0.715,"radius":0.045,"explanation":"传统木线轴之间出现透明塑料梭芯。"},
+        {"id":"nylon_zipper","label":"尼龙拉链","x":0.743,"y":0.787,"radius":0.065,"explanation":"折叠云锦上缝着现代尼龙拉链。"}
+      ]
+    },
+    {
+      "id": "cn_craft_cloisonne_001",
+      "title": "北京景泰蓝作坊",
+      "scene": "beijing_cloisonne_workshop",
+      "tier": "normal",
+      "sort_order": 50,
+      "differences": [
+        {"id":"digital_caliper","label":"数显卡尺","x":0.095,"y":0.239,"radius":0.045,"explanation":"工匠使用带液晶屏的数显卡尺测量器物。"},
+        {"id":"hot_glue_gun","label":"热熔胶枪","x":0.318,"y":0.685,"radius":0.055,"explanation":"铜丝和手工具之间放着红色热熔胶枪。"},
+        {"id":"epoxy_adhesive","label":"环氧树脂双管胶","x":0.244,"y":0.805,"radius":0.050,"explanation":"工作台下层出现现代双管环氧胶。"},
+        {"id":"rotary_grinder","label":"迷你电磨","x":0.579,"y":0.719,"radius":0.060,"explanation":"传统锉刀旁放着带电机的旋转电磨。"},
+        {"id":"spray_paint_can","label":"气雾喷漆罐","x":0.373,"y":0.879,"radius":0.045,"explanation":"铜器架下藏着蓝色气雾喷漆罐。"},
+        {"id":"induction_hotplate","label":"电磁炉","x":0.847,"y":0.712,"radius":0.080,"explanation":"铜碗下方是带控制面板的现代电磁炉。"}
+      ]
+    },
+    {
+      "id": "cn_craft_timber_joinery_001",
+      "title": "榫卯木作营造场",
+      "scene": "timber_joinery_yard",
+      "tier": "advanced",
+      "sort_order": 60,
+      "differences": [
+        {"id":"laser_level","label":"激光水平仪","x":0.645,"y":0.136,"radius":0.038,"explanation":"上层木梁上放着现代激光水平仪。"},
+        {"id":"plastic_hard_hat","label":"塑料安全帽","x":0.886,"y":0.359,"radius":0.055,"explanation":"木柱上挂着黄色注塑安全帽。"},
+        {"id":"electric_circular_saw","label":"电圆锯","x":0.957,"y":0.472,"radius":0.055,"explanation":"右侧木料旁出现现代电圆锯。"},
+        {"id":"cordless_drill","label":"无绳电钻","x":0.503,"y":0.510,"radius":0.060,"explanation":"手工木钻之间放着电池式无绳电钻。"},
+        {"id":"phillips_screws","label":"十字螺丝","x":0.891,"y":0.585,"radius":0.060,"explanation":"传统榫卯现场出现一整盒十字螺丝。"},
+        {"id":"pneumatic_nail_gun","label":"气动钉枪","x":0.657,"y":0.593,"radius":0.055,"explanation":"工作台布料下露出黑红色气动钉枪。"},
+        {"id":"foam_adhesive_can","label":"聚氨酯泡沫胶罐","x":0.220,"y":0.683,"radius":0.045,"explanation":"天然胶料旁竖着现代压力胶罐。"},
+        {"id":"angle_grinder","label":"角磨机","x":0.757,"y":0.924,"radius":0.060,"explanation":"前景工作凳上放着现代角磨机。"}
+      ]
+    },
+    {
+      "id": "cn_craft_longquan_sword_001",
+      "title": "龙泉宝剑锻制坊",
+      "scene": "longquan_sword_forge",
+      "tier": "advanced",
+      "sort_order": 70,
+      "differences": [
+        {"id":"face_shield","label":"透明防护面罩","x":0.737,"y":0.213,"radius":0.050,"explanation":"剑架旁挂着现代透明全脸防护面罩。"},
+        {"id":"digital_pyrometer","label":"数字高温计","x":0.835,"y":0.295,"radius":0.045,"explanation":"工匠用数字红外高温计测量剑身。"},
+        {"id":"arc_welder","label":"电弧焊机","x":0.413,"y":0.360,"radius":0.045,"explanation":"后方工作台下藏着现代电弧焊机。"},
+        {"id":"rechargeable_light","label":"充电式工作灯","x":0.535,"y":0.306,"radius":0.035,"explanation":"剑架下方安装了白色LED工作灯。"},
+        {"id":"plastic_oil_bottle","label":"塑料机油瓶","x":0.488,"y":0.442,"radius":0.040,"explanation":"淬火桶旁出现透明塑料机油瓶。"},
+        {"id":"electric_belt_sander","label":"电动砂带机","x":0.757,"y":0.575,"radius":0.060,"explanation":"水槽右侧放着电动砂带机。"},
+        {"id":"propane_torch","label":"丙烷喷枪","x":0.064,"y":0.445,"radius":0.040,"explanation":"炭炉旁立着蓝色现代燃气喷枪。"},
+        {"id":"angle_grinder","label":"角磨机","x":0.823,"y":0.817,"radius":0.065,"explanation":"前景木桌上放着现代角磨机。"}
+      ]
+    },
+    {
+      "id": "cn_craft_fuzhou_lacquer_001",
+      "title": "福州脱胎漆器坊",
+      "scene": "fuzhou_bodiless_lacquer",
+      "tier": "hard",
+      "sort_order": 80,
+      "differences": [
+        {"id":"digital_humidity_meter","label":"数字湿度计","x":0.552,"y":0.064,"radius":0.030,"explanation":"高处木架上安装了数字湿度计。"},
+        {"id":"electric_spray_gun","label":"电动喷涂枪","x":0.642,"y":0.442,"radius":0.045,"explanation":"后方工作台下藏着红色电动喷涂枪。"},
+        {"id":"hot_glue_gun","label":"热熔胶枪","x":0.651,"y":0.598,"radius":0.045,"explanation":"前方髹饰桌下出现红色热熔胶枪。"},
+        {"id":"electric_heat_gun","label":"电热风枪","x":0.297,"y":0.711,"radius":0.055,"explanation":"传统毛刷旁放着黑色电热风枪。"},
+        {"id":"small_power_polisher","label":"小型电动抛光机","x":0.920,"y":0.650,"radius":0.050,"explanation":"右侧托盘里放着带电机的小型抛光设备。"},
+        {"id":"orbital_sander","label":"电动打磨机","x":0.874,"y":0.932,"radius":0.055,"explanation":"前景右下托盘里出现现代电动打磨机。"},
+        {"id":"plastic_film_roll","label":"保鲜膜卷","x":0.298,"y":0.935,"radius":0.055,"explanation":"麻布旁放着透明塑料薄膜卷。"},
+        {"id":"aerosol_can","label":"气雾罐","x":0.099,"y":0.573,"radius":0.040,"explanation":"天然漆料旁出现带喷嘴的现代气雾罐。"}
+      ]
+    },
+    {
+      "id": "cn_craft_shadow_puppet_001",
+      "title": "陕西皮影戏后台",
+      "scene": "shaanxi_shadow_puppet_backstage",
+      "tier": "expert",
+      "sort_order": 90,
+      "differences": [
+        {"id":"tablet","label":"平板电脑","x":0.257,"y":0.158,"radius":0.055,"explanation":"皮影架旁用平板电脑显示图样。"},
+        {"id":"led_panel","label":"LED平板灯","x":0.710,"y":0.143,"radius":0.035,"explanation":"纸幕右侧装着现代LED平板灯。"},
+        {"id":"bluetooth_speaker","label":"蓝牙音箱","x":0.954,"y":0.327,"radius":0.045,"explanation":"鼓旁放着黑色现代蓝牙音箱。"},
+        {"id":"wireless_microphone","label":"无线麦克风","x":0.936,"y":0.383,"radius":0.045,"explanation":"乐器架旁藏着一支无线麦克风。"},
+        {"id":"acrylic_marker","label":"丙烯马克笔","x":0.492,"y":0.506,"radius":0.030,"explanation":"传统画笔杯中混入白绿色现代马克笔。"},
+        {"id":"clear_plastic_sheet","label":"透明塑料片","x":0.383,"y":0.631,"radius":0.070,"explanation":"雕刻中的皮影上覆盖着透明塑料片。"},
+        {"id":"office_stapler","label":"订书机","x":0.532,"y":0.615,"radius":0.050,"explanation":"线轴旁放着现代金属订书机。"},
+        {"id":"electric_engraver","label":"电动雕刻笔","x":0.296,"y":0.778,"radius":0.050,"explanation":"传统刻刀盒中混入黑色电动雕刻笔。"},
+        {"id":"clear_tape","label":"透明胶带","x":0.321,"y":0.914,"radius":0.050,"explanation":"纸本旁放着一卷透明胶带。"},
+        {"id":"plastic_zip_ties","label":"塑料扎带","x":0.733,"y":0.913,"radius":0.060,"explanation":"竹制操纵杆中混着白色塑料扎带。"}
+      ]
+    },
+    {
+      "id": "cn_craft_traditional_tea_001",
+      "title": "山间古法制茶坊",
+      "scene": "traditional_mountain_tea_workshop",
+      "tier": "expert",
+      "sort_order": 100,
+      "differences": [
+        {"id":"vacuum_sealer","label":"真空封口机","x":0.699,"y":0.311,"radius":0.075,"explanation":"纸包茶叶旁放着现代真空封口机。"},
+        {"id":"foil_tea_pouch","label":"铝箔茶袋","x":0.798,"y":0.383,"radius":0.050,"explanation":"竹篮和纸包之间竖着银色铝箔茶袋。"},
+        {"id":"infrared_thermometer","label":"红外测温枪","x":0.813,"y":0.477,"radius":0.045,"explanation":"炭火旁的竹篮里插着数字红外测温枪。"},
+        {"id":"nylon_mesh_sieve","label":"尼龙筛网","x":0.648,"y":0.588,"radius":0.055,"explanation":"竹筛中混入蓝色尼龙网筛。"},
+        {"id":"plastic_scoop","label":"塑料茶勺","x":0.723,"y":0.743,"radius":0.050,"explanation":"茶叶竹筛里放着蓝色注塑茶勺。"},
+        {"id":"silica_gel_packet","label":"干燥剂小包","x":0.784,"y":0.879,"radius":0.040,"explanation":"陶制茶叶罐里混入现代干燥剂小包。"}
+      ]
+    }
+  ]
+}

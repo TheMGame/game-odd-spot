@@ -19,6 +19,21 @@ func get_bootstrap() -> Dictionary:
 	return await _request_json(HTTPClient.METHOD_GET, "/v1/bootstrap", {}, true, true)
 
 
+func get_business_date() -> Dictionary:
+	var result := await get_bootstrap()
+	if not result.ok:
+		return result
+	var data: Dictionary = result.data.get("data", {})
+	var business_date := str(data.get("business_date", ""))
+	if business_date.is_empty():
+		return {"ok": false, "error": "BUSINESS_DATE_MISSING"}
+	return {
+		"ok": true,
+		"business_date": business_date,
+		"app_timezone": str(data.get("app_timezone", "")),
+	}
+
+
 func get_home() -> Dictionary:
 	return await _request_json(HTTPClient.METHOD_GET, "/v1/home", {}, true, true)
 
@@ -92,6 +107,70 @@ func register_user(account_name: String, password: String) -> Dictionary:
 	return await _exchange_user_token(login_data)
 
 
+func send_email_code(email: String) -> Dictionary:
+	return await _request_user_server("/api/v1/user/email/send-code", {
+		"app_id": USER_SERVER_APP_ID,
+		"email": email.strip_edges().to_lower(),
+		"purpose": "login",
+	})
+
+
+func verify_email_code(email: String, code: String) -> Dictionary:
+	var result := await _request_user_server("/api/v1/user/email/verify", {
+		"app_id": USER_SERVER_APP_ID,
+		"email": email.strip_edges().to_lower(),
+		"code": code.strip_edges(),
+	})
+	if not result.ok:
+		return result
+	var verification: Dictionary = result.data.get("data", {})
+	if verification.get("login_info") is Dictionary:
+		var exchanged := await _exchange_user_token(verification.login_info)
+		if exchanged.ok:
+			exchanged["logged_in"] = true
+		return exchanged
+	return {"ok": true, "data": verification}
+
+
+func complete_email_registration(ticket: String, username: String, nickname: String, password: String) -> Dictionary:
+	var result := await _request_user_server("/api/v1/user/email/complete-registration", {
+		"app_id": USER_SERVER_APP_ID,
+		"registration_ticket": ticket,
+		"username": username.strip_edges(),
+		"nickname": nickname.strip_edges(),
+		"password": password,
+	})
+	if not result.ok:
+		return result
+	return await _exchange_user_token(result.data.get("data", {}))
+
+
+func update_user_profile(nickname: String, avatar: String) -> Dictionary:
+	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
+	request.timeout = 8.0
+	add_child(request)
+	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
+	var body := {"nickname": nickname.strip_edges(), "avatar": avatar.strip_edges()}
+	var start_error := request.request(
+		user_server_url + "/api/v1/user/info/" + SessionStore.user_id.uri_encode(),
+		PackedStringArray(["Accept: application/json", "Content-Type: application/json", "Authorization: Bearer %s" % SessionStore.user_server_token]),
+		HTTPClient.METHOD_PUT,
+		JSON.stringify(body)
+	)
+	if start_error != OK:
+		request.queue_free()
+		return {"ok": false, "error": "request could not start"}
+	var response: Array = await request.request_completed
+	request.queue_free()
+	var parsed = JSON.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
+	if response[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
+		return {"ok": false, "error": "USER_PROFILE_UNAVAILABLE"}
+	if response[1] < 200 or response[1] >= 300 or int(parsed.get("code", -1)) != 0:
+		return {"ok": false, "error": str(parsed.get("message", "USER_PROFILE_FAILED"))}
+	return {"ok": true, "data": parsed}
+
+
 func _exchange_user_token(login_data: Dictionary) -> Dictionary:
 	var user_token := str(login_data.get("token", ""))
 	if user_token.is_empty():
@@ -101,14 +180,75 @@ func _exchange_user_token(login_data: Dictionary) -> Dictionary:
 		"locale": TranslationServer.get_locale(),
 	}, false, false)
 	if response.ok:
-		SessionStore.update_session(response.data.get("data", {}))
-		var identity_refresh := str(login_data.get("refresh_token", ""))
-		if not identity_refresh.is_empty():
-			await _request_user_server("/api/v1/user/logout", {
-				"app_id": USER_SERVER_APP_ID,
-				"refresh_token": identity_refresh,
-			})
+		var session_data: Dictionary = response.data.get("data", {})
+		var user_info: Dictionary = login_data.get("user_info", login_data.get("user", login_data.get("profile", {})))
+		if user_info.is_empty():
+			user_info = login_data
+		var returned_name := str(user_info.get("nickname", user_info.get("username", user_info.get("name", user_info.get("display_name", "")))))
+		var returned_avatar := str(user_info.get("avatar_url", user_info.get("avatar", user_info.get("avatarUrl", ""))))
+		if not returned_name.is_empty():
+			session_data["username"] = returned_name
+		if not returned_avatar.is_empty():
+			session_data["avatar_url"] = returned_avatar
+		session_data["user_server_token"] = user_token
+		session_data["user_server_refresh_token"] = str(login_data.get("refresh_token", ""))
+		SessionStore.update_session(session_data)
 	return response
+
+
+func refresh_user_profile() -> Dictionary:
+	if SessionStore.user_server_token.is_empty():
+		return {"ok": false, "error": "USER_PROFILE_SESSION_MISSING"}
+	var result := await _request_user_server_profile()
+	if not result.ok and not SessionStore.user_server_refresh_token.is_empty():
+		var refreshed := await _request_user_server("/api/v1/user/refresh_token", {
+			"app_id": USER_SERVER_APP_ID,
+			"refresh_token": SessionStore.user_server_refresh_token,
+		})
+		if refreshed.ok:
+			var refresh_data: Dictionary = refreshed.data.get("data", {})
+			SessionStore.user_server_token = str(refresh_data.get("token", SessionStore.user_server_token))
+			SessionStore.user_server_refresh_token = str(refresh_data.get("refresh_token", SessionStore.user_server_refresh_token))
+			result = await _request_user_server_profile()
+	if not result.ok:
+		return result
+	var profile: Dictionary = result.data.get("data", {})
+	if profile.has("user_info") and profile.user_info is Dictionary:
+		profile = profile.user_info
+	var session_data := {
+		"user_id": SessionStore.user_id,
+		"access_token": SessionStore.access_token,
+		"refresh_token": SessionStore.refresh_token,
+		"username": str(profile.get("nickname", profile.get("username", profile.get("name", "")))),
+		"avatar_url": str(profile.get("avatar", profile.get("avatar_url", ""))),
+		"user_server_token": SessionStore.user_server_token,
+		"user_server_refresh_token": SessionStore.user_server_refresh_token,
+	}
+	SessionStore.update_session(session_data)
+	return {"ok": true, "data": profile}
+
+
+func _request_user_server_profile() -> Dictionary:
+	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
+	request.timeout = 8.0
+	add_child(request)
+	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
+	var path := "/api/v1/user/info/%s" % SessionStore.user_id.uri_encode()
+	var start_error := request.request(user_server_url + path,
+		PackedStringArray(["Accept: application/json", "Authorization: Bearer %s" % SessionStore.user_server_token]),
+		HTTPClient.METHOD_GET)
+	if start_error != OK:
+		request.queue_free()
+		return {"ok": false, "error": "request could not start"}
+	var response: Array = await request.request_completed
+	request.queue_free()
+	var parsed = JSON.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
+	if response[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
+		return {"ok": false, "error": "USER_PROFILE_UNAVAILABLE"}
+	if response[1] < 200 or response[1] >= 300 or int(parsed.get("code", -1)) != 0:
+		return {"ok": false, "error": str(parsed.get("message", "USER_PROFILE_FAILED"))}
+	return {"ok": true, "data": parsed}
 
 
 func _request_user_server(path: String, body: Dictionary) -> Dictionary:

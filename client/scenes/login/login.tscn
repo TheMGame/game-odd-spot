@@ -79,7 +79,7 @@ autowrap_mode = 2
 custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-placeholder_text = "用户名或邮箱"
+placeholder_text = "邮箱"
 clear_button_enabled = true
 virtual_keyboard_enabled = true
 
@@ -93,6 +93,61 @@ secret_character = "*"
 clear_button_enabled = true
 virtual_keyboard_enabled = true
 
+[node name="EmailCode" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+placeholder_text = "6 位邮箱验证码"
+max_length = 6
+clear_button_enabled = true
+virtual_keyboard_type = 2
+
+[node name="Username" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+placeholder_text = "用户名（3-32 位字母、数字或下划线）"
+clear_button_enabled = true
+
+[node name="Nickname" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+placeholder_text = "玩家昵称"
+clear_button_enabled = true
+
+[node name="Avatar" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+placeholder_text = "头像 URL（可选）"
+clear_button_enabled = true
+
+[node name="SendCodeButton" type="Button" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 19
+text = "发送邮箱验证码"
+
+[node name="VerifyCodeButton" type="Button" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 19
+text = "验证邮箱"
+
+[node name="CompleteRegistrationButton" type="Button" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "完成注册并登录"
+
 [node name="LoginButton" type="Button" parent="SafeArea/Layout/Card/Content"]
 custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
@@ -103,7 +158,7 @@ text = "登录"
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 19
-text = "创建账号并开始"
+text = "使用邮箱创建账号"
 
 [node name="Status" type="Label" parent="SafeArea/Layout/Card/Content"]
 custom_minimum_size = Vector2(0, 46)

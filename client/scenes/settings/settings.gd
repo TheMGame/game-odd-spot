@@ -18,7 +18,8 @@ func _ready() -> void:
 	vibration_toggle.toggled.connect(_vibration_toggled)
 	large_markers_toggle.toggled.connect(_large_markers_toggled)
 	$SafeArea/Layout/Header/Back.pressed.connect(_go_home)
-	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Purchase.pressed.connect(_purchase)
+	# 当前没有广告，先隐藏“移除广告”；后续接入广告平台时恢复按钮和购买回调。
+	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Purchase.visible = false
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/PrivacyPolicy.pressed.connect(_show_privacy)
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Login.pressed.connect(_request_product_login)
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions/BindAccount.pressed.connect(_bind_account)

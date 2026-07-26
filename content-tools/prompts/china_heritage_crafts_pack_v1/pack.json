@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "pack_id": "china_heritage_crafts_pack_v1",
+  "mode": "find_anachronism",
+  "image_spec": {
+    "width": 1024,
+    "height": 1536,
+    "format": "png",
+    "aspect_ratio": "2:3",
+    "orientation": "portrait"
+  },
+  "levels": [
+    {
+      "level_id": "cn_craft_xuan_paper_001",
+      "period": "清代晚期传统宣纸作坊，约1880年",
+      "scene": "泾县宣纸作坊",
+      "tier": "beginner",
+      "answer_count": 5,
+      "difficulty": {"total":1,"object_size":1,"occlusion":1,"color_similarity":1,"visual_density":2,"edge_distance":1,"semantic_obviousness":1,"decoy_similarity":1,"knowledge_depth":1}
+    },
+    {
+      "level_id": "cn_craft_jingdezhen_porcelain_001",
+      "period": "清代晚期传统手工制瓷作坊，约1880年",
+      "scene": "景德镇制瓷作坊",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {"total":2,"object_size":2,"occlusion":1,"color_similarity":2,"visual_density":2,"edge_distance":2,"semantic_obviousness":1,"decoy_similarity":2,"knowledge_depth":1}
+    },
+    {
+      "level_id": "cn_craft_taohuawu_print_001",
+      "period": "清代晚期传统木版年画作坊，约1880年",
+      "scene": "桃花坞木版年画作坊",
+      "tier": "easy",
+      "answer_count": 5,
+      "difficulty": {"total":2,"object_size":2,"occlusion":1,"color_similarity":2,"visual_density":3,"edge_distance":2,"semantic_obviousness":2,"decoy_similarity":2,"knowledge_depth":1}
+    },
+    {
+      "level_id": "cn_craft_yunjin_brocade_001",
+      "period": "清代晚期传统云锦织造作坊，约1880年",
+      "scene": "南京云锦织造坊",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {"total":3,"object_size":3,"occlusion":2,"color_similarity":3,"visual_density":3,"edge_distance":2,"semantic_obviousness":2,"decoy_similarity":3,"knowledge_depth":2}
+    },
+    {
+      "level_id": "cn_craft_cloisonne_001",
+      "period": "清代晚期传统景泰蓝作坊，约1880年",
+      "scene": "北京景泰蓝作坊",
+      "tier": "normal",
+      "answer_count": 6,
+      "difficulty": {"total":3,"object_size":3,"occlusion":2,"color_similarity":3,"visual_density":3,"edge_distance":3,"semantic_obviousness":3,"decoy_similarity":3,"knowledge_depth":2}
+    },
+    {
+      "level_id": "cn_craft_timber_joinery_001",
+      "period": "清代晚期传统木结构营造场，约1880年",
+      "scene": "榫卯木作营造场",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {"total":4,"object_size":3,"occlusion":3,"color_similarity":4,"visual_density":4,"edge_distance":3,"semantic_obviousness":3,"decoy_similarity":4,"knowledge_depth":3}
+    },
+    {
+      "level_id": "cn_craft_longquan_sword_001",
+      "period": "清代晚期传统宝剑锻制坊，约1880年",
+      "scene": "龙泉宝剑锻制坊",
+      "tier": "advanced",
+      "answer_count": 8,
+      "difficulty": {"total":4,"object_size":4,"occlusion":3,"color_similarity":4,"visual_density":4,"edge_distance":3,"semantic_obviousness":3,"decoy_similarity":4,"knowledge_depth":3}
+    },
+    {
+      "level_id": "cn_craft_fuzhou_lacquer_001",
+      "period": "清代晚期传统脱胎漆器作坊，约1880年",
+      "scene": "福州脱胎漆器髹饰坊",
+      "tier": "hard",
+      "answer_count": 8,
+      "difficulty": {"total":4,"object_size":4,"occlusion":4,"color_similarity":4,"visual_density":5,"edge_distance":4,"semantic_obviousness":3,"decoy_similarity":4,"knowledge_depth":3}
+    },
+    {
+      "level_id": "cn_craft_shadow_puppet_001",
+      "period": "清代晚期传统皮影制作与演出后台，约1880年",
+      "scene": "陕西皮影戏后台",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {"total":5,"object_size":5,"occlusion":4,"color_similarity":5,"visual_density":5,"edge_distance":4,"semantic_obviousness":4,"decoy_similarity":5,"knowledge_depth":4}
+    },
+    {
+      "level_id": "cn_craft_traditional_tea_001",
+      "period": "清代晚期传统手工制茶坊，约1880年",
+      "scene": "山间古法制茶坊",
+      "tier": "expert",
+      "answer_count": 10,
+      "difficulty": {"total":5,"object_size":5,"occlusion":4,"color_similarity":5,"visual_density":5,"edge_distance":4,"semantic_obviousness":4,"decoy_similarity":5,"knowledge_depth":4}
+    }
+  ]
+}

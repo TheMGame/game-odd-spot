@@ -7,6 +7,10 @@ var user_id: String = ""
 var access_token: String = ""
 var refresh_token: String = ""
 var access_expires_at: int = 0
+var username: String = ""
+var avatar_url: String = ""
+var user_server_token: String = ""
+var user_server_refresh_token: String = ""
 
 
 func _ready() -> void:
@@ -20,8 +24,13 @@ func update_session(data: Dictionary) -> void:
 	user_id = str(data.get("user_id", ""))
 	access_token = str(data.get("access_token", ""))
 	refresh_token = str(data.get("refresh_token", ""))
-	var expires_in := int(data.get("expires_in", 0))
-	access_expires_at = int(Time.get_unix_time_from_system()) + expires_in if expires_in > 0 else 0
+	if data.has("expires_in"):
+		var expires_in := int(data.get("expires_in", 0))
+		access_expires_at = int(Time.get_unix_time_from_system()) + expires_in if expires_in > 0 else access_expires_at
+	username = str(data.get("username", data.get("nickname", username)))
+	avatar_url = str(data.get("avatar_url", data.get("avatar", avatar_url)))
+	user_server_token = str(data.get("user_server_token", user_server_token))
+	user_server_refresh_token = str(data.get("user_server_refresh_token", user_server_refresh_token))
 	_save()
 
 
@@ -30,6 +39,10 @@ func clear_session() -> void:
 	access_token = ""
 	refresh_token = ""
 	access_expires_at = 0
+	username = ""
+	avatar_url = ""
+	user_server_token = ""
+	user_server_refresh_token = ""
 	_save()
 
 
@@ -57,6 +70,10 @@ func _load() -> void:
 	access_token = str(parsed.get("access_token", ""))
 	refresh_token = str(parsed.get("refresh_token", ""))
 	access_expires_at = int(parsed.get("access_expires_at", 0))
+	username = str(parsed.get("username", ""))
+	avatar_url = str(parsed.get("avatar_url", ""))
+	user_server_token = str(parsed.get("user_server_token", ""))
+	user_server_refresh_token = str(parsed.get("user_server_refresh_token", ""))
 
 
 func _save() -> void:
@@ -70,6 +87,10 @@ func _save() -> void:
 		"access_token": access_token,
 		"refresh_token": refresh_token,
 		"access_expires_at": access_expires_at,
+		"username": username,
+		"avatar_url": avatar_url,
+		"user_server_token": user_server_token,
+		"user_server_refresh_token": user_server_refresh_token,
 	}))
 
 
