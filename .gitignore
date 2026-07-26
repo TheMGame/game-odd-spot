@@ -19,3 +19,7 @@ server/bin/
 server/.env.windows
 server/.env.linux
 *.local.env
+
+# Generated daily challenge content is local operational data, not source code
+content-tools/daily-challenges/
+scripts/import-daily-task-*.ps1

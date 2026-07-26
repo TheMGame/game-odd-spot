@@ -12,7 +12,10 @@ description: Search current daily trends, select a safe and visually expressive 
 ### 1. 确定日期和输出目录
 
 - 使用用户指定日期；未指定时使用执行环境的本地日期和时区。
-- 输出到 `content-tools/daily-challenges/YYYY-MM-DD/<slug>/`。
+- 输出到本机运营数据目录，不得写入代码仓库。Windows 默认使用
+  `$env:LOCALAPPDATA\OddSpot\daily-challenges\YYYY-MM-DD\<slug>\`；
+  其他系统使用 `$XDG_DATA_HOME/oddspot/daily-challenges/`，未设置时使用
+  `~/.local/share/oddspot/daily-challenges/`。
 - 关卡 ID 使用 `daily_YYYYMMDD_<slug>`，`slug` 使用简短英文小写和下划线。
 - 一次只生成一张图。只有成图未通过检查时才编辑或重生成，不批量制造候选图。
 
@@ -76,13 +79,23 @@ description: Search current daily trends, select a safe and visually expressive 
 运行：
 
 ```powershell
-python content-tools/skills/generate-daily-trending-challenge/scripts/validate_daily_challenge.py <challenge-directory>
+python content-tools/skills/generate-daily-trending-challenge/scripts/validate_daily_challenge.py <local-challenge-directory>
 ```
 
 校验失败时修正并重跑。默认只交付草稿，不自动上传或发布。
 
 如果用户明确要求导入 admin，先完整阅读
 `content-tools/skills/publish-oddspot-admin-content/SKILL.md`，再按该 skill 上传资源和配置；不要把 token 写入本 skill 或输出目录。
+使用本 skill 的通用 importer：
+
+```powershell
+content-tools/skills/publish-oddspot-admin-content/scripts/publish-importer.ps1 `
+  -ImporterPath content-tools/skills/generate-daily-trending-challenge/scripts/import_daily_challenge.ps1 `
+  -SeriesId daily_task `
+  -ExportDir <local-challenge-directory>
+```
+
+不要再为每个日期创建 `scripts/import-daily-task-YYYYMMDD.ps1`。
 
 ## 完成标准
 
@@ -93,3 +106,4 @@ python content-tools/skills/generate-daily-trending-challenge/scripts/validate_d
 - 坐标来自最终成图，审核图与配置一致。
 - 校验脚本通过。
 - 未经明确要求不发布到线上。
+- 关卡图片、来源、答案配置和日期专属发布数据均位于本机运营数据目录，不进入 Git。
