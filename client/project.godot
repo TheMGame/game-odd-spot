@@ -28,6 +28,7 @@ config/icon="res://assets/branding/guagua-rabbit-logo.png"
 
 SessionStore="*res://scripts/storage/session_store.gd"
 ApiClient="*res://scripts/api/api_client.gd"
+CatalogRepository="*res://scripts/catalog/catalog_repository.gd"
 ProgressStore="*res://scripts/storage/progress_store.gd"
 Preferences="*res://scripts/storage/preferences.gd"
 SyncQueue="*res://scripts/storage/sync_queue.gd"

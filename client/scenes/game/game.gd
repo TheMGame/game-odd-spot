@@ -199,9 +199,18 @@ func _business_date() -> String:
 		var date := str(result.get("business_date", ""))
 		config.set_value("server", "last_business_date", date)
 		config.set_value("server", "app_timezone", str(result.get("app_timezone", "")))
+		config.set_value("server", "fetched_at", int(Time.get_unix_time_from_system()))
 		config.save(HINTS_PATH)
 		return date
-	return str(config.get_value("server", "last_business_date", "1970-01-01"))
+	var last_date := str(config.get_value("server", "last_business_date", ""))
+	var fetched_at := int(config.get_value("server", "fetched_at", 0))
+	if not last_date.is_empty() and fetched_at > 0:
+		var elapsed_days := maxi(0, int((Time.get_unix_time_from_system() - fetched_at) / 86400.0))
+		var base_unix := Time.get_unix_time_from_datetime_string(last_date + "T00:00:00")
+		var inferred := Time.get_date_dict_from_unix_time(base_unix + elapsed_days * 86400)
+		return "%04d-%02d-%02d" % [inferred.year, inferred.month, inferred.day]
+	var local := Time.get_date_dict_from_system()
+	return "%04d-%02d-%02d" % [local.year, local.month, local.day]
 
 
 func _daily_hints_remaining(today: String) -> int:
@@ -242,18 +251,25 @@ func _finish_level() -> void:
 		"hints_used": hints_used,
 		"duration_ms": elapsed,
 	})
+	attempt_state["elapsed_ms"] = elapsed
+	var sync_state := str(result.get("state", "queued"))
+	if sync_state == "rejected":
+		status_label.text = "完成提交被服务器拒绝：%s。请检查关卡数据后重试。" % str(result.get("error", "UNKNOWN"))
+		attempt_state["state"] = "rejected"
+		ProgressStore.save_progress(str(level_data.level_id), attempt_state)
+		Analytics.track("level_complete_rejected", {"level_id": level_data.level_id, "status": result.get("status", 0), "error": result.get("error", "")})
+		return
 	complete_panel.visible = true
 	$CompleteDim.visible = true
-	attempt_state["elapsed_ms"] = elapsed
-	ProgressStore.mark_completed(str(level_data.level_id), attempt_state)
+	ProgressStore.mark_completed(str(level_data.level_id), attempt_state, "synced" if sync_state == "synced" else "sync_queued")
 	_prefetch_next_level()
-	if not result.get("queued", false):
+	if sync_state == "synced":
 		$CompletePanel/Margin/Content/Message.text = "全部找到了"
 	else:
 		$CompletePanel/Margin/Content/Message.text = "本地完成 · 等待同步"
 	var seconds := int(elapsed / 1000)
 	$CompletePanel/Margin/Content/Stats.text = "发现 %d/%d  ·  提示 %d  ·  用时 %02d:%02d" % [found.size(), differences.size(), hints_used, int(seconds / 60), seconds % 60]
-	Analytics.track("level_complete", {"level_id": level_data.level_id, "duration_ms": elapsed, "hints_used": hints_used, "queued": result.get("queued", false)})
+	Analytics.track("level_complete", {"level_id": level_data.level_id, "duration_ms": elapsed, "hints_used": hints_used, "sync_state": sync_state})
 	Analytics.flush()
 
 
@@ -344,6 +360,9 @@ func _apply_responsive_layout() -> void:
 		button.custom_minimum_size = Vector2(54.0, 54.0) if landscape else Vector2(50.0, 50.0)
 	if target_panel.texture != null:
 		target_panel.configure_fit_view()
+		if not is_anachronism_mode and base_panel.texture != null:
+			base_panel.set_view(target_panel.zoom, target_panel.view_offset)
+			_save_view(target_panel.zoom, target_panel.view_offset)
 
 
 func _sync_target_view(zoom: float, offset: Vector2) -> void:

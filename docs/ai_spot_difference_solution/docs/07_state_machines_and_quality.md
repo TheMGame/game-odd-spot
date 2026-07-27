@@ -1,8 +1,10 @@
 # 7. 状态机、幂等与 AI 质检规格
 
+> 当前认证状态机：首次安装仍生成 `installation_id`，但 Godot 不自动创建匿名 Session。无 Session 进入登录页；有 Session 时必要时刷新 token、请求 bootstrap、重放队列，再进入首页。网络、5xx、429 等临时 refresh 失败保留现有 Session，只有服务端明确判定 refresh token 无效时才清除。
+
 ## 7.1 身份生命周期
 
-客户端首次安装生成随机 `installation_id` 并保存在平台安全存储。`POST /v1/sessions/anonymous` 创建或恢复该安装对应的匿名用户，返回短期 access token 与可轮换 refresh token。服务端只保存 installation_id 的 HMAC，不保存原值。
+客户端首次安装生成随机 `installation_id` 并持久化。下述匿名 Session 流程是服务端保留的原始设计能力；当前客户端改用账号服务登录和 `/v1/sessions/user-server` token 交换。服务端只保存 installation_id 的 HMAC，不保存原值。
 
 P0 只保证同一安装身份恢复。P2 支持将匿名用户绑定到 Apple、Google 或游戏账号。绑定事务必须锁定源、目标用户，将进度按关卡最高完成状态合并、权益按有效交易合并、消耗型余额按账本重算，并留下 identity_merge_audit。匿名用户不能仅凭设备参数跨设备认领。
 
@@ -12,7 +14,7 @@ P0 只保证同一安装身份恢复。P2 支持将匿名用户绑定到 Apple�
 
 `not_started → in_progress → completed`；completed 为终态。客户端可重复发送 start、progress、complete。progress 上传已找到的 `difference_id` 集合增量；服务端验证该 ID 属于绑定版本。complete 只有当全部差异已找到时成功；首次完成在同一数据库事务内更新进度并写入奖励账本，重复请求重放原响应。
 
-客户端离线时生成 `attempt_id` 和稳定的 Idempotency-Key，联网后按 start → progress → complete 顺序重放。服务端时间为奖励和每日限额的唯一依据。
+客户端在发送前生成 `attempt_id` 和稳定的 Idempotency-Key，并按 start → progress → complete 顺序重放。2xx 为 `synced`；网络错误、401、408、429、5xx 为 `queued`；其他确定性 4xx 为 `rejected` 并进入有上限的 dead-letter。服务端拒绝不能计为正常完成。服务端时间仍是奖励和每日限额的最终依据。
 
 ## 7.3 通用幂等规则
 

@@ -1,8 +1,11 @@
 # 4. API 与数据
 
+> 当前客户端说明：服务端保留以下完整会话 API，但 Godot 默认使用账号服务登录后调用 `POST /v1/sessions/user-server`，不会在 Bootstrap 中调用匿名会话接口。
+
 ## 4.1 主要 API
 
-- `POST /v1/sessions/anonymous`：匿名用户与设备会话。
+- `POST /v1/sessions/anonymous`：服务端兼容的匿名用户与设备会话；当前 Godot 客户端不主动调用。
+- `POST /v1/sessions/user-server`：将账号服务 token 交换为当前客户端使用的游戏 Session。
 - `POST /v1/sessions/refresh`：单次使用 refresh token，轮换 access/refresh token。
 - `POST /v1/sessions/logout`：撤销当前会话；重复调用仍视为成功。
 - `GET /v1/bootstrap`：市场、语言、版本、功能开关、广告参数、配置版本。
@@ -55,3 +58,5 @@ MVP 使用可解释规则：地区匹配 + 语言匹配 + 主题偏好 + 活动�
 稳定错误码至少包括 `UNAUTHENTICATED`、`FORBIDDEN`、`VALIDATION_FAILED`、`LEVEL_NOT_FOUND`、`LEVEL_VERSION_MISMATCH`、`INVALID_STATE`、`IDEMPOTENCY_CONFLICT`、`REQUEST_IN_PROGRESS`、`REWARD_NOT_VERIFIED` 和 `PURCHASE_INVALID`。
 
 bootstrap 支持 ETag/If-None-Match；客户端只在完整验证新配置后替换最后可用快照。home cursor 为服务端签名的不透明字符串。关卡详情可以缓存，但签名 URL 的过期时间不得被当成关卡版本有效期。
+
+当前客户端已实现 Catalog 内存/磁盘缓存和图片磁盘缓存；关卡 JSON 的完整离线缓存仍是待办。首次安装没有缓存时必须联网，不能承诺离线进入游戏。

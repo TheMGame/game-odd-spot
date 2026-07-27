@@ -3,9 +3,14 @@ extends Node
 const DEFAULT_BASE_URL := "https://oddspot.guaguatu.com"
 const DEFAULT_USER_SERVER_URL := "https://api.guaguatu.com"
 const USER_SERVER_APP_ID := "game_odd_spot"
-const REQUEST_TIMEOUT_SECONDS := 2.0
+const GET_TIMEOUT_SECONDS := 10.0
+const AUTH_TIMEOUT_SECONDS := 10.0
+const WRITE_TIMEOUT_SECONDS := 15.0
+const MAX_REQUEST_ATTEMPTS := 3
 
 var base_url := DEFAULT_BASE_URL
+var business_date := ""
+var app_timezone := ""
 
 
 func ensure_session() -> Dictionary:
@@ -16,10 +21,17 @@ func ensure_session() -> Dictionary:
 
 
 func get_bootstrap() -> Dictionary:
-	return await _request_json(HTTPClient.METHOD_GET, "/v1/bootstrap", {}, true, true)
+	var result := await _request_json(HTTPClient.METHOD_GET, "/v1/bootstrap", {}, true, true)
+	if result.ok:
+		var data: Dictionary = result.data.get("data", {})
+		business_date = str(data.get("business_date", business_date))
+		app_timezone = str(data.get("app_timezone", app_timezone))
+	return result
 
 
 func get_business_date() -> Dictionary:
+	if not business_date.is_empty():
+		return {"ok": true, "business_date": business_date, "app_timezone": app_timezone}
 	var result := await get_bootstrap()
 	if not result.ok:
 		return result
@@ -320,7 +332,7 @@ func refresh_session() -> Dictionary:
 	}, false, false)
 	if response.ok:
 		SessionStore.update_session(response.data.get("data", {}))
-	else:
+	elif _is_invalid_refresh_response(response):
 		SessionStore.clear_session()
 	return response
 
@@ -333,14 +345,15 @@ func logout() -> void:
 	SessionStore.clear_session()
 
 
-func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, authenticated: bool, allow_refresh := false, idempotency_key := "") -> Dictionary:
+func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, authenticated: bool, allow_refresh := false, idempotency_key := "", attempt := 1) -> Dictionary:
+	_configure_base_url()
 	if authenticated and allow_refresh and not SessionStore.has_valid_access_token():
 		var proactive_refresh := await refresh_session()
 		if not proactive_refresh.ok:
 			return proactive_refresh
 	var request := HTTPRequest.new()
 	request.accept_gzip = not OS.has_feature("web")
-	request.timeout = REQUEST_TIMEOUT_SECONDS
+	request.timeout = _request_timeout(method, path)
 	add_child(request)
 	var headers := PackedStringArray(["Accept: application/json"])
 	var encoded_body := ""
@@ -355,7 +368,8 @@ func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, au
 	var start_error := request.request(base_url + path, headers, method, encoded_body)
 	if start_error != OK:
 		request.queue_free()
-		return {"ok": false, "error": "request could not start (%s)" % start_error}
+		var start_failure := {"ok": false, "error": "REQUEST_START_FAILED", "status": 0, "retryable": true}
+		return await _retry_or_return(start_failure, method, path, body, authenticated, allow_refresh, idempotency_key, attempt)
 
 	var result: Array = await request.request_completed
 	request.queue_free()
@@ -363,17 +377,43 @@ func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, au
 	var status_code: int = result[1]
 	var response_body: PackedByteArray = result[3]
 	if network_result != HTTPRequest.RESULT_SUCCESS:
-		return {"ok": false, "error": "network error (%s)" % network_result, "status": 0}
+		var network_failure := {"ok": false, "error": "NETWORK_ERROR_%s" % network_result, "status": 0, "retryable": true}
+		return await _retry_or_return(network_failure, method, path, body, authenticated, allow_refresh, idempotency_key, attempt)
 	var parsed = JSON.parse_string(response_body.get_string_from_utf8())
 	if not parsed is Dictionary:
-		return {"ok": false, "error": "invalid server response", "status": status_code}
+		return {"ok": false, "error": "INVALID_SERVER_RESPONSE", "status": status_code, "retryable": false}
 	if status_code == 401 and authenticated and allow_refresh:
 		var refresh_result := await refresh_session()
 		if refresh_result.ok:
 			return await _request_json(method, path, body, true, false, idempotency_key)
 	if status_code < 200 or status_code >= 300:
-		return {"ok": false, "error": str(parsed.get("error_code", "HTTP_%s" % status_code)), "status": status_code, "data": parsed}
-	return {"ok": true, "data": parsed}
+		var failure := {"ok": false, "error": str(parsed.get("error_code", "HTTP_%s" % status_code)), "status": status_code, "data": parsed, "retryable": status_code in [408, 429] or status_code >= 500}
+		return await _retry_or_return(failure, method, path, body, authenticated, allow_refresh, idempotency_key, attempt)
+	return {"ok": true, "status": status_code, "data": parsed, "retryable": false}
+
+
+func _retry_or_return(failure: Dictionary, method: HTTPClient.Method, path: String, body: Dictionary, authenticated: bool, allow_refresh: bool, idempotency_key: String, attempt: int) -> Dictionary:
+	var safe_to_retry := method == HTTPClient.METHOD_GET or not idempotency_key.is_empty()
+	if not safe_to_retry or not bool(failure.get("retryable", false)) or attempt >= MAX_REQUEST_ATTEMPTS:
+		return failure
+	var delay := 0.5 if attempt == 1 else 1.5
+	delay += randf_range(0.0, 0.25)
+	await get_tree().create_timer(delay).timeout
+	return await _request_json(method, path, body, authenticated, allow_refresh, idempotency_key, attempt + 1)
+
+
+func _request_timeout(method: HTTPClient.Method, path: String) -> float:
+	if path.begins_with("/v1/sessions/"):
+		return AUTH_TIMEOUT_SECONDS
+	return GET_TIMEOUT_SECONDS if method == HTTPClient.METHOD_GET else WRITE_TIMEOUT_SECONDS
+
+
+func _is_invalid_refresh_response(response: Dictionary) -> bool:
+	var status := int(response.get("status", 0))
+	if status not in [400, 401, 403]:
+		return false
+	var error := str(response.get("error", "")).to_upper()
+	return error in ["INVALID_REFRESH_TOKEN", "REFRESH_TOKEN_INVALID", "REFRESH_TOKEN_EXPIRED", "REFRESH_TOKEN_REVOKED", "REFRESH_TOKEN_NOT_FOUND"]
 
 
 func _platform_name() -> String:

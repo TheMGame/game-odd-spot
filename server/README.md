@@ -2,11 +2,15 @@
 
 包含 `api`、`worker` 和 `migrate` 三个命令。配置 MySQL 后，身份、会话、关卡进度、奖励、配置、内容审核、分析、运营和生成任务均持久化；development/test 可使用内存实现。
 
+Godot 客户端当前通过账号服务登录，再调用 `/v1/sessions/user-server` 换取游戏 access/refresh token。`/v1/sessions/anonymous` 是兼容 API，但不是当前客户端 Bootstrap 的默认入口。只有明确的无效 refresh token 响应才应使客户端清除 Session。
+
 ```powershell
 go test ./...
 go vet ./...
 go run ./cmd/api
 ```
+
+仓库根目录的 `scripts/test-all.ps1` 还会运行 Godot 导入、场景冒烟测试和客户端单元测试；CI 同时校验 contracts 合法/非法样例。
 
 数据库迁移：
 
@@ -63,6 +67,8 @@ go test ./internal/generation -run TestWorkerProcessesJob -v
 - 图片资源：`GET /content/{asset}`
 - 管理后台：`http://127.0.0.1:8080/admin/`
 - 管理 API：`/admin/v1/catalog`、`/admin/v1/series`、`/admin/v1/levels/{levelId}`、`/admin/v1/assets/{assetId}`
+
+客户端对 `/v1/catalog` 使用内存/磁盘缓存和短 TTL。start、progress、complete 写请求携带稳定 `Idempotency-Key`；2xx 为 `synced`，网络错误、401、408、429 和 5xx 为 `queued`，其余确定性 4xx 为 `rejected`。
 
 本地服务设置 `ODDSPOT_PUBLIC_BASE_URL=http://127.0.0.1:8080`，线上设置为公开 HTTPS API 或 CDN 域名。Godot 编辑器、Debug 包和 Release 包默认连接 `client/project.godot` 中的生产地址；仅在本地联调时通过 `ODDSPOT_API_BASE_URL` 环境变量显式覆盖。
 

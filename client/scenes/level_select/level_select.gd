@@ -16,7 +16,7 @@ func _ready() -> void:
 
 
 func _build_cards() -> void:
-	var remote := await ApiClient.get_catalog()
+	var remote := await CatalogRepository.get_catalog()
 	if not remote.ok:
 		var error := str(remote.get("error", "CATALOG_LOAD_FAILED"))
 		push_error("Catalog request failed: %s" % error)

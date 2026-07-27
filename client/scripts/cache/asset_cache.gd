@@ -3,6 +3,8 @@ extends RefCounted
 
 const CACHE_DIR := "user://asset_cache"
 const CACHE_LIMIT_BYTES := 300 * 1024 * 1024
+const MAX_ASSET_BYTES := 25 * 1024 * 1024
+const DOWNLOAD_TIMEOUT_SECONDS := 30.0
 
 
 func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
@@ -20,6 +22,7 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 
 	var request := HTTPRequest.new()
 	request.accept_gzip = not OS.has_feature("web")
+	request.timeout = DOWNLOAD_TIMEOUT_SECONDS
 	owner.add_child(request)
 	var start_error := request.request(url)
 	if start_error != OK:
@@ -30,6 +33,8 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 	if response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
 		return {"ok": false, "error": "ASSET_DOWNLOAD_FAILED"}
 	var bytes: PackedByteArray = response[3]
+	if bytes.size() > MAX_ASSET_BYTES:
+		return {"ok": false, "error": "ASSET_TOO_LARGE"}
 	if _sha256(bytes) != expected_hash:
 		return {"ok": false, "error": "ASSET_HASH_MISMATCH"}
 	var file := FileAccess.open(cache_path, FileAccess.WRITE)
@@ -37,6 +42,40 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 		file.store_buffer(bytes)
 	_prune_cache()
 	return _decode_texture(bytes, str(asset.get("content_type", "")))
+
+
+func load_texture_url(owner: Node, url: String, variant := "remote") -> Dictionary:
+	if url.is_empty():
+		return {"ok": false, "error": "ASSET_URL_MISSING"}
+	DirAccess.make_dir_recursive_absolute(CACHE_DIR)
+	var cache_path := "%s/url_%s_%s.bin" % [CACHE_DIR, variant.validate_filename(), url.md5_text()]
+	if FileAccess.file_exists(cache_path):
+		var cached := FileAccess.get_file_as_bytes(cache_path)
+		var cached_texture := _decode_texture(cached, "")
+		if cached_texture.ok:
+			return cached_texture
+	var request := HTTPRequest.new()
+	request.accept_gzip = not OS.has_feature("web")
+	request.timeout = DOWNLOAD_TIMEOUT_SECONDS
+	owner.add_child(request)
+	if request.request(url) != OK:
+		request.queue_free()
+		return {"ok": false, "error": "ASSET_DOWNLOAD_START_FAILED"}
+	var response: Array = await request.request_completed
+	request.queue_free()
+	if response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
+		return {"ok": false, "error": "ASSET_DOWNLOAD_FAILED"}
+	var bytes: PackedByteArray = response[3]
+	if bytes.size() > MAX_ASSET_BYTES:
+		return {"ok": false, "error": "ASSET_TOO_LARGE"}
+	var decoded := _decode_texture(bytes, "")
+	if not decoded.ok:
+		return decoded
+	var file := FileAccess.open(cache_path, FileAccess.WRITE)
+	if file != null:
+		file.store_buffer(bytes)
+	_prune_cache()
+	return decoded
 
 
 func _decode_texture(bytes: PackedByteArray, content_type: String) -> Dictionary:

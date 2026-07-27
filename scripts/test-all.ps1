@@ -17,5 +17,7 @@ try {
 if ($LASTEXITCODE -ne 0) { throw 'Godot import failed' }
 & $godot --headless --path (Join-Path $root 'client') --script 'res://tests/run_smoke.gd'
 if ($LASTEXITCODE -ne 0) { throw 'Godot smoke tests failed' }
+& $godot --headless --path (Join-Path $root 'client') --script 'res://tests/run_unit_tests.gd'
+if ($LASTEXITCODE -ne 0) { throw 'Godot unit tests failed' }
 
 Write-Output 'All local checks passed.'

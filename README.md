@@ -2,6 +2,13 @@
 
 AI 多地区找茬游戏 Monorepo，包含可运行的 Godot 客户端、Go/MySQL API、内容 Worker、静态管理后台和 Ubuntu 原生部署脚本。
 
+## 当前运行模式
+
+- 客户端采用账号登录：账号服务登录成功后，由 Odd Spot API 交换游戏 Session。服务端仍保留匿名会话 API，但当前 Godot 启动流程不会自动创建匿名账号。
+- Bootstrap 加载已有 Session，必要时刷新 token，随后请求 `/v1/bootstrap`、重放同步队列；有效 Session 进入首页，无 Session 进入登录页。临时网络故障不会清空登录状态。
+- Catalog 使用内存与磁盘缓存，远程图片使用本地磁盘缓存。客户端不内置备用关卡，首次使用必须联网。
+- 关卡写入支持 `synced`、`queued`、`rejected` 三种结果；确定性 4xx 不会被显示为服务端完成。
+
 ## 代码位置
 
 - `client/`：Godot 4.7 客户端（前端）。
@@ -17,7 +24,9 @@ AI 多地区找茬游戏 Monorepo，包含可运行的 Godot 客户端、Go/MySQ
 .\scripts\test-all.ps1
 ```
 
-打开 `client/project.godot` 可运行游戏。后端配置环境变量后执行：
+该命令运行 Go test/vet、Godot 导入、场景冒烟测试和客户端单元测试。PR 与 `master` push 还会通过 `.github/workflows/ci.yml` 验证 Go、Godot 和 contracts 样例。
+
+打开 `client/project.godot` 可运行游戏。客户端默认连接生产 API；本地联调可设置 `ODDSPOT_API_BASE_URL=http://127.0.0.1:8080`。后端配置环境变量后执行：
 
 ```powershell
 cd server

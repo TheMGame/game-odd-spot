@@ -17,16 +17,16 @@ func _ready() -> void:
 	$Layout/TopBar/Identity.pressed.connect(_open_settings)
 	$Layout/Footer/Daily.pressed.connect(_open_daily)
 	_apply_style()
-	await ApiClient.refresh_user_profile()
-	await _refresh_series()
-	await _refresh_identity()
+	_refresh_identity()
+	_refresh_profile_and_identity()
+	_refresh_series()
 	_refresh_sync()
 	Analytics.track("home_impression")
 
 
 func _refresh_series() -> void:
 	series_items.clear()
-	var remote := await ApiClient.get_catalog()
+	var remote := await CatalogRepository.get_catalog()
 	if not remote.ok:
 		var error := str(remote.get("error", "CATALOG_LOAD_FAILED"))
 		push_error("Catalog request failed: %s" % error)
@@ -119,9 +119,6 @@ func _add_series_card(series: Dictionary) -> void:
 		var thumbnail_url := str(first_level.get("thumbnail_url", ""))
 		if not thumbnail_url.is_empty():
 			_load_series_thumbnail(thumbnail_url, series_id)
-		var level_id := str(first_level.get("id", ""))
-		if not level_id.is_empty():
-			_load_series_full_image(level_id, series_id)
 	elif not str(series.get("cover_url", "")).is_empty():
 		_load_series_thumbnail(str(series.get("cover_url", "")), series_id)
 	Analytics.track("series_impression", {"series_id": series_id})
@@ -133,37 +130,9 @@ func _open_series(series_id: String) -> void:
 
 
 func _load_series_thumbnail(url: String, series_id: String) -> void:
-	var texture := await _download_texture(url)
-	if texture != null and series_images.has(series_id) and int(series_image_quality.get(series_id, 0)) == 0:
-		(series_images[series_id] as TextureRect).texture = texture
-
-
-func _load_series_full_image(level_id: String, series_id: String) -> void:
-	var result := await ApiClient.get_level(level_id)
-	if not result.ok or not series_images.has(series_id):
-		return
-	var image_asset: Dictionary = result.data.get("data", {}).get("assets", {}).get("image", {})
-	var texture_result := await AssetCache.new().load_texture(self, image_asset)
+	var texture_result := await AssetCache.new().load_texture_url(self, url, "series")
 	if texture_result.ok and series_images.has(series_id):
-		series_image_quality[series_id] = 1
 		(series_images[series_id] as TextureRect).texture = texture_result.texture
-
-
-func _download_texture(url: String) -> Texture2D:
-	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
-	request.timeout = 8.0
-	add_child(request)
-	if request.request(url) != OK:
-		request.queue_free()
-		return null
-	var response: Array = await request.request_completed
-	request.queue_free()
-	if response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
-		return null
-	var bytes: PackedByteArray = response[3]
-	var image := AssetCache.decode_image(bytes)
-	return ImageTexture.create_from_image(image) if image != null else null
 
 
 func _refresh_sync() -> void:
@@ -197,14 +166,20 @@ func _refresh_identity() -> void:
 	var short_id := SessionStore.user_id.right(6) if SessionStore.user_id.length() >= 6 else SessionStore.user_id
 	$Layout/TopBar/Identity.text = SessionStore.username if not SessionStore.username.is_empty() else "玩家 · %s" % short_id
 	if not SessionStore.avatar_url.is_empty():
-		var avatar := await _download_texture(SessionStore.avatar_url)
-		if avatar != null:
-			$Layout/TopBar/Identity.icon = avatar
+		var avatar := await AssetCache.new().load_texture_url(self, SessionStore.avatar_url, "avatar")
+		if avatar.ok:
+			$Layout/TopBar/Identity.icon = avatar.texture
+
+
+func _refresh_profile_and_identity() -> void:
+	var result := await ApiClient.refresh_user_profile()
+	if result.ok:
+		await _refresh_identity()
 
 
 func _open_daily() -> void:
 	LevelLoader.select_series("daily_task")
-	var remote := await ApiClient.get_catalog()
+	var remote := await CatalogRepository.get_catalog()
 	if remote.ok:
 		var response_data: Dictionary = remote.data.get("data", {})
 		for raw_series in _array_or_empty(response_data.get("series")):

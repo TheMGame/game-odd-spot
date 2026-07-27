@@ -19,7 +19,7 @@ static func clear_selection() -> void:
 
 func select_next_level(current_level_id: String) -> bool:
 	if not selected_series_id.is_empty():
-		var remote := await ApiClient.get_catalog()
+		var remote := await CatalogRepository.get_catalog()
 		if remote.ok:
 			var response_data: Dictionary = remote.data.get("data", {})
 			var remote_series := _array_or_empty(response_data.get("series"))
@@ -41,7 +41,7 @@ func select_next_level(current_level_id: String) -> bool:
 func prefetch_next_level(owner: Node, current_level_id: String) -> void:
 	if selected_series_id.is_empty() or not is_instance_valid(owner):
 		return
-	var remote := await ApiClient.get_catalog()
+	var remote := await CatalogRepository.get_catalog()
 	if not remote.ok:
 		return
 	var next_level_id := ""
@@ -85,14 +85,7 @@ func load_first_level() -> Dictionary:
 
 
 func _validate(level_data: Dictionary) -> Dictionary:
-	if int(level_data.get("schema_version", 0)) != 1:
-		return {"ok": false, "error": "LEVEL_SCHEMA_UNSUPPORTED"}
-	if not str(level_data.get("mode", "")) in ["spot_difference", "find_anachronism"]:
-		return {"ok": false, "error": "LEVEL_MODE_UNSUPPORTED"}
-	var differences: Array = level_data.get("differences", [])
-	if differences.size() < 3 or differences.size() > 12:
-		return {"ok": false, "error": "LEVEL_DIFFERENCES_INVALID"}
-	return {"ok": true, "data": level_data}
+	return LevelValidator.validate(level_data)
 
 
 func _array_or_empty(value: Variant) -> Array:

@@ -15,29 +15,50 @@ func _ready() -> void:
 
 func _bootstrap() -> void:
 	retry_button.visible = false
+	start_button.visible = false
 	status_label.text = "正在准备旅程…"
-	loading_progress.value = 18
-	await get_tree().create_timer(0.25).timeout
+	loading_progress.value = 15
+	if not SessionStore.has_access_token():
+		_enter_login()
+		return
+	if not SessionStore.has_valid_access_token():
+		status_label.text = "正在恢复登录状态…"
+		var refresh := await ApiClient.refresh_session()
+		if not refresh.ok:
+			if SessionStore.has_access_token():
+				_show_error(str(refresh.get("error", "SESSION_REFRESH_FAILED")))
+			else:
+				_enter_login()
+			return
 	loading_progress.value = 55
-	status_label.text = "正在加载游戏内容…"
-	await get_tree().create_timer(0.25).timeout
+	status_label.text = "正在加载启动配置…"
+	var bootstrap := await ApiClient.get_bootstrap()
+	if not bootstrap.ok:
+		_show_error(str(bootstrap.get("error", "BOOTSTRAP_FAILED")))
+		return
 	loading_progress.value = 82
-	status_label.text = "一切就绪"
-	await get_tree().create_timer(0.25).timeout
+	status_label.text = "正在同步本地进度…"
+	await SyncQueue.flush()
 	loading_progress.value = 100
-	await get_tree().create_timer(0.2).timeout
-	_enter_game()
+	status_label.text = "一切就绪"
+	_enter_home()
 
 
-func _show_error() -> void:
-	status_label.text = "暂时无法连接服务器\n你仍然可以继续本地游戏"
+func _show_error(error: String) -> void:
+	status_label.text = "暂时无法完成启动：%s\n请检查网络后重试" % error
 	retry_button.visible = true
-	start_button.visible = true
-	start_button.text = "继续离线游戏"
 
 
 func _enter_game() -> void:
+	_enter_login()
+
+
+func _enter_login() -> void:
 	get_tree().change_scene_to_file("res://scenes/login/login.tscn")
+
+
+func _enter_home() -> void:
+	get_tree().change_scene_to_file("res://scenes/home/home.tscn")
 
 
 func _apply_style() -> void:

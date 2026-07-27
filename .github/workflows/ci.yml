@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - run: go test ./...
+      - run: go vet ./...
+      - run: test -z "$(gofmt -l .)"
+
+  client:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - run: godot --headless --path client --editor --quit
+      - run: godot --headless --path client --script res://tests/run_smoke.gd
+      - run: godot --headless --path client --script res://tests/run_unit_tests.gd
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install jsonschema
+      - run: jsonschema -i contracts/examples/level.valid.json contracts/level.schema.json
+      - run: |
+          if jsonschema -i contracts/examples/level.invalid.circle-missing-radius.json contracts/level.schema.json; then
+            echo "Invalid fixture unexpectedly passed"
+            exit 1
+          fi
