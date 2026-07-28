@@ -65,8 +65,8 @@ func _enter_home() -> void:
 
 func _apply_style() -> void:
 	var primary := StyleBoxFlat.new()
-	primary.bg_color = Color("#a33b2b")
-	primary.border_color = Color("#d8ae62")
+	primary.bg_color = Color("#c84e38")
+	primary.border_color = Color("#e6b95c")
 	primary.set_border_width_all(2)
 	primary.set_corner_radius_all(18)
 	start_button.add_theme_stylebox_override("normal", primary)

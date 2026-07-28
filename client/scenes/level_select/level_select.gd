@@ -1,10 +1,10 @@
 extends Control
 
 const INK := Color("#0b1b29")
-const PAPER := Color("#ead9b5")
-const GOLD := Color("#d5a64e")
-const CINNABAR := Color("#a33b2b")
-const JADE := Color("#516f62")
+const PAPER := Color("#f3e8cf")
+const GOLD := Color("#e6b95c")
+const CINNABAR := Color("#c84e38")
+const JADE := Color("#72a58f")
 
 @onready var cards: VBoxContainer = $Layout/Scroll/Cards
 
@@ -78,10 +78,10 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	button.custom_minimum_size = Vector2(0, 250)
 	button.disabled = locked
 	button.text = ""
-	button.add_theme_stylebox_override("normal", _round_box(Color("#122b3a"), Color(GOLD, 0.55), 18, 2))
-	button.add_theme_stylebox_override("hover", _round_box(Color("#183847"), GOLD, 18, 3))
-	button.add_theme_stylebox_override("pressed", _round_box(Color("#0f2532"), CINNABAR, 18, 3))
-	button.add_theme_stylebox_override("disabled", _round_box(Color("#101c24"), Color("#34434a"), 18, 1))
+	button.add_theme_stylebox_override("normal", _round_box(Color("#173a46"), Color(GOLD, 0.72), 18, 2))
+	button.add_theme_stylebox_override("hover", _round_box(Color("#22505d"), GOLD, 18, 3))
+	button.add_theme_stylebox_override("pressed", _round_box(Color("#12323d"), CINNABAR, 18, 3))
+	button.add_theme_stylebox_override("disabled", _round_box(Color("#183039"), Color("#52666b"), 18, 1))
 	button.pressed.connect(func():
 		LevelLoader.select_remote_level(str(entry.get("id", "")))
 		get_tree().change_scene_to_file("res://scenes/game/game.tscn")
@@ -129,7 +129,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	var count := int(entry.get("difference_count", 0))
 	var detail := Label.new()
 	detail.text = "%d 个找茬目标" % count
-	detail.add_theme_color_override("font_color", Color("#aab8b5"))
+	detail.add_theme_color_override("font_color", Color("#b8c9c5"))
 	detail.add_theme_font_size_override("font_size", 26)
 	info.add_child(detail)
 	var seals := Label.new()

@@ -41,6 +41,46 @@
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);
+window.oddSpotAudio=(function(){
+	let context=null;
+	function getContext(){
+		if(!context){
+			const AudioContext=window.AudioContext||window.webkitAudioContext;
+			if(!AudioContext)return null;
+			context=new AudioContext({latencyHint:"interactive"});
+		}
+		if(context.state==="suspended")context.resume();
+		return context;
+	}
+	function tone(ctx,when,frequency,duration,volume,type){
+		const oscillator=ctx.createOscillator();
+		const gain=ctx.createGain();
+		oscillator.type=type||"sine";
+		oscillator.frequency.setValueAtTime(frequency,when);
+		gain.gain.setValueAtTime(0.0001,when);
+		gain.gain.exponentialRampToValueAtTime(volume,when+0.003);
+		gain.gain.exponentialRampToValueAtTime(0.0001,when+duration);
+		oscillator.connect(gain).connect(ctx.destination);
+		oscillator.start(when);
+		oscillator.stop(when+duration+0.01);
+	}
+	return {play:function(kind){
+		const ctx=getContext();
+		if(!ctx)return;
+		const now=ctx.currentTime+0.003;
+		if(kind==="click"){
+			tone(ctx,now,760,0.055,0.055,"sine");
+			tone(ctx,now,1140,0.035,0.025,"sine");
+		}else if(kind==="correct"){
+			tone(ctx,now,988,0.105,0.12,"sine");
+			tone(ctx,now+0.052,1319,0.14,0.11,"sine");
+		}else if(kind==="complete"){
+			[[0,523],[0.09,659],[0.18,784],[0.29,1047],[0.43,1319]].forEach(function(note){
+				tone(ctx,now+note[0],note[1],0.3,0.09,"sine");
+			});
+		}
+	}};
+}());
 (function(){
 	const overlay=document.getElementById("status");
 	const progress=document.getElementById("status-progress");

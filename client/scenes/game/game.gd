@@ -136,6 +136,7 @@ func _contains(difference: Dictionary, point: Vector2) -> bool:
 func _mark_found(difference: Dictionary) -> void:
 	var id := str(difference.id)
 	found[id] = true
+	AudioManager.play_correct()
 	var center := _difference_center(difference)
 	if not is_anachronism_mode:
 		base_panel.add_marker(center)
@@ -161,7 +162,9 @@ func _show_found_info(difference: Dictionary) -> void:
 
 func _finish_after_feedback() -> void:
 	hint_button.disabled = true
-	await get_tree().create_timer(1.8).timeout
+	await get_tree().create_timer(0.18).timeout
+	AudioManager.play_complete()
+	await get_tree().create_timer(1.62).timeout
 	_finish_level()
 
 
@@ -317,8 +320,8 @@ func _replay_level() -> void:
 
 func _apply_visual_style() -> void:
 	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color("#102837")
-	frame.border_color = Color("#b88a43")
+	frame.bg_color = Color("#173a46")
+	frame.border_color = Color("#d9aa4f")
 	frame.set_border_width_all(3)
 	frame.set_corner_radius_all(14)
 	$Layout/ImageFrame.add_theme_stylebox_override("panel", frame)
@@ -329,7 +332,7 @@ func _apply_visual_style() -> void:
 	paper.set_corner_radius_all(14)
 	$Layout/FoundInfo.add_theme_stylebox_override("panel", paper)
 	var journal := StyleBoxFlat.new()
-	journal.bg_color = Color("#102431")
+	journal.bg_color = Color("#173a46")
 	journal.border_color = Color(0.72, 0.54, 0.27, 0.55)
 	journal.set_border_width_all(2)
 	journal.set_corner_radius_all(14)

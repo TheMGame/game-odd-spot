@@ -1,8 +1,8 @@
 extends Control
 
-const GOLD := Color("#d5a64e")
-const PAPER := Color("#ead9b5")
-const MUTED := Color("#aab8b5")
+const GOLD := Color("#e6b95c")
+const PAPER := Color("#f3e8cf")
+const MUTED := Color("#b8c9c5")
 
 @onready var cards: VBoxContainer = $Layout/SeriesScroll/Cards
 @onready var sync_status: Label = $Layout/Footer/SyncStatus
@@ -109,8 +109,8 @@ func _add_series_card(series: Dictionary) -> void:
 	enter.custom_minimum_size = Vector2(128, 80)
 	enter.text = "进入"
 	enter.add_theme_font_size_override("font_size", 28)
-	enter.add_theme_stylebox_override("normal", _button_box(Color("#17352f"), Color("#547766"), 18, 2))
-	enter.add_theme_stylebox_override("hover", _button_box(Color("#20483f"), GOLD, 18, 2))
+	enter.add_theme_stylebox_override("normal", _button_box(Color("#3f7565"), Color("#8bb09f"), 18, 2))
+	enter.add_theme_stylebox_override("hover", _button_box(Color("#4d8976"), GOLD, 18, 2))
 	enter.pressed.connect(func(): _open_series(series_id))
 	row.add_child(enter)
 
@@ -143,16 +143,16 @@ func _refresh_sync() -> void:
 
 
 func _apply_style() -> void:
-	$Layout/TopBar/Identity.add_theme_stylebox_override("normal", _button_box(Color("#102431"), Color("#355061"), 18, 1))
-	$Layout/TopBar/Identity.add_theme_stylebox_override("hover", _button_box(Color("#16303e"), GOLD, 18, 2))
-	$Layout/TopBar/Daily.add_theme_stylebox_override("normal", _button_box(Color("#17352f"), Color("#547766"), 18, 2))
-	$Layout/TopBar/Daily.add_theme_stylebox_override("hover", _button_box(Color("#20483f"), GOLD, 18, 2))
+	$Layout/TopBar/Identity.add_theme_stylebox_override("normal", _button_box(Color("#1b4350"), Color("#5b7d87"), 18, 1))
+	$Layout/TopBar/Identity.add_theme_stylebox_override("hover", _button_box(Color("#255462"), GOLD, 18, 2))
+	$Layout/TopBar/Daily.add_theme_stylebox_override("normal", _button_box(Color("#3f7565"), Color("#8bb09f"), 18, 2))
+	$Layout/TopBar/Daily.add_theme_stylebox_override("hover", _button_box(Color("#4d8976"), GOLD, 18, 2))
 
 
 func _card_box() -> StyleBoxFlat:
 	var card := StyleBoxFlat.new()
-	card.bg_color = Color("#102837")
-	card.border_color = Color("#b88a43")
+	card.bg_color = Color("#173a46")
+	card.border_color = Color("#d9aa4f")
 	card.set_border_width_all(3)
 	card.set_corner_radius_all(22)
 	return card

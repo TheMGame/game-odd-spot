@@ -19,7 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.027, 0.071, 0.106, 1)
+color = Color(0.063, 0.165, 0.208, 1)
 
 [node name="SafeArea" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -65,7 +65,7 @@ horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="SafeArea/Layout/Header/Titles"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.66, 0.65, 1)
+theme_override_colors/font_color = Color(0.72, 0.80, 0.78, 1)
 theme_override_font_sizes/font_size = 21
 text = "账户、体验与隐私"
 horizontal_alignment = 1
@@ -105,7 +105,7 @@ text = "游客玩家"
 
 [node name="Description" type="Label" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.64, 0.72, 0.70, 1)
+theme_override_colors/font_color = Color(0.74, 0.82, 0.80, 1)
 theme_override_font_sizes/font_size = 22
 text = "当前进度保存在这台设备。绑定账号后可跨设备恢复。"
 autowrap_mode = 2
@@ -114,34 +114,7 @@ autowrap_mode = 2
 custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "登录并同步进度"
-
-[node name="DeveloperAccount" type="VBoxContainer" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="AccountName" type="LineEdit" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount"]
-custom_minimum_size = Vector2(0, 66)
-layout_mode = 2
-placeholder_text = "Debug 测试账号"
-
-[node name="Actions" type="HBoxContainer" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="BindAccount" type="Button" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions"]
-custom_minimum_size = Vector2(0, 64)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 21
-text = "绑定当前进度"
-
-[node name="LoginAccount" type="Button" parent="SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions"]
-custom_minimum_size = Vector2(0, 64)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 21
-text = "恢复账号"
+text = "登录正式账号"
 
 [node name="ExperienceTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
@@ -163,6 +136,20 @@ button_pressed = true
 theme_override_font_sizes/font_size = 24
 text = "触感反馈"
 
+[node name="Music" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+button_pressed = true
+theme_override_font_sizes/font_size = 24
+text = "背景音乐"
+
+[node name="Effects" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+button_pressed = true
+theme_override_font_sizes/font_size = 24
+text = "操作音效"
+
 [node name="LargeMarkers" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
 custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
@@ -180,9 +167,9 @@ theme_override_font_sizes/font_size = 24
 text = "语言"
 
 [node name="Selector" type="OptionButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Language"]
-custom_minimum_size = Vector2(300, 66)
+custom_minimum_size = Vector2(340, 74)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 24
 
 [node name="PrivacyTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
@@ -206,7 +193,7 @@ text = "帮助改进游戏"
 
 [node name="AnalyticsNote" type="Label" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.52, 0.62, 0.61, 1)
+theme_override_colors/font_color = Color(0.68, 0.77, 0.75, 1)
 theme_override_font_sizes/font_size = 20
 text = "仅发送匿名使用数据，不包含姓名或图片内容。"
 autowrap_mode = 2
@@ -242,7 +229,7 @@ text = "退出当前会话"
 
 [node name="Version" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.36, 0.46, 0.46, 1)
+theme_override_colors/font_color = Color(0.58, 0.68, 0.67, 1)
 theme_override_font_sizes/font_size = 18
 text = "火眼金睛 · 版本 0.1.0"
 horizontal_alignment = 1

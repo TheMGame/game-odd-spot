@@ -1,8 +1,8 @@
 extends Control
 
-const CARD_FILL := Color("#102633")
-const CARD_BORDER := Color("#365060")
-const GOLD := Color("#d5a64e")
+const CARD_FILL := Color("#173a46")
+const CARD_BORDER := Color("#5b7d87")
+const GOLD := Color("#e6b95c")
 
 @onready var account_input: LineEdit = $SafeArea/Layout/Card/Content/AccountName
 @onready var password_input: LineEdit = $SafeArea/Layout/Card/Content/Password
@@ -215,13 +215,13 @@ func _apply_style() -> void:
 	$SafeArea/Layout/Card.add_theme_stylebox_override("panel", card)
 
 	var primary := StyleBoxFlat.new()
-	primary.bg_color = Color("#a33b2b")
+	primary.bg_color = Color("#c84e38")
 	primary.border_color = GOLD
 	primary.set_border_width_all(2)
 	primary.set_corner_radius_all(16)
 	login_button.add_theme_stylebox_override("normal", primary)
 
 	var hover := primary.duplicate()
-	hover.bg_color = Color("#bd4834")
+	hover.bg_color = Color("#dc624b")
 	hover.set_border_width_all(3)
 	login_button.add_theme_stylebox_override("hover", hover)

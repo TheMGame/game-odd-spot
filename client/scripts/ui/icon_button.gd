@@ -5,9 +5,9 @@ extends Button
 @export var glow := false
 
 const INK := Color("#0b1b29")
-const GOLD := Color("#d6a64f")
-const PAPER := Color("#f0dfbd")
-const CINNABAR := Color("#a53b2b")
+const GOLD := Color("#e6b95c")
+const PAPER := Color("#f3e8cf")
+const CINNABAR := Color("#c84e38")
 
 var _hovered := false
 var _pulse := 0.0
@@ -16,6 +16,9 @@ var _pulse := 0.0
 func _ready() -> void:
 	text = ""
 	focus_mode = Control.FOCUS_ALL
+	var empty := StyleBoxEmpty.new()
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		add_theme_stylebox_override(state, empty)
 	mouse_entered.connect(func(): _hovered = true; queue_redraw())
 	mouse_exited.connect(func(): _hovered = false; queue_redraw())
 	resized.connect(queue_redraw)
@@ -32,11 +35,17 @@ func _draw() -> void:
 	var radius := minf(size.x, size.y) * 0.38
 	if glow:
 		var halo := radius + 7.0 + sin(_pulse * 3.2) * 3.0
-		draw_circle(center, halo, Color(GOLD, 0.10))
-		draw_arc(center, halo, 0, TAU, 40, Color(GOLD, 0.32), 2.0, true)
-	draw_circle(center, radius, Color("#132c3c") if not button_pressed else Color("#203d4c"))
-	draw_arc(center, radius, 0, TAU, 40, GOLD if _hovered or glow else Color(GOLD, 0.72), 2.5, true)
-	var color := PAPER if not disabled else Color(PAPER, 0.35)
+		draw_circle(center, halo, Color(GOLD, 0.16))
+		draw_arc(center, halo, 0, TAU, 40, Color(GOLD, 0.48), 2.5, true)
+	var fill := Color("#67251f") if button_pressed else (Color("#a74738") if _hovered else Color("#87352c"))
+	var opacity := 0.38 if disabled else 1.0
+	draw_circle(center + Vector2(0, 3), radius + 2, Color(INK, 0.34 * opacity))
+	draw_circle(center, radius, Color(GOLD, opacity))
+	draw_circle(center, radius - 3.0, Color("#4f211e", opacity))
+	draw_circle(center, radius - 5.0, Color(fill, opacity))
+	draw_arc(center, radius - 7.0, PI * 1.08, PI * 1.78, 18, Color(PAPER, 0.26 * opacity), 2.0, true)
+	draw_arc(center, radius, 0, TAU, 40, PAPER if _hovered or glow else Color("#f0cd83"), 2.0, true)
+	var color := PAPER if not disabled else Color(PAPER, 0.38)
 	var s := radius * 0.78
 	match icon_kind:
 		"back": _draw_back(center, s, color)
