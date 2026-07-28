@@ -12,4 +12,20 @@ New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw 'Godot Web export failed'
 }
+$pack = Join-Path $outputDir 'index.pck'
+if (-not (Test-Path -LiteralPath $pack)) {
+    throw 'Godot Web export did not produce index.pck'
+}
+$packVersion = (Get-FileHash -LiteralPath $pack -Algorithm SHA256).Hash.Substring(0, 16).ToLowerInvariant()
+$versionedPackName = "index.$packVersion.pck"
+$versionedPack = Join-Path $outputDir $versionedPackName
+Copy-Item -LiteralPath $pack -Destination $versionedPack -Force
+
+$html = [IO.File]::ReadAllText($output)
+if (-not $html.Contains('__ODDSPOT_PCK_VERSION__')) {
+    throw 'Web shell is missing the PCK cache-busting marker'
+}
+$html = $html.Replace('__ODDSPOT_PCK_VERSION__', $packVersion)
+[IO.File]::WriteAllText($output, $html, [Text.UTF8Encoding]::new($false))
+Write-Output "PCK cache key: $versionedPackName"
 Write-Output $outputDir

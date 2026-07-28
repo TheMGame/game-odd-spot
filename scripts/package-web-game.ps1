@@ -19,6 +19,15 @@ foreach ($required in @('index.html', 'index.js', 'index.wasm', 'index.pck')) {
         throw "Godot Web output is missing: $required"
     }
 }
+$html = [IO.File]::ReadAllText((Join-Path $webOutput 'index.html'))
+$packMatch = [regex]::Match($html, 'mainPack="(?<name>index\.[0-9a-f]{16}\.pck)"')
+if (-not $packMatch.Success) {
+    throw 'Godot Web output is missing a versioned PCK reference'
+}
+$versionedPackName = $packMatch.Groups['name'].Value
+if (-not (Test-Path -LiteralPath (Join-Path $webOutput $versionedPackName))) {
+    throw "Godot Web output is missing: $versionedPackName"
+}
 $resolvedStage = [IO.Path]::GetFullPath($stage)
 $expectedParent = [IO.Path]::GetFullPath($packageRoot)
 if ([IO.Path]::GetDirectoryName($resolvedStage) -ne $expectedParent) {

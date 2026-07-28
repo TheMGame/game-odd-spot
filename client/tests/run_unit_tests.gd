@@ -39,6 +39,20 @@ func _expect(condition: bool, message: String, failures: Array[String]) -> void:
 func _test_builtin_translations(failures: Array[String]) -> void:
 	TranslationServer.set_locale("en-US")
 	_expect(TranslationServer.translate("设置") == "Settings", "English built-in translation was not loaded", failures)
+	for source in [
+		"背景音乐",
+		"操作音效",
+		"尚未登录",
+		"关卡进度与游戏权益正在通过正式账号服务同步。",
+		"登录正式账号后，可同步关卡进度与游戏权益。",
+		"隐私政策",
+		"我知道了",
+	]:
+		_expect(
+			TranslationServer.translate(source) != source,
+			"Missing English UI translation: %s" % source,
+			failures,
+		)
 	TranslationServer.set_locale("zh-CN")
 	_expect(TranslationServer.translate("设置") == "设置", "Chinese locale did not restore source text", failures)
 

@@ -11,6 +11,9 @@ const GOLD := Color("#e6b95c")
 @onready var large_markers_toggle: CheckButton = $SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/LargeMarkers
 @onready var status_label: Label = $SafeArea/Layout/Scroll/Sections/Status
 @onready var language_selector: OptionButton = $SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Language/Selector
+@onready var privacy_dialog: Control = $PrivacyDialog
+@onready var privacy_content: RichTextLabel = $PrivacyDialog/DialogMargin/Card/Content/PolicyContent
+@onready var privacy_close: Button = $PrivacyDialog/DialogMargin/Card/Content/Close
 
 var _locale_ids: Array[String] = []
 var _changing_locale := false
@@ -29,6 +32,8 @@ func _ready() -> void:
 	# 当前没有广告，先隐藏“移除广告”；后续接入广告平台时恢复按钮和购买回调。
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Purchase.visible = false
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/PrivacyPolicy.pressed.connect(_show_privacy)
+	privacy_close.pressed.connect(_hide_privacy)
+	$PrivacyDialog/Backdrop.gui_input.connect(_privacy_backdrop_input)
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Login.pressed.connect(_request_product_login)
 	$SafeArea/Layout/Scroll/Sections/Logout.pressed.connect(_logout)
 	var has_account := SessionStore.has_access_token()
@@ -100,6 +105,12 @@ func _apply_style() -> void:
 	language_popup.add_theme_constant_override("item_start_padding", 18)
 	language_popup.add_theme_constant_override("item_end_padding", 18)
 	language_popup.add_theme_constant_override("v_separation", 10)
+	$PrivacyDialog/DialogMargin/Card.add_theme_stylebox_override(
+		"panel", _round_box(Color("#173a46"), GOLD, 24, 2)
+	)
+	privacy_close.add_theme_stylebox_override("normal", _round_box(Color("#c84e38"), GOLD, 14, 2))
+	privacy_close.add_theme_stylebox_override("hover", _round_box(Color("#dc624b"), Color("#fff3d6"), 14, 2))
+	privacy_close.add_theme_stylebox_override("pressed", _round_box(Color("#862f24"), GOLD, 14, 2))
 
 
 func _analytics_toggled(enabled: bool) -> void:
@@ -170,7 +181,26 @@ func _purchase() -> void:
 
 
 func _show_privacy() -> void:
-	status_label.text = tr("匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。")
+	privacy_content.text = tr("PRIVACY_POLICY_CONTENT")
+	privacy_content.scroll_to_line(0)
+	privacy_dialog.visible = true
+	privacy_close.grab_focus()
+
+
+func _hide_privacy() -> void:
+	privacy_dialog.visible = false
+	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/PrivacyPolicy.grab_focus()
+
+
+func _privacy_backdrop_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_hide_privacy()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if privacy_dialog.visible and event.is_action_pressed("ui_cancel"):
+		_hide_privacy()
+		get_viewport().set_input_as_handled()
 
 
 func _request_product_login() -> void:

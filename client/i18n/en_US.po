@@ -87,6 +87,12 @@ msgstr "Game experience"
 msgid "触感反馈"
 msgstr "Haptic feedback"
 
+msgid "背景音乐"
+msgstr "Background music"
+
+msgid "操作音效"
+msgstr "Sound effects"
+
 msgid "加大差异标记"
 msgstr "Larger markers"
 
@@ -104,6 +110,57 @@ msgstr "Send anonymous usage data only. No names or image content."
 
 msgid "隐私政策"
 msgstr "Privacy policy"
+
+msgid "移除广告"
+msgstr "Remove ads"
+
+msgid "登录正式账号"
+msgstr "Log in"
+
+msgid "尚未登录"
+msgstr "Not signed in"
+
+msgid "关卡进度与游戏权益正在通过正式账号服务同步。"
+msgstr "Your progress and game benefits are syncing through your account."
+
+msgid "登录正式账号后，可同步关卡进度与游戏权益。"
+msgstr "Log in to sync your progress and game benefits."
+
+msgid "我知道了"
+msgstr "Got it"
+
+msgid "PRIVACY_POLICY_CONTENT"
+msgstr ""
+"[color=#b8cbc7]Updated: July 29, 2026 · Effective: July 29, 2026[/color]\n"
+"\n"
+"Welcome to Odd Spot (the “Game”). We value your privacy and process personal information lawfully, fairly, and only when necessary.\n"
+"\n"
+"[b][color=#e6b95c]1. Information we collect[/color][/b]\n"
+"• Account data: email, username, display name, avatar URL, and sign-in credentials when you register or log in.\n"
+"• Game data: level progress, challenge results, items, entitlements, preferences, and records required for synchronization.\n"
+"• Device and log data: device type, operating system, app version, network status, crash logs, and a randomly generated installation identifier.\n"
+"• Anonymous analytics: feature usage and performance data only when “Help improve the game” is enabled. It does not include your name, email, or game image content, and can be disabled at any time.\n"
+"\n"
+"[b][color=#e6b95c]2. How we use information[/color][/b]\n"
+"We use information only to provide sign-in and progress sync, secure the service, diagnose issues, improve the Game, respond to requests, and meet legal obligations. We do not use personal information for personalized advertising without separate consent, and we do not sell personal information.\n"
+"\n"
+"[b][color=#e6b95c]3. Storage and security[/color][/b]\n"
+"Data may be stored on servers operated by us or our service providers and retained only as long as needed for these purposes. Installation identifiers and access tokens are protected using one-way hashes or secure encryption. We use access controls, encrypted transmission, and audit logs, but no online service can guarantee absolute security.\n"
+"\n"
+"[b][color=#e6b95c]4. Sharing and disclosure[/color][/b]\n"
+"We do not share personal information except with compliant providers necessary for cloud hosting or security operations, or when required by law or a lawful authority. Providers may process data only on our instructions and must protect its confidentiality.\n"
+"\n"
+"[b][color=#e6b95c]5. Children’s privacy[/color][/b]\n"
+"Users under age 14 should use the Game only with a guardian’s consent and guidance. A guardian who believes a child submitted personal information without consent may contact us using the details below.\n"
+"\n"
+"[b][color=#e6b95c]6. Your rights[/color][/b]\n"
+"You may review or correct account details, disable anonymous analytics, or contact us to request access, a copy, correction, deletion, or account closure. We may verify your identity before acting on a request. Legal exceptions may apply.\n"
+"\n"
+"[b][color=#e6b95c]7. Policy updates[/color][/b]\n"
+"We may update this policy as features or laws change. We will provide a prominent in-game notice of material changes. The updated policy applies from its stated effective date.\n"
+"\n"
+"[b][color=#e6b95c]8. Contact us[/color][/b]\n"
+"For questions, feedback, or privacy requests, email privacy@guaguatu.com. After verifying your identity, we will respond within the period required by applicable law."
 
 msgid "退出当前会话"
 msgstr "Log out"
@@ -185,3 +242,53 @@ msgstr "Anonymous analytics can be disabled at any time."
 
 msgid "正式账号服务尚未配置。接入后将在这里完成登录与进度合并。"
 msgstr "Account service is not configured yet."
+
+msgid "6 位邮箱验证码"
+msgstr "6-digit email verification code"
+
+msgid "用户名（3-32 位字母、数字或下划线）"
+msgstr "Username (3–32 letters, numbers, or underscores)"
+
+msgid "登录即表示你同意用户协议与隐私政策"
+msgstr "By logging in, you agree to the Terms of Service and Privacy Policy."
+
+msgid "游客玩家 · 登录同步进度"
+msgstr "Guest · Log in to sync progress"
+
+msgid "发现时代错误"
+msgstr "Spot the anachronisms"
+
+msgid "尚未发现时代错误\n仔细观察画面中的人物、器物与建筑"
+msgstr "No anachronisms found yet\nLook closely at the people, objects, and buildings"
+
+msgid "还剩 5 个"
+msgstr "5 remaining"
+
+msgid "发现 5/5 · 提示 0 · 用时 00:00"
+msgstr "Found 5/5 · Hints 0 · Time 00:00"
+
+msgid "抵制不良游戏，拒绝盗版游戏"
+msgstr "Reject harmful games and game piracy"
+
+msgid "注意自我保护，谨防受骗上当"
+msgstr "Protect yourself and beware of scams"
+
+msgid "适度游戏益脑，沉迷游戏伤身"
+msgstr "Play in moderation and avoid excessive gaming"
+
+msgid "合理安排时间，享受健康生活"
+msgstr "Manage your time and enjoy a healthy life"
+
+msgid ""
+"抵制不良游戏，拒绝盗版游戏\n"
+"注意自我保护，谨防受骗上当\n"
+"适度游戏益脑，沉迷游戏伤身\n"
+"合理安排时间，享受健康生活"
+msgstr ""
+"Reject harmful games and game piracy\n"
+"Protect yourself and beware of scams\n"
+"Play in moderation and avoid excessive gaming\n"
+"Manage your time and enjoy a healthy life"
+
+msgid "火眼金睛 · 版本 0.1.0"
+msgstr "Odd Spot · Version 0.1.0"

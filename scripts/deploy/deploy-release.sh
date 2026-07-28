@@ -19,9 +19,20 @@ echo "extracting files to temporary directory"
 tar --extract --gzip --file "$archive" --directory "$stage" --strip-components=1 --no-same-owner
 test -f "$stage/bin/oddspot-api"
 test -f "$stage/bin/oddspot-worker"
+test -f "$stage/bin/oddspot-migrate"
 
 echo "replacing application files in $install_root"
 install -d -o root -g root -m 0755 "$install_root/bin" "$install_root/admin"
+install -o root -g root -m 0755 "$stage/bin/oddspot-migrate" "$install_root/bin/oddspot-migrate.next"
+mv -f "$install_root/bin/oddspot-migrate.next" "$install_root/bin/oddspot-migrate"
+
+echo "applying database migrations"
+systemd-run --quiet --wait --collect --pipe \
+  --unit="oddspot-migrate-deploy-$$" \
+  --uid=oddspot --gid=oddspot \
+  --property="EnvironmentFile=/etc/oddspot/oddspot.env" \
+  "$install_root/bin/oddspot-migrate"
+
 install -o root -g root -m 0755 "$stage/bin/oddspot-api" "$install_root/bin/oddspot-api.next"
 install -o root -g root -m 0755 "$stage/bin/oddspot-worker" "$install_root/bin/oddspot-worker.next"
 mv -f "$install_root/bin/oddspot-api.next" "$install_root/bin/oddspot-api"

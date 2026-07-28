@@ -40,6 +40,9 @@
 	<script>
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+// The build script replaces this marker and copies the pack to a versioned
+// filename. A new URL prevents CDNs from mixing a new shell with an old PCK.
+GODOT_CONFIG.mainPack="index.__ODDSPOT_PCK_VERSION__.pck";
 const engine = new Engine(GODOT_CONFIG);
 window.oddSpotAudio=(function(){
 	let context=null;
@@ -52,6 +55,10 @@ window.oddSpotAudio=(function(){
 		if(context.state==="suspended")context.resume();
 		return context;
 	}
+	// Run before Godot receives the same press, so the click tone does not have
+	// to wait for AudioContext creation/resume after the button callback.
+	window.addEventListener("pointerdown",getContext,{capture:true,passive:true});
+	window.addEventListener("keydown",getContext,{capture:true,passive:true});
 	function tone(ctx,when,frequency,duration,volume,type){
 		const oscillator=ctx.createOscillator();
 		const gain=ctx.createGain();

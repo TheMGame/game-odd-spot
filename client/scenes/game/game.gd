@@ -298,7 +298,7 @@ func _update_counter() -> void:
 	for difference in differences:
 		if found.has(str(difference.get("id", ""))):
 			names.append("◆ %s" % str(difference.get("label", "时代错误")))
-	$Layout/Journal/Margin/Content/Items.text = "尚未发现时代错误\n仔细观察画面中的人物、器物与建筑" if names.is_empty() else "\n".join(names)
+	$Layout/Journal/Margin/Content/Items.text = tr("尚未发现时代错误\n仔细观察画面中的人物、器物与建筑") if names.is_empty() else "\n".join(names)
 	$Layout/Journal/Margin/Content/Remaining.text = "全部发现" if found.size() == differences.size() else "还剩 %d 个" % (differences.size() - found.size())
 	hint_button.disabled = found.size() == differences.size()
 

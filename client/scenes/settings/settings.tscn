@@ -233,3 +233,71 @@ theme_override_colors/font_color = Color(0.58, 0.68, 0.67, 1)
 theme_override_font_sizes/font_size = 18
 text = "火眼金睛 · 版本 0.1.0"
 horizontal_alignment = 1
+
+[node name="PrivacyDialog" type="Control" parent="."]
+visible = false
+z_index = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="PrivacyDialog"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.02, 0.06, 0.08, 0.82)
+
+[node name="DialogMargin" type="MarginContainer" parent="PrivacyDialog"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 42.0
+offset_top = 96.0
+offset_right = -42.0
+offset_bottom = -96.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Card" type="PanelContainer" parent="PrivacyDialog/DialogMargin"]
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="PrivacyDialog/DialogMargin/Card"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="PrivacyDialog/DialogMargin/Card/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
+theme_override_font_sizes/font_size = 36
+text = "隐私政策"
+horizontal_alignment = 1
+
+[node name="PolicyContent" type="RichTextLabel" parent="PrivacyDialog/DialogMargin/Card/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/default_color = Color(0.86, 0.87, 0.81, 1)
+theme_override_colors/font_outline_color = Color(0.04, 0.12, 0.15, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/normal_font_size = 22
+theme_override_font_sizes/bold_font_size = 24
+bbcode_enabled = true
+fit_content = false
+scroll_active = true
+scroll_following = false
+selection_enabled = true
+text = "PRIVACY_POLICY_CONTENT"
+
+[node name="Close" type="Button" parent="PrivacyDialog/DialogMargin/Card/Content"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "我知道了"

@@ -163,6 +163,13 @@ func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
 		UserID: userID, Locale: locale, DefaultLocale: a.deps.Config.Locale,
 	})
 	if err != nil {
+		a.deps.Logger.Error(
+			"catalog query failed",
+			"error", err,
+			"user_id", userID,
+			"locale", locale,
+			"default_locale", a.deps.Config.Locale,
+		)
 		writeError(w, 500, "INTERNAL_ERROR", "could not load catalog")
 		return
 	}
@@ -173,6 +180,7 @@ func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
 func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
 	items, err := a.deps.Catalog.Admin(r.Context())
 	if err != nil {
+		a.deps.Logger.Error("admin catalog query failed", "error", err)
 		writeError(w, 500, "INTERNAL_ERROR", "could not load admin catalog")
 		return
 	}
