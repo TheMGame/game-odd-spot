@@ -15,7 +15,7 @@ var series_image_quality: Dictionary = {}
 func _ready() -> void:
 	$Layout/TopBar/Settings.pressed.connect(_open_settings)
 	$Layout/TopBar/Identity.pressed.connect(_open_settings)
-	$Layout/Footer/Daily.pressed.connect(_open_daily)
+	$Layout/TopBar/Daily.pressed.connect(_open_daily)
 	_apply_style()
 	_refresh_identity()
 	_refresh_profile_and_identity()
@@ -49,7 +49,7 @@ func _show_catalog_message(message: String) -> void:
 	label.text = message
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_color_override("font_color", MUTED)
-	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_font_size_override("font_size", 25)
 	cards.add_child(label)
 
 
@@ -94,7 +94,7 @@ func _add_series_card(series: Dictionary) -> void:
 	var title := Label.new()
 	title.text = str(series.get("title", series.get("display_name", series_id)))
 	title.add_theme_color_override("font_color", GOLD)
-	title.add_theme_font_size_override("font_size", 25)
+	title.add_theme_font_size_override("font_size", 34)
 	info.add_child(title)
 
 	var description := str(series.get("description", series.get("period", "")))
@@ -102,13 +102,13 @@ func _add_series_card(series: Dictionary) -> void:
 	details.text = "%d 个关卡%s" % [levels.size(), (" · " + description) if not description.is_empty() else ""]
 	details.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	details.add_theme_color_override("font_color", MUTED)
-	details.add_theme_font_size_override("font_size", 17)
+	details.add_theme_font_size_override("font_size", 26)
 	info.add_child(details)
 
 	var enter := Button.new()
-	enter.custom_minimum_size = Vector2(116, 72)
+	enter.custom_minimum_size = Vector2(128, 80)
 	enter.text = "进入"
-	enter.add_theme_font_size_override("font_size", 20)
+	enter.add_theme_font_size_override("font_size", 28)
 	enter.add_theme_stylebox_override("normal", _button_box(Color("#17352f"), Color("#547766"), 18, 2))
 	enter.add_theme_stylebox_override("hover", _button_box(Color("#20483f"), GOLD, 18, 2))
 	enter.pressed.connect(func(): _open_series(series_id))
@@ -145,8 +145,8 @@ func _refresh_sync() -> void:
 func _apply_style() -> void:
 	$Layout/TopBar/Identity.add_theme_stylebox_override("normal", _button_box(Color("#102431"), Color("#355061"), 18, 1))
 	$Layout/TopBar/Identity.add_theme_stylebox_override("hover", _button_box(Color("#16303e"), GOLD, 18, 2))
-	$Layout/Footer/Daily.add_theme_stylebox_override("normal", _button_box(Color("#17352f"), Color("#547766"), 18, 2))
-	$Layout/Footer/Daily.add_theme_stylebox_override("hover", _button_box(Color("#20483f"), GOLD, 18, 2))
+	$Layout/TopBar/Daily.add_theme_stylebox_override("normal", _button_box(Color("#17352f"), Color("#547766"), 18, 2))
+	$Layout/TopBar/Daily.add_theme_stylebox_override("hover", _button_box(Color("#20483f"), GOLD, 18, 2))
 
 
 func _card_box() -> StyleBoxFlat:
@@ -201,8 +201,8 @@ func _open_daily() -> void:
 
 
 func _show_daily_unavailable() -> void:
-	$Layout/Footer/Daily.text = "暂无每日挑战"
-	$Layout/Footer/Daily.disabled = true
+	$Layout/TopBar/Daily.text = "暂无每日挑战"
+	$Layout/TopBar/Daily.disabled = true
 	sync_status.text = "每日挑战系列中还没有已发布关卡"
 
 

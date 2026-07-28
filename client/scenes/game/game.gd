@@ -350,14 +350,14 @@ func _apply_responsive_layout() -> void:
 	$Layout/ImageFrame/Margin/TargetPanel.custom_minimum_size.y = 0.0
 	$Layout/Journal.visible = landscape
 	$Layout/Journal.custom_minimum_size.y = 92.0
-	$Layout.offset_left = 12.0 if landscape else 8.0
-	$Layout.offset_right = -12.0 if landscape else -8.0
-	$Layout.offset_top = 8.0 if landscape else 10.0
-	$Layout.offset_bottom = -8.0 if landscape else -10.0
-	$Layout/TopBar.custom_minimum_size.y = 60.0 if landscape else 56.0
+	$Layout.offset_left = 16.0 if landscape else 14.0
+	$Layout.offset_right = -16.0 if landscape else -14.0
+	$Layout.offset_top = 12.0 if landscape else 16.0
+	$Layout.offset_bottom = -12.0 if landscape else -16.0
+	$Layout/TopBar.custom_minimum_size.y = 96.0 if landscape else 112.0
 	for button_path in ["Back", "Hint", "Report"]:
 		var button := $Layout/TopBar.get_node(button_path) as Control
-		button.custom_minimum_size = Vector2(54.0, 54.0) if landscape else Vector2(50.0, 50.0)
+		button.custom_minimum_size = Vector2(80.0, 80.0) if landscape else Vector2(96.0, 96.0)
 	if target_panel.texture != null:
 		target_panel.configure_fit_view()
 		if not is_anachronism_mode and base_panel.texture != null:

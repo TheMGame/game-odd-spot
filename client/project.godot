@@ -49,6 +49,7 @@ window/handheld/orientation=6
 [gui]
 
 theme/custom_font="res://assets/fonts/NotoSansSC-Game.ttf"
+theme/default_font_size=22
 
 [internationalization]
 

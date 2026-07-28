@@ -35,7 +35,7 @@ func _show_catalog_message(message: String) -> void:
 	label.text = message
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_color_override("font_color", PAPER)
-	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_font_size_override("font_size", 25)
 	cards.add_child(label)
 
 
@@ -75,7 +75,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 		"title": entry.get("title", entry.get("id", "")),
 	}
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 220)
+	button.custom_minimum_size = Vector2(0, 250)
 	button.disabled = locked
 	button.text = ""
 	button.add_theme_stylebox_override("normal", _round_box(Color("#122b3a"), Color(GOLD, 0.55), 18, 2))
@@ -90,19 +90,19 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 16)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(margin)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 22)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(row)
 
 	var image := TextureRect.new()
-	image.custom_minimum_size = Vector2(230, 190)
+	image.custom_minimum_size = Vector2(250, 218)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_load_thumbnail(image, str(entry.get("thumbnail_url", "")))
@@ -112,36 +112,37 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.alignment = BoxContainer.ALIGNMENT_CENTER
-	info.add_theme_constant_override("separation", 8)
+	info.add_theme_constant_override("separation", 10)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(info)
 	var number := Label.new()
 	number.text = "第 %02d 关" % (index + 1)
 	number.add_theme_color_override("font_color", Color(GOLD, 0.85))
-	number.add_theme_font_size_override("font_size", 18)
+	number.add_theme_font_size_override("font_size", 26)
 	info.add_child(number)
 	var title := Label.new()
 	title.text = str(data.get("title", entry.get("id", "")))
 	title.add_theme_color_override("font_color", PAPER if not locked else Color(PAPER, 0.38))
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 36)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(title)
 	var count := int(entry.get("difference_count", 0))
 	var detail := Label.new()
 	detail.text = "%d 个找茬目标" % count
 	detail.add_theme_color_override("font_color", Color("#aab8b5"))
-	detail.add_theme_font_size_override("font_size", 18)
+	detail.add_theme_font_size_override("font_size", 26)
 	info.add_child(detail)
 	var seals := Label.new()
 	var total := int(entry.get("difficulty", 1))
 	seals.text = "难度 %s" % "◆".repeat(clampi(total, 1, 5))
 	seals.add_theme_color_override("font_color", CINNABAR if not locked else Color("#4d4d4d"))
-	seals.add_theme_font_size_override("font_size", 18)
+	seals.add_theme_font_size_override("font_size", 26)
 	info.add_child(seals)
 	var state := Label.new()
 	var completed := _is_completed(entry)
 	state.text = "✓ 已完成" if completed else ("🔒 尚未解锁" if locked else "◆ 当前关卡")
 	state.add_theme_color_override("font_color", JADE if completed else GOLD)
-	state.add_theme_font_size_override("font_size", 18)
+	state.add_theme_font_size_override("font_size", 26)
 	info.add_child(state)
 
 

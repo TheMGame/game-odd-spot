@@ -54,6 +54,20 @@ func _apply_style() -> void:
 	var login: Button = $SafeArea/Layout/Scroll/Sections/AccountCard/Content/Login
 	login.add_theme_stylebox_override("normal", _round_box(Color("#a33b2b"), Color("#d8ae62"), 16, 2))
 	login.add_theme_stylebox_override("hover", _round_box(Color("#bd4834"), GOLD, 16, 3))
+	login.add_theme_stylebox_override("pressed", _round_box(Color("#862f24"), GOLD, 16, 2))
+	for row in [
+		$SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Vibration,
+		$SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/LargeMarkers,
+		$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Analytics,
+	]:
+		row.add_theme_color_override("font_color", Color("#eee0c3"))
+		row.add_theme_color_override("font_hover_color", Color("#f5d99b"))
+	for secondary in [
+		$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/PrivacyPolicy,
+		$SafeArea/Layout/Scroll/Sections/Logout,
+	]:
+		secondary.add_theme_stylebox_override("normal", _round_box(Color("#0c202c"), Color("#294454"), 14, 1))
+		secondary.add_theme_stylebox_override("hover", _round_box(Color("#132f3d"), GOLD, 14, 2))
 
 
 func _analytics_toggled(enabled: bool) -> void:
@@ -158,8 +172,8 @@ func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBox
 	box.border_color = border
 	box.set_border_width_all(width)
 	box.set_corner_radius_all(radius)
-	box.content_margin_left = 24
-	box.content_margin_right = 24
-	box.content_margin_top = 20
-	box.content_margin_bottom = 20
+	box.content_margin_left = 28
+	box.content_margin_right = 28
+	box.content_margin_top = 24
+	box.content_margin_bottom = 24
 	return box

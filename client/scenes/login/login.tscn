@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource path="res://scenes/login/login.gd" type="Script" id="1"]
+[ext_resource path="res://assets/branding/guagua-rabbit-logo.png" type="Texture2D" id="2"]
 
 [node name="Login" type="Control"]
 layout_mode = 3
@@ -35,24 +36,31 @@ grow_vertical = 2
 [node name="Layout" type="VBoxContainer" parent="SafeArea"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 18
+theme_override_constants/separation = 20
+
+[node name="Logo" type="TextureRect" parent="SafeArea/Layout"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Brand" type="Label" parent="SafeArea/Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
-theme_override_font_sizes/font_size = 52
+theme_override_font_sizes/font_size = 60
 text = "火眼金睛"
 horizontal_alignment = 1
 
 [node name="Tagline" type="Label" parent="SafeArea/Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.68, 0.66, 1)
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 25
 text = "登录后继续你的时空旅程"
 horizontal_alignment = 1
 
 [node name="Gap" type="Control" parent="SafeArea/Layout"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 
 [node name="Card" type="PanelContainer" parent="SafeArea/Layout"]
@@ -60,33 +68,33 @@ layout_mode = 2
 
 [node name="Content" type="VBoxContainer" parent="SafeArea/Layout/Card"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 18
 
 [node name="Title" type="Label" parent="SafeArea/Layout/Card/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.87, 0.73, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 40
 text = "欢迎回来"
 
 [node name="Description" type="Label" parent="SafeArea/Layout/Card/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.61, 0.70, 0.68, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 23
 text = "登录账号，同步关卡进度与游戏权益。"
 autowrap_mode = 2
 
 [node name="AccountName" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "邮箱"
 clear_button_enabled = true
 virtual_keyboard_enabled = true
 
 [node name="Password" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "密码"
 secret = true
 secret_character = "*"
@@ -95,9 +103,9 @@ virtual_keyboard_enabled = true
 
 [node name="EmailCode" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "6 位邮箱验证码"
 max_length = 6
 clear_button_enabled = true
@@ -105,66 +113,66 @@ virtual_keyboard_type = 2
 
 [node name="Username" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "用户名（3-32 位字母、数字或下划线）"
 clear_button_enabled = true
 
 [node name="Nickname" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "玩家昵称"
 clear_button_enabled = true
 
 [node name="Avatar" type="LineEdit" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 placeholder_text = "头像 URL（可选）"
 clear_button_enabled = true
 
 [node name="SendCodeButton" type="Button" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 74)
 layout_mode = 2
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 25
 text = "发送邮箱验证码"
 
 [node name="VerifyCodeButton" type="Button" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 74)
 layout_mode = 2
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 25
 text = "验证邮箱"
 
 [node name="CompleteRegistrationButton" type="Button" parent="SafeArea/Layout/Card/Content"]
 visible = false
-custom_minimum_size = Vector2(0, 72)
+custom_minimum_size = Vector2(0, 82)
 layout_mode = 2
-theme_override_font_sizes/font_size = 21
+theme_override_font_sizes/font_size = 27
 text = "完成注册并登录"
 
 [node name="LoginButton" type="Button" parent="SafeArea/Layout/Card/Content"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 86)
 layout_mode = 2
-theme_override_font_sizes/font_size = 23
+theme_override_font_sizes/font_size = 29
 text = "登录"
 
 [node name="CreateButton" type="Button" parent="SafeArea/Layout/Card/Content"]
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 25
 text = "使用邮箱创建账号"
 
 [node name="Status" type="Label" parent="SafeArea/Layout/Card/Content"]
-custom_minimum_size = Vector2(0, 46)
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.68, 0.39, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 21
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
@@ -172,6 +180,6 @@ autowrap_mode = 2
 [node name="Privacy" type="Label" parent="SafeArea/Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.39, 0.50, 0.49, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 18
 text = "登录即表示你同意用户协议与隐私政策"
 horizontal_alignment = 1
