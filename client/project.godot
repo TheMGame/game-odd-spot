@@ -27,10 +27,12 @@ config/icon="res://assets/branding/guagua-rabbit-logo.png"
 [autoload]
 
 SessionStore="*res://scripts/storage/session_store.gd"
+Preferences="*res://scripts/storage/preferences.gd"
 ApiClient="*res://scripts/api/api_client.gd"
+LanguagePackManager="*res://scripts/localization/language_pack_manager.gd"
+LocaleManager="*res://scripts/localization/locale_manager.gd"
 CatalogRepository="*res://scripts/catalog/catalog_repository.gd"
 ProgressStore="*res://scripts/storage/progress_store.gd"
-Preferences="*res://scripts/storage/preferences.gd"
 SyncQueue="*res://scripts/storage/sync_queue.gd"
 Analytics="*res://scripts/analytics/analytics.gd"
 Monetization="*res://scripts/monetization/monetization.gd"
@@ -47,6 +49,10 @@ window/handheld/orientation=6
 [gui]
 
 theme/custom_font="res://assets/fonts/NotoSansSC-Game.ttf"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://i18n/zh_CN.po", "res://i18n/en_US.po")
 
 [oddspot]
 

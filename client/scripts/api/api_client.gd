@@ -29,6 +29,20 @@ func get_bootstrap() -> Dictionary:
 	return result
 
 
+func get_locales() -> Dictionary:
+	return await _request_json(HTTPClient.METHOD_GET, "/v1/locales", {}, false, true)
+
+
+func get_default_locale() -> Dictionary:
+	return await _request_json(HTTPClient.METHOD_GET, "/v1/locale/default", {}, false, true)
+
+
+func update_locale(locale: String) -> Dictionary:
+	return await _request_json(HTTPClient.METHOD_PUT, "/v1/session/locale", {
+		"locale": locale,
+	}, true, true)
+
+
 func get_business_date() -> Dictionary:
 	if not business_date.is_empty():
 		return {"ok": true, "business_date": business_date, "app_timezone": app_timezone}

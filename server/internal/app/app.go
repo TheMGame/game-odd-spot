@@ -15,6 +15,7 @@ import (
 	"game-odd-spot/server/internal/generation"
 	"game-odd-spot/server/internal/httpapi"
 	"game-odd-spot/server/internal/level"
+	"game-odd-spot/server/internal/localization"
 	"game-odd-spot/server/internal/market"
 	"game-odd-spot/server/internal/metrics"
 	"game-odd-spot/server/internal/monetization"
@@ -25,6 +26,10 @@ import (
 )
 
 func NewHandler(ctx context.Context, cfg config.Config, logger *slog.Logger) (http.Handler, func() error, error) {
+	locales, err := localization.New(cfg.RemoteLocalesJSON)
+	if err != nil {
+		return nil, nil, err
+	}
 	var sessions session.Service = session.NewMemoryService()
 	var levels level.Service = level.NewMemoryService()
 	var configs remoteconfig.Service = remoteconfig.NewMemoryService()
@@ -88,6 +93,7 @@ func NewHandler(ctx context.Context, cfg config.Config, logger *slog.Logger) (ht
 		Accounts:   accounts,
 		Reports:    reports,
 		Metrics:    measurements,
+		Locales:    locales,
 		Ready:      ready,
 	}), cleanup, nil
 }

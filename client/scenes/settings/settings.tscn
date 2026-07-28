@@ -165,6 +165,21 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "加大差异标记"
 
+[node name="Language" type="HBoxContainer" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Language"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "语言"
+
+[node name="Selector" type="OptionButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Language"]
+custom_minimum_size = Vector2(280, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+
 [node name="PrivacyTitle" type="Label" parent="SafeArea/Layout/Scroll/Sections"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.84, 0.66, 0.34, 1)

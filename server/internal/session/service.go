@@ -10,6 +10,7 @@ import (
 )
 
 var ErrInvalidRefreshToken = errors.New("invalid refresh token")
+var ErrUserNotFound = errors.New("user not found")
 
 type Session struct {
 	UserID       string
@@ -32,13 +33,30 @@ type Service interface {
 	IssueExternal(ctx context.Context, userID, market, locale string) (Session, error)
 	EnsureExternalUser(ctx context.Context, userID, market, locale string) error
 	Profile(ctx context.Context, userID string) (string, string, error)
+	UpdateLocale(ctx context.Context, userID, locale string) error
 }
 
-func (s *MemoryService) IssueExternal(ctx context.Context, userID, _ string, _ string) (Session, error) {
+type Profile struct {
+	Market string
+	Locale string
+}
+
+func (s *MemoryService) IssueExternal(ctx context.Context, userID, market string, locale string) (Session, error) {
+	if err := s.EnsureExternalUser(ctx, userID, market, locale); err != nil {
+		return Session{}, err
+	}
+	if err := s.UpdateLocale(ctx, userID, locale); err != nil {
+		return Session{}, err
+	}
 	return s.Issue(ctx, userID)
 }
 
-func (s *MemoryService) EnsureExternalUser(_ context.Context, _ string, _ string, _ string) error {
+func (s *MemoryService) EnsureExternalUser(_ context.Context, userID, market, locale string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.profiles[userID]; !exists {
+		s.profiles[userID] = Profile{Market: market, Locale: normalizeLocale(locale)}
+	}
 	return nil
 }
 
@@ -54,8 +72,26 @@ func (s *MemoryService) Issue(_ context.Context, userID string) (Session, error)
 	s.byRefreshToken[created.RefreshToken] = created
 	return created, nil
 }
-func (s *MemoryService) Profile(_ context.Context, _ string) (string, string, error) {
-	return "global", "en", nil
+func (s *MemoryService) Profile(_ context.Context, userID string) (string, string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	profile, ok := s.profiles[userID]
+	if !ok {
+		return "", "", ErrUserNotFound
+	}
+	return profile.Market, profile.Locale, nil
+}
+
+func (s *MemoryService) UpdateLocale(_ context.Context, userID, locale string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	profile, ok := s.profiles[userID]
+	if !ok {
+		return ErrUserNotFound
+	}
+	profile.Locale = normalizeLocale(locale)
+	s.profiles[userID] = profile
+	return nil
 }
 
 type MemoryService struct {
@@ -63,6 +99,7 @@ type MemoryService struct {
 	byInstallation map[string]Session
 	byAccessToken  map[string]string
 	byRefreshToken map[string]Session
+	profiles       map[string]Profile
 }
 
 func NewMemoryService() *MemoryService {
@@ -70,6 +107,7 @@ func NewMemoryService() *MemoryService {
 		byInstallation: make(map[string]Session),
 		byAccessToken:  make(map[string]string),
 		byRefreshToken: make(map[string]Session),
+		profiles:       make(map[string]Profile),
 	}
 }
 
@@ -95,7 +133,22 @@ func (s *MemoryService) CreateOrRestore(_ context.Context, request CreateRequest
 	s.byInstallation[request.InstallationID] = created
 	s.byAccessToken[access] = created.UserID
 	s.byRefreshToken[refresh] = created
+	s.profiles[created.UserID] = Profile{Market: request.Market, Locale: normalizeLocale(request.Locale)}
 	return created, nil
+}
+
+func normalizeLocale(locale string) string {
+	switch locale {
+	case "zh", "zh_CN", "zh-CN", "zh-Hans", "zh-Hans-CN":
+		return "zh-CN"
+	case "en", "en_US", "en-US":
+		return "en-US"
+	default:
+		if locale == "" {
+			return "en-US"
+		}
+		return locale
+	}
 }
 
 func (s *MemoryService) Authenticate(_ context.Context, accessToken string) (string, bool) {

@@ -1,6 +1,5 @@
 extends Node
 
-const CACHE_PATH := "user://catalog_cache.json"
 const TTL_SECONDS := 300
 
 signal request_finished
@@ -47,15 +46,21 @@ func clear_cache() -> void:
 
 
 func _load_disk() -> void:
-	if not FileAccess.file_exists(CACHE_PATH):
+	var cache_path := _cache_path()
+	if not FileAccess.file_exists(cache_path):
 		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(CACHE_PATH))
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(cache_path))
 	if parsed is Dictionary and parsed.get("catalog") is Dictionary:
 		_catalog = parsed.catalog
 		_loaded_at = int(parsed.get("loaded_at", 0))
 
 
 func _save_disk() -> void:
-	var file := FileAccess.open(CACHE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(_cache_path(), FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify({"loaded_at": _loaded_at, "catalog": _catalog}))
+
+
+func _cache_path() -> String:
+	var locale := TranslationServer.get_locale().replace("_", "-")
+	return "user://catalog_%s.json" % locale.validate_filename()

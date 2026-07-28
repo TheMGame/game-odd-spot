@@ -167,6 +167,9 @@ func (s *MySQLService) IssueExternal(ctx context.Context, userID, market, locale
 	if err := s.EnsureExternalUser(ctx, userID, market, locale); err != nil {
 		return Session{}, err
 	}
+	if err := s.UpdateLocale(ctx, userID, locale); err != nil {
+		return Session{}, err
+	}
 	return s.Issue(ctx, userID)
 }
 
@@ -182,6 +185,21 @@ func (s *MySQLService) Profile(ctx context.Context, userID string) (string, stri
 	var market, locale string
 	err := s.db.QueryRowContext(ctx, `SELECT market_id,locale FROM users WHERE id=?`, userID).Scan(&market, &locale)
 	return market, locale, err
+}
+
+func (s *MySQLService) UpdateLocale(ctx context.Context, userID, locale string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE users SET locale=? WHERE id=?`, normalizeLocale(locale), userID)
+	if err != nil {
+		return fmt.Errorf("update user locale: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read updated user count: %w", err)
+	}
+	if affected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 func (s *MySQLService) identityHash(installationID string) []byte {

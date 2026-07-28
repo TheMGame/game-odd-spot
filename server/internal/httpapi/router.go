@@ -32,6 +32,7 @@ import (
 	"game-odd-spot/server/internal/content"
 	"game-odd-spot/server/internal/generation"
 	"game-odd-spot/server/internal/level"
+	"game-odd-spot/server/internal/localization"
 	"game-odd-spot/server/internal/market"
 	"game-odd-spot/server/internal/metrics"
 	"game-odd-spot/server/internal/monetization"
@@ -57,6 +58,7 @@ type Dependencies struct {
 	Accounts   account.Service
 	Reports    report.Service
 	Metrics    metrics.Service
+	Locales    *localization.Service
 	Ready      func(context.Context) error
 }
 
@@ -76,6 +78,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", a.live)
 	mux.HandleFunc("GET /health/ready", a.ready)
+	mux.HandleFunc("GET /v1/locales", a.locales)
+	mux.HandleFunc("GET /v1/locale/default", a.defaultLocale)
 	if deps.Config.UserServerBaseURL == "" {
 		// Legacy development mode only. Production uses the shared user_server.
 		mux.HandleFunc("POST /v1/sessions/anonymous", a.anonymousSession)
@@ -89,6 +93,7 @@ func NewRouter(deps Dependencies) http.Handler {
 		mux.Handle("POST /v1/sessions/logout", a.requireAuth(http.HandlerFunc(a.logoutSession)))
 	}
 	mux.Handle("GET /v1/bootstrap", a.requireAuth(http.HandlerFunc(a.bootstrap)))
+	mux.Handle("PUT /v1/session/locale", a.requireAuth(http.HandlerFunc(a.updateSessionLocale)))
 	mux.Handle("GET /v1/home", a.requireAuth(http.HandlerFunc(a.home)))
 	mux.Handle("GET /v1/catalog", a.requireAuth(http.HandlerFunc(a.publicCatalog)))
 	mux.Handle("GET /v1/levels/{levelId}", a.requireAuth(http.HandlerFunc(a.getLevel)))
@@ -149,13 +154,20 @@ func (a *api) cors(next http.Handler) http.Handler {
 }
 
 func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
-	items, err := a.deps.Catalog.Public(r.Context(), authenticatedUser(r))
+	userID := authenticatedUser(r)
+	_, locale, profileErr := a.deps.Sessions.Profile(r.Context(), userID)
+	if profileErr != nil || locale == "" {
+		locale = a.deps.Config.Locale
+	}
+	items, err := a.deps.Catalog.Public(r.Context(), catalog.PublicQuery{
+		UserID: userID, Locale: locale, DefaultLocale: a.deps.Config.Locale,
+	})
 	if err != nil {
 		writeError(w, 500, "INTERNAL_ERROR", "could not load catalog")
 		return
 	}
 	normalizeCatalogAssetURLs(items, a.deps.Config.PublicBaseURL)
-	writeJSON(w, 200, newEnvelope(map[string]any{"series": items}))
+	writeJSON(w, 200, newEnvelope(map[string]any{"locale": locale, "series": items}))
 }
 
 func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
@@ -541,6 +553,57 @@ func (a *api) ready(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
+func (a *api) localeService() *localization.Service {
+	if a.deps.Locales != nil {
+		return a.deps.Locales
+	}
+	service, _ := localization.New("")
+	return service
+}
+
+func (a *api) locales(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{
+		"default_locale": a.deps.Config.Locale,
+		"locales":        a.localeService().List(),
+	}))
+}
+
+func (a *api) defaultLocale(w http.ResponseWriter, r *http.Request) {
+	header := a.deps.Config.GeoCountryHeader
+	if header == "" {
+		header = "CF-IPCountry"
+	}
+	country := r.Header.Get(header)
+	locale, source := a.localeService().DefaultForCountry(country, a.deps.Config.Locale)
+	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{
+		"locale":            locale,
+		"source":            source,
+		"requires_download": a.localeService().RequiresDownload(locale),
+	}))
+}
+
+func (a *api) updateSessionLocale(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Locale string `json:"locale"`
+	}
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	locale, err := a.localeService().Validate(input.Locale)
+	if errors.Is(err, localization.ErrUnsupported) {
+		writeError(w, http.StatusUnprocessableEntity, "LOCALE_NOT_SUPPORTED", "locale is not supported")
+		return
+	}
+	if err := a.deps.Sessions.UpdateLocale(r.Context(), authenticatedUser(r), locale); errors.Is(err, session.ErrUserNotFound) {
+		writeError(w, http.StatusNotFound, "USER_NOT_FOUND", "user not found")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not update locale")
+		return
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"locale": locale}))
+}
+
 func (a *api) anonymousSession(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		InstallationID string `json:"installation_id"`
@@ -559,10 +622,15 @@ func (a *api) anonymousSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", "required session fields are invalid")
 		return
 	}
+	locale, err := a.localeService().Validate(input.Locale)
+	if errors.Is(err, localization.ErrUnsupported) {
+		writeError(w, http.StatusUnprocessableEntity, "LOCALE_NOT_SUPPORTED", "locale is not supported")
+		return
+	}
 	created, err := a.deps.Sessions.CreateOrRestore(r.Context(), session.CreateRequest{
 		InstallationID: input.InstallationID,
 		Market:         a.deps.Markets.Resolve(r.Context(), input.StoreCountry, input.Locale, a.deps.Config.Market),
-		Locale:         input.Locale,
+		Locale:         locale,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create session")
@@ -573,6 +641,7 @@ func (a *api) anonymousSession(w http.ResponseWriter, r *http.Request) {
 		"access_token":  created.AccessToken,
 		"refresh_token": created.RefreshToken,
 		"expires_in":    900,
+		"locale":        locale,
 	}))
 }
 
@@ -654,6 +723,11 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 	if locale == "" {
 		locale = a.deps.Config.Locale
 	}
+	locale, err := a.localeService().Validate(locale)
+	if errors.Is(err, localization.ErrUnsupported) {
+		writeError(w, http.StatusUnprocessableEntity, "LOCALE_NOT_SUPPORTED", "locale is not supported")
+		return
+	}
 	created, err := a.deps.Sessions.IssueExternal(r.Context(), profile.UserID, a.deps.Config.Market, locale)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create game session")
@@ -663,6 +737,7 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 		"user_id": created.UserID, "access_token": created.AccessToken,
 		"refresh_token": created.RefreshToken, "expires_in": 900,
 		"username": profile.Username, "avatar_url": profile.AvatarURL,
+		"locale": locale,
 	}))
 }
 
@@ -691,6 +766,11 @@ func (a *api) bootstrap(w http.ResponseWriter, r *http.Request) {
 	data["market"] = snapshot.Market
 	data["config_source_market"] = snapshot.SourceMarket
 	data["locale"] = snapshot.Locale
+	supported := make([]string, 0, len(a.localeService().List()))
+	for _, item := range a.localeService().List() {
+		supported = append(supported, item.Locale)
+	}
+	data["supported_locales"] = supported
 	data["config_version"] = snapshot.Version
 	w.Header().Set("ETag", fmt.Sprintf("\"%s-%d\"", snapshot.Market, snapshot.Version))
 	writeJSON(w, http.StatusOK, newEnvelope(data))

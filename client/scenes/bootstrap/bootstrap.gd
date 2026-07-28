@@ -16,13 +16,14 @@ func _ready() -> void:
 func _bootstrap() -> void:
 	retry_button.visible = false
 	start_button.visible = false
-	status_label.text = "正在准备旅程…"
+	status_label.text = tr("正在准备旅程…")
 	loading_progress.value = 15
+	await LocaleManager.initialize_web_default()
 	if not SessionStore.has_access_token():
 		_enter_login()
 		return
 	if not SessionStore.has_valid_access_token():
-		status_label.text = "正在恢复登录状态…"
+		status_label.text = tr("正在恢复登录状态…")
 		var refresh := await ApiClient.refresh_session()
 		if not refresh.ok:
 			if SessionStore.has_access_token():
@@ -31,21 +32,22 @@ func _bootstrap() -> void:
 				_enter_login()
 			return
 	loading_progress.value = 55
-	status_label.text = "正在加载启动配置…"
+	status_label.text = tr("正在加载启动配置…")
 	var bootstrap := await ApiClient.get_bootstrap()
 	if not bootstrap.ok:
 		_show_error(str(bootstrap.get("error", "BOOTSTRAP_FAILED")))
 		return
+	LocaleManager.apply_bootstrap(bootstrap.data.get("data", {}))
 	loading_progress.value = 82
-	status_label.text = "正在同步本地进度…"
+	status_label.text = tr("正在同步本地进度…")
 	await SyncQueue.flush()
 	loading_progress.value = 100
-	status_label.text = "一切就绪"
+	status_label.text = tr("一切就绪")
 	_enter_home()
 
 
 func _show_error(error: String) -> void:
-	status_label.text = "暂时无法完成启动：%s\n请检查网络后重试" % error
+	status_label.text = tr("暂时无法完成启动：%s\n请检查网络后重试") % error
 	retry_button.visible = true
 
 

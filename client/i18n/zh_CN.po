@@ -1,0 +1,187 @@
+msgid ""
+msgstr ""
+"Language: zh_CN\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "SETTINGS_LANGUAGE_LOADING"
+msgstr "正在下载并应用语言…"
+
+msgid "SETTINGS_LANGUAGE_CHANGED"
+msgstr "语言已更新"
+
+msgid "SETTINGS_LANGUAGE_FAILED"
+msgstr "语言下载或切换失败，请稍后重试"
+
+msgid "火眼金睛"
+msgstr "火眼金睛"
+
+msgid "发现画面中的异常之处"
+msgstr "发现画面中的异常之处"
+
+msgid "开始游戏"
+msgstr "开始游戏"
+
+msgid "重新连接"
+msgstr "重新连接"
+
+msgid "正在准备旅程…"
+msgstr "正在准备旅程…"
+
+msgid "登录"
+msgstr "登录"
+
+msgid "欢迎回来"
+msgstr "欢迎回来"
+
+msgid "登录后继续你的时空旅程"
+msgstr "登录后继续你的时空旅程"
+
+msgid "登录账号，同步关卡进度与游戏权益。"
+msgstr "登录账号，同步关卡进度与游戏权益。"
+
+msgid "邮箱"
+msgstr "邮箱"
+
+msgid "密码"
+msgstr "密码"
+
+msgid "发送邮箱验证码"
+msgstr "发送邮箱验证码"
+
+msgid "使用邮箱创建账号"
+msgstr "使用邮箱创建账号"
+
+msgid "完成注册并登录"
+msgstr "完成注册并登录"
+
+msgid "验证邮箱"
+msgstr "验证邮箱"
+
+msgid "玩家昵称"
+msgstr "玩家昵称"
+
+msgid "头像 URL（可选）"
+msgstr "头像 URL（可选）"
+
+msgid "设置"
+msgstr "设置"
+
+msgid "账户、体验与隐私"
+msgstr "账户、体验与隐私"
+
+msgid "账户"
+msgstr "账户"
+
+msgid "游客玩家"
+msgstr "游客玩家"
+
+msgid "当前进度保存在这台设备。绑定账号后可跨设备恢复。"
+msgstr "当前进度保存在这台设备。绑定账号后可跨设备恢复。"
+
+msgid "登录并同步进度"
+msgstr "登录并同步进度"
+
+msgid "游戏体验"
+msgstr "游戏体验"
+
+msgid "触感反馈"
+msgstr "触感反馈"
+
+msgid "加大差异标记"
+msgstr "加大差异标记"
+
+msgid "语言"
+msgstr "语言"
+
+msgid "隐私与支持"
+msgstr "隐私与支持"
+
+msgid "帮助改进游戏"
+msgstr "帮助改进游戏"
+
+msgid "仅发送匿名使用数据，不包含姓名或图片内容。"
+msgstr "仅发送匿名使用数据，不包含姓名或图片内容。"
+
+msgid "隐私政策"
+msgstr "隐私政策"
+
+msgid "退出当前会话"
+msgstr "退出当前会话"
+
+msgid "选择一个系列，开始找茬挑战"
+msgstr "选择一个系列，开始找茬挑战"
+
+msgid "今日挑战"
+msgstr "今日挑战"
+
+msgid "正在同步…"
+msgstr "正在同步…"
+
+msgid "系列关卡"
+msgstr "系列关卡"
+
+msgid "正在加载系列…"
+msgstr "正在加载系列…"
+
+msgid "加载关卡"
+msgstr "加载关卡"
+
+msgid "加载关卡…"
+msgstr "加载关卡…"
+
+msgid "完成！"
+msgstr "完成！"
+
+msgid "通关"
+msgstr "通关"
+
+msgid "出现年代"
+msgstr "出现年代"
+
+msgid "原因"
+msgstr "原因"
+
+msgid "发现手记"
+msgstr "发现手记"
+
+msgid "找出不属于这个年代的物件"
+msgstr "找出不属于这个年代的物件"
+
+msgid "正在恢复登录状态…"
+msgstr "正在恢复登录状态…"
+
+msgid "正在加载启动配置…"
+msgstr "正在加载启动配置…"
+
+msgid "正在同步本地进度…"
+msgstr "正在同步本地进度…"
+
+msgid "一切就绪"
+msgstr "一切就绪"
+
+msgid "暂时无法完成启动：%s\n请检查网络后重试"
+msgstr "暂时无法完成启动：%s\n请检查网络后重试"
+
+msgid "已登录账号"
+msgstr "已登录账号"
+
+msgid "关卡进度与游戏权益将跟随当前账号同步。"
+msgstr "关卡进度与游戏权益将跟随当前账号同步。"
+
+msgid "火眼金睛 · 版本 %s"
+msgstr "火眼金睛 · 版本 %s"
+
+msgid "正在验证购买…"
+msgstr "正在验证购买…"
+
+msgid "已移除广告"
+msgstr "已移除广告"
+
+msgid "暂时无法完成购买，请稍后再试"
+msgstr "暂时无法完成购买，请稍后再试"
+
+msgid "匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。"
+msgstr "匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。"
+
+msgid "正式账号服务尚未配置。接入后将在这里完成登录与进度合并。"
+msgstr "正式账号服务尚未配置。接入后将在这里完成登录与进度合并。"

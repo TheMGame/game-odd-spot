@@ -24,6 +24,8 @@ type Config struct {
 	UserServerBaseURL   string
 	UserServerAppID     string
 	CORSAllowedOrigins  []string
+	RemoteLocalesJSON   string
+	GeoCountryHeader    string
 }
 
 func FromEnv() (Config, error) {
@@ -41,6 +43,8 @@ func FromEnv() (Config, error) {
 		UserServerBaseURL:   strings.TrimRight(valueOrDefault("ODDSPOT_USER_SERVER_BASE_URL", "https://api.guaguatu.com"), "/"),
 		UserServerAppID:     valueOrDefault("ODDSPOT_USER_SERVER_APP_ID", "game_odd_spot"),
 		CORSAllowedOrigins:  splitCSV(valueOrDefault("ODDSPOT_CORS_ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")),
+		RemoteLocalesJSON:   os.Getenv("ODDSPOT_REMOTE_LOCALES_JSON"),
+		GeoCountryHeader:    valueOrDefault("ODDSPOT_GEO_COUNTRY_HEADER", "CF-IPCountry"),
 	}
 
 	switch strings.ToLower(valueOrDefault("ODDSPOT_LOG_LEVEL", "info")) {

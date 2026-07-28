@@ -41,8 +41,14 @@ type UpsertLevel struct {
 	Runtime   json.RawMessage `json:"runtime_json"`
 }
 
+type PublicQuery struct {
+	UserID        string
+	Locale        string
+	DefaultLocale string
+}
+
 type Service interface {
-	Public(context.Context, string) ([]Series, error)
+	Public(context.Context, PublicQuery) ([]Series, error)
 	Admin(context.Context) ([]Series, error)
 	GetLevel(context.Context, string) (json.RawMessage, error)
 	UpsertSeries(context.Context, Series) error
@@ -56,7 +62,7 @@ type MemoryService struct {
 
 func NewMemoryService() *MemoryService { return &MemoryService{series: map[string]Series{}} }
 
-func (s *MemoryService) Public(_ context.Context, _ string) ([]Series, error) {
+func (s *MemoryService) Public(_ context.Context, _ PublicQuery) ([]Series, error) {
 	return s.list(false), nil
 }
 func (s *MemoryService) Admin(_ context.Context) ([]Series, error) { return s.list(true), nil }
@@ -85,11 +91,11 @@ func (s *MemoryService) UpsertLevel(context.Context, string, UpsertLevel) error 
 type MySQLService struct{ db *sql.DB }
 
 func NewMySQLService(db *sql.DB) *MySQLService { return &MySQLService{db: db} }
-func (s *MySQLService) Public(ctx context.Context, userID string) ([]Series, error) {
-	return s.list(ctx, false, userID)
+func (s *MySQLService) Public(ctx context.Context, query PublicQuery) ([]Series, error) {
+	return s.list(ctx, false, query)
 }
 func (s *MySQLService) Admin(ctx context.Context) ([]Series, error) {
-	return s.list(ctx, true, "")
+	return s.list(ctx, true, PublicQuery{})
 }
 func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage, error) {
 	var raw []byte
@@ -100,14 +106,28 @@ func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage
 	return json.RawMessage(raw), err
 }
 
-func (s *MySQLService) list(ctx context.Context, admin bool, userID string) ([]Series, error) {
+func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) ([]Series, error) {
 	where := "WHERE s.enabled=TRUE"
 	if admin {
 		where = ""
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT s.id,s.title,s.description,s.mode,s.cover_url,s.sort_order,s.enabled
-		FROM content_series s `+where+`
-		ORDER BY (s.id='daily_task') ASC,s.sort_order ASC,s.created_at DESC,s.id`)
+	requestedLocale := query.Locale
+	defaultLocale := query.DefaultLocale
+	if requestedLocale == "" {
+		requestedLocale = "en-US"
+	}
+	if defaultLocale == "" {
+		defaultLocale = "en-US"
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id,
+		COALESCE(req.title,def.title,en.title,s.title,s.id),
+		COALESCE(req.description,def.description,en.description,s.description,''),
+		s.mode,s.cover_url,s.sort_order,s.enabled
+		FROM content_series s
+		LEFT JOIN content_series_i18n req ON req.series_id=s.id AND req.locale=?
+		LEFT JOIN content_series_i18n def ON def.series_id=s.id AND def.locale=?
+		LEFT JOIN content_series_i18n en ON en.series_id=s.id AND en.locale='en-US' `+where+`
+		ORDER BY (s.id='daily_task') ASC,s.sort_order ASC,s.created_at DESC,s.id`, requestedLocale, defaultLocale)
 	if err != nil {
 		return nil, fmt.Errorf("list series: %w", err)
 	}
@@ -137,7 +157,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, userID string) ([]S
 			) DESC,sl.created_at DESC,sl.level_id`
 		}
 		levelRows, err := s.db.QueryContext(ctx, `SELECT sl.level_id,lv.version,
-			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.title')),sl.level_id),
+			COALESCE(req.title,def.title,en.title,JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.title')),sl.level_id),
 			lv.difficulty,
 			COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0),
 			COALESCE(
@@ -157,7 +177,10 @@ func (s *MySQLService) list(ctx context.Context, admin bool, userID string) ([]S
 			FROM content_series_levels sl
 			JOIN level_versions lv ON lv.level_id=sl.level_id
 			AND lv.version=(SELECT MAX(v2.version) FROM level_versions v2 WHERE v2.level_id=sl.level_id)
-			WHERE sl.series_id=? `+levelWhere+" "+levelOrder, userID, item.ID)
+			LEFT JOIN content_level_i18n req ON req.level_id=sl.level_id AND req.locale=?
+			LEFT JOIN content_level_i18n def ON def.level_id=sl.level_id AND def.locale=?
+			LEFT JOIN content_level_i18n en ON en.level_id=sl.level_id AND en.locale='en-US'
+			WHERE sl.series_id=? `+levelWhere+" "+levelOrder, query.UserID, requestedLocale, defaultLocale, item.ID)
 		if err != nil {
 			return nil, err
 		}

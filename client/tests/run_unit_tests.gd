@@ -4,6 +4,7 @@ extends SceneTree
 func _initialize() -> void:
 	var failures: Array[String] = []
 	_test_level_validator(failures)
+	_test_builtin_translations(failures)
 	if failures.is_empty():
 		print("Godot unit checks passed.")
 		quit(0)
@@ -33,6 +34,13 @@ func _test_level_validator(failures: Array[String]) -> void:
 func _expect(condition: bool, message: String, failures: Array[String]) -> void:
 	if not condition:
 		failures.append(message)
+
+
+func _test_builtin_translations(failures: Array[String]) -> void:
+	TranslationServer.set_locale("en-US")
+	_expect(TranslationServer.translate("设置") == "Settings", "English built-in translation was not loaded", failures)
+	TranslationServer.set_locale("zh-CN")
+	_expect(TranslationServer.translate("设置") == "设置", "Chinese locale did not restore source text", failures)
 
 
 func _valid_level() -> Dictionary:

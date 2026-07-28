@@ -7,6 +7,36 @@ servers:
 security:
   - bearerAuth: []
 paths:
+  /v1/locales:
+    get:
+      security: []
+      operationId: listLocales
+      responses:
+        '200':
+          description: Published built-in and downloadable languages
+  /v1/locale/default:
+    get:
+      security: []
+      operationId: getDefaultLocale
+      responses:
+        '200':
+          description: Default locale inferred from trusted server-side GeoIP country metadata
+  /v1/session/locale:
+    put:
+      operationId: updateSessionLocale
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [locale]
+              properties:
+                locale: {type: string}
+      responses:
+        '200': {description: Session locale updated}
+        '422': {description: Locale is not published}
   /v1/sessions/anonymous:
     post:
       security: []
@@ -74,10 +104,13 @@ paths:
                     properties:
                       data:
                         type: object
-                        required: [market, locale, config_version, minimum_app_version, features]
+                        required: [market, locale, supported_locales, config_version, minimum_app_version, features]
                         properties:
                           market: {type: string}
                           locale: {type: string}
+                          supported_locales:
+                            type: array
+                            items: {type: string}
                           config_version: {type: integer}
                           minimum_app_version: {type: string}
                           force_upgrade: {type: boolean}

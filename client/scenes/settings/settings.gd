@@ -9,6 +9,10 @@ const GOLD := Color("#d5a64e")
 @onready var large_markers_toggle: CheckButton = $SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/LargeMarkers
 @onready var status_label: Label = $SafeArea/Layout/Scroll/Sections/Status
 @onready var developer_account: VBoxContainer = $SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount
+@onready var language_selector: OptionButton = $SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows/Language/Selector
+
+var _locale_ids: Array[String] = []
+var _changing_locale := false
 
 
 func _ready() -> void:
@@ -17,6 +21,7 @@ func _ready() -> void:
 	analytics_toggle.toggled.connect(_analytics_toggled)
 	vibration_toggle.toggled.connect(_vibration_toggled)
 	large_markers_toggle.toggled.connect(_large_markers_toggled)
+	language_selector.item_selected.connect(_language_selected)
 	$SafeArea/Layout/Header/Back.pressed.connect(_go_home)
 	# 当前没有广告，先隐藏“移除广告”；后续接入广告平台时恢复按钮和购买回调。
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Purchase.visible = false
@@ -26,9 +31,10 @@ func _ready() -> void:
 	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/DeveloperAccount/Actions/LoginAccount.pressed.connect(_login_account)
 	$SafeArea/Layout/Scroll/Sections/Logout.pressed.connect(_logout)
 	developer_account.visible = OS.is_debug_build()
-	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Identity.text = "已登录账号"
-	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Description.text = "关卡进度与游戏权益将跟随当前账号同步。"
-	$SafeArea/Layout/Scroll/Sections/Version.text = "火眼金睛 · 版本 %s" % ProjectSettings.get_setting("application/config/version", "0.1.0")
+	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Identity.text = tr("已登录账号")
+	$SafeArea/Layout/Scroll/Sections/AccountCard/Content/Description.text = tr("关卡进度与游戏权益将跟随当前账号同步。")
+	$SafeArea/Layout/Scroll/Sections/Version.text = tr("火眼金睛 · 版本 %s") % ProjectSettings.get_setting("application/config/version", "0.1.0")
+	await _load_languages()
 
 
 func _load_settings() -> void:
@@ -63,18 +69,58 @@ func _large_markers_toggled(enabled: bool) -> void:
 	Preferences.set_value("accessibility", "large_markers", enabled)
 
 
+func _load_languages() -> void:
+	language_selector.clear()
+	_locale_ids.clear()
+	var items: Array = await LanguagePackManager.available_locales()
+	if items.is_empty():
+		items = [
+			{"locale": "zh-CN", "native_name": "简体中文"},
+			{"locale": "en-US", "native_name": "English"},
+		]
+	for item in items:
+		if not item is Dictionary:
+			continue
+		var locale := str(item.get("locale", ""))
+		_locale_ids.append(locale)
+		language_selector.add_item(str(item.get("native_name", locale)))
+		if locale == LocaleManager.current_locale():
+			language_selector.select(_locale_ids.size() - 1)
+
+
+func _language_selected(index: int) -> void:
+	if _changing_locale or index < 0 or index >= _locale_ids.size():
+		return
+	var previous := LocaleManager.current_locale()
+	_changing_locale = true
+	language_selector.disabled = true
+	status_label.text = tr("SETTINGS_LANGUAGE_LOADING")
+	var result := await LocaleManager.select_locale(_locale_ids[index])
+	if result.ok:
+		status_label.text = tr("SETTINGS_LANGUAGE_CHANGED")
+		get_tree().reload_current_scene()
+	else:
+		status_label.text = tr("SETTINGS_LANGUAGE_FAILED")
+		for item_index in _locale_ids.size():
+			if _locale_ids[item_index] == previous:
+				language_selector.select(item_index)
+				break
+	language_selector.disabled = false
+	_changing_locale = false
+
+
 func _purchase() -> void:
-	status_label.text = "正在验证购买…"
+	status_label.text = tr("正在验证购买…")
 	var result := await Monetization.purchase_no_ads()
-	status_label.text = "已移除广告" if result.ok else "暂时无法完成购买，请稍后再试"
+	status_label.text = tr("已移除广告") if result.ok else tr("暂时无法完成购买，请稍后再试")
 
 
 func _show_privacy() -> void:
-	status_label.text = "匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。"
+	status_label.text = tr("匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。")
 
 
 func _request_product_login() -> void:
-	status_label.text = "正式账号服务尚未配置。接入后将在这里完成登录与进度合并。"
+	status_label.text = tr("正式账号服务尚未配置。接入后将在这里完成登录与进度合并。")
 	if OS.is_debug_build():
 		developer_account.visible = true
 

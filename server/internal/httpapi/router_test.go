@@ -88,6 +88,38 @@ func TestBootstrapRejectsMissingToken(t *testing.T) {
 	}
 }
 
+func TestLocalesAndGeoDefaultArePublic(t *testing.T) {
+	handler := newTestHandler()
+	locales := httptest.NewRecorder()
+	handler.ServeHTTP(locales, httptest.NewRequest(http.MethodGet, "/v1/locales", nil))
+	if locales.Code != http.StatusOK || !bytes.Contains(locales.Body.Bytes(), []byte(`"zh-CN"`)) {
+		t.Fatalf("locales status=%d body=%s", locales.Code, locales.Body.String())
+	}
+	request := httptest.NewRequest(http.MethodGet, "/v1/locale/default", nil)
+	request.Header.Set("CF-IPCountry", "CN")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !bytes.Contains(response.Body.Bytes(), []byte(`"zh-CN"`)) {
+		t.Fatalf("default locale status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestSessionLocaleCanBeUpdated(t *testing.T) {
+	handler := newTestHandler()
+	created := createSession(t, handler)
+	request := authorizedRequest(http.MethodPut, "/v1/session/locale", []byte(`{"locale":"en_US"}`), created.AccessToken, "")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !bytes.Contains(response.Body.Bytes(), []byte(`"en-US"`)) {
+		t.Fatalf("update locale status=%d body=%s", response.Code, response.Body.String())
+	}
+	bootstrap := httptest.NewRecorder()
+	handler.ServeHTTP(bootstrap, authorizedRequest(http.MethodGet, "/v1/bootstrap", nil, created.AccessToken, ""))
+	if bootstrap.Code != http.StatusOK || !bytes.Contains(bootstrap.Body.Bytes(), []byte(`"locale":"en-US"`)) {
+		t.Fatalf("bootstrap status=%d body=%s", bootstrap.Code, bootstrap.Body.String())
+	}
+}
+
 func TestRefreshRotatesTokensAndRejectsReplay(t *testing.T) {
 	handler := newTestHandler()
 	created := createSession(t, handler)

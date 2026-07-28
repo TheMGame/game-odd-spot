@@ -1,0 +1,187 @@
+msgid ""
+msgstr ""
+"Language: en_US\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "SETTINGS_LANGUAGE_LOADING"
+msgstr "Downloading and applying language…"
+
+msgid "SETTINGS_LANGUAGE_CHANGED"
+msgstr "Language updated"
+
+msgid "SETTINGS_LANGUAGE_FAILED"
+msgstr "Could not download or switch language. Please try again."
+
+msgid "火眼金睛"
+msgstr "Odd Spot"
+
+msgid "发现画面中的异常之处"
+msgstr "Find what does not belong"
+
+msgid "开始游戏"
+msgstr "Start"
+
+msgid "重新连接"
+msgstr "Reconnect"
+
+msgid "正在准备旅程…"
+msgstr "Getting ready…"
+
+msgid "登录"
+msgstr "Log in"
+
+msgid "欢迎回来"
+msgstr "Welcome back"
+
+msgid "登录后继续你的时空旅程"
+msgstr "Log in to continue your journey"
+
+msgid "登录账号，同步关卡进度与游戏权益。"
+msgstr "Log in to sync your progress."
+
+msgid "邮箱"
+msgstr "Email"
+
+msgid "密码"
+msgstr "Password"
+
+msgid "发送邮箱验证码"
+msgstr "Send email code"
+
+msgid "使用邮箱创建账号"
+msgstr "Create account with email"
+
+msgid "完成注册并登录"
+msgstr "Complete registration"
+
+msgid "验证邮箱"
+msgstr "Verify email"
+
+msgid "玩家昵称"
+msgstr "Player name"
+
+msgid "头像 URL（可选）"
+msgstr "Avatar URL (optional)"
+
+msgid "设置"
+msgstr "Settings"
+
+msgid "账户、体验与隐私"
+msgstr "Account, experience and privacy"
+
+msgid "账户"
+msgstr "Account"
+
+msgid "游客玩家"
+msgstr "Guest player"
+
+msgid "当前进度保存在这台设备。绑定账号后可跨设备恢复。"
+msgstr "Progress is stored on this device. Link an account to restore it elsewhere."
+
+msgid "登录并同步进度"
+msgstr "Log in and sync"
+
+msgid "游戏体验"
+msgstr "Game experience"
+
+msgid "触感反馈"
+msgstr "Haptic feedback"
+
+msgid "加大差异标记"
+msgstr "Larger markers"
+
+msgid "语言"
+msgstr "Language"
+
+msgid "隐私与支持"
+msgstr "Privacy and support"
+
+msgid "帮助改进游戏"
+msgstr "Help improve the game"
+
+msgid "仅发送匿名使用数据，不包含姓名或图片内容。"
+msgstr "Send anonymous usage data only. No names or image content."
+
+msgid "隐私政策"
+msgstr "Privacy policy"
+
+msgid "退出当前会话"
+msgstr "Log out"
+
+msgid "选择一个系列，开始找茬挑战"
+msgstr "Choose a series and start spotting differences"
+
+msgid "今日挑战"
+msgstr "Daily challenge"
+
+msgid "正在同步…"
+msgstr "Syncing…"
+
+msgid "系列关卡"
+msgstr "Series levels"
+
+msgid "正在加载系列…"
+msgstr "Loading series…"
+
+msgid "加载关卡"
+msgstr "Load level"
+
+msgid "加载关卡…"
+msgstr "Loading level…"
+
+msgid "完成！"
+msgstr "Complete!"
+
+msgid "通关"
+msgstr "Continue"
+
+msgid "出现年代"
+msgstr "Appeared in"
+
+msgid "原因"
+msgstr "Reason"
+
+msgid "发现手记"
+msgstr "Discovery notes"
+
+msgid "找出不属于这个年代的物件"
+msgstr "Find objects that do not belong in this era"
+
+msgid "正在恢复登录状态…"
+msgstr "Restoring your session…"
+
+msgid "正在加载启动配置…"
+msgstr "Loading configuration…"
+
+msgid "正在同步本地进度…"
+msgstr "Syncing progress…"
+
+msgid "一切就绪"
+msgstr "Ready"
+
+msgid "暂时无法完成启动：%s\n请检查网络后重试"
+msgstr "Could not start: %s\nCheck your connection and try again"
+
+msgid "已登录账号"
+msgstr "Signed-in account"
+
+msgid "关卡进度与游戏权益将跟随当前账号同步。"
+msgstr "Progress and game benefits sync with this account."
+
+msgid "火眼金睛 · 版本 %s"
+msgstr "Odd Spot · Version %s"
+
+msgid "正在验证购买…"
+msgstr "Verifying purchase…"
+
+msgid "已移除广告"
+msgstr "Ads removed"
+
+msgid "暂时无法完成购买，请稍后再试"
+msgstr "Could not complete the purchase. Please try again."
+
+msgid "匿名分析可随时关闭；安装标识与访问令牌仅以不可逆摘要保存。"
+msgstr "Anonymous analytics can be disabled at any time."
+
+msgid "正式账号服务尚未配置。接入后将在这里完成登录与进度合并。"
+msgstr "Account service is not configured yet."
