@@ -17,14 +17,17 @@ Create prompt files only. Do not generate images unless the user separately and 
 5. Design 10 distinct levels unless the user specifies another count.
 6. Use the default difficulty progression:
    `1 beginner + 2 easy + 2 normal + 2 advanced + 1 hard + 2 expert`.
-7. Verify that every answer is incompatible with the scene's date or internal rules. Avoid disputed boundary cases.
-8. Write:
+7. Assign every level at least 5 answer objects. Use the default per-tier counts
+   `5 / 5 / 6 / 8 / 8 / 10`; user overrides may use 5–15 answers per level,
+   but never produce a one-answer or otherwise undersized level.
+8. Verify that every answer is incompatible with the scene's date or internal rules. Avoid disputed boundary cases.
+9. Write:
    - `README.md`: series rules, difficulty table, all level specifications and canonical prompts.
    - `pack.json`: machine-readable pack metadata and all level metadata.
    - `BATCH_01_LEVELS_01_05.md`: complete standalone prompts for levels 01–05.
    - `BATCH_02_LEVELS_06_10.md`: complete standalone prompts for levels 06–10.
-9. Make each batch document self-contained. Never tell the image model to read another file.
-10. Validate JSON, level counts, IDs, answer counts, heading order and one-to-one correspondence across all files.
+10. Make each batch document self-contained. Never tell the image model to read another file.
+11. Validate JSON, level counts, IDs, answer counts, heading order and one-to-one correspondence across all files. Reject the pack if any level has fewer than 5 or more than 15 answers, or if `answer_count` differs from the enumerated target list.
 
 ## Production defaults
 
@@ -35,6 +38,8 @@ Create prompt files only. Do not generate images unless the user separately and 
 - Delay coordinates and Admin hotspots until final images are approved.
 - Do not ask the image-generation model for answer coordinates.
 - Preserve the project safe-area rules and output naming `<level_id>.png`.
+- State the exact answer count in every level heading/specification and repeat the
+  complete numbered target list inside that level's standalone image prompt.
 
 ## Judgment rules
 
@@ -43,6 +48,8 @@ Create prompt files only. Do not generate images unless the user separately and 
 - Give every answer a fixed semantic location inside its prompt.
 - Use era-correct look-alike objects as decoys at higher difficulties.
 - Require exactly the listed wrong objects and forbid additional violations.
+- Treat answer-count compliance as a hard contract, not a difficulty suggestion:
+  minimum 5, maximum 15, with the default tier counts defined above.
 - Avoid readable brands, slogans and incidental text unless exact text is essential.
 - Prefer objects image models can render and humans can identify at final resolution.
 - If the theme is historical or culturally specific and facts are uncertain, verify with authoritative sources before finalizing.

@@ -23,6 +23,15 @@ Default counts:
 | hard | 1 | 8 | small, about 35% occlusion, strong blending |
 | expert | 2 | 10 | small, 30–40% occlusion, decoys and knowledge |
 
+These counts are a hard production contract:
+
+- Every level must contain 5–15 answers.
+- Never create a one-answer level, even at beginner difficulty.
+- Use the table counts unless the user explicitly requests another count in the
+  allowed range.
+- Write the exact count and the complete numbered answer list in the README,
+  `pack.json`, and standalone batch prompt for that level.
+
 ## Prompt structure
 
 Write each prompt in this order:
@@ -84,5 +93,9 @@ Each level includes `level_id`, `period`, `scene`, `tier`, `answer_count` and th
 - Confirm batch 1 contains levels 01–05 and five full prompts.
 - Confirm batch 2 contains levels 06–10 and five full prompts.
 - Confirm `answer_count` matches the written answer list.
+- Reject any level whose `answer_count` or enumerated answer list contains fewer
+  than 5 or more than 15 items.
+- Confirm every standalone image prompt repeats the exact answer count and all
+  numbered target objects; a theme description without the full list is invalid.
 - Search for stale instructions requesting multiple candidates or AI coordinates.
 - Run `git diff --check` on the new pack.
