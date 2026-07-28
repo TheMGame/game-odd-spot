@@ -73,6 +73,7 @@ icon_kind = "hint"
 glow = true
 
 [node name="Report" type="Button" parent="Layout/TopBar"]
+visible = false
 custom_minimum_size = Vector2(96, 96)
 layout_mode = 2
 script = ExtResource("3")

@@ -2,7 +2,10 @@ class_name AssetCache
 extends RefCounted
 
 const CACHE_DIR := "user://asset_cache"
-const CACHE_LIMIT_BYTES := 300 * 1024 * 1024
+# Images are versioned by asset hash (or URL for legacy thumbnails) and change
+# infrequently. Keep a generous on-device cache so normal navigation does not
+# repeatedly consume CDN bandwidth.
+const CACHE_LIMIT_BYTES := 2 * 1024 * 1024 * 1024
 const MAX_ASSET_BYTES := 25 * 1024 * 1024
 const DOWNLOAD_TIMEOUT_SECONDS := 30.0
 

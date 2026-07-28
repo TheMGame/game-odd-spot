@@ -156,21 +156,9 @@ func _is_completed(entry: Dictionary) -> bool:
 func _load_thumbnail(target: TextureRect, url: String) -> void:
 	if url.is_empty():
 		return
-	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
-	request.timeout = 8.0
-	add_child(request)
-	if request.request(url) != OK:
-		request.queue_free()
-		return
-	var response: Array = await request.request_completed
-	request.queue_free()
-	if not is_instance_valid(target) or response[0] != HTTPRequest.RESULT_SUCCESS or response[1] < 200 or response[1] >= 300:
-		return
-	var bytes: PackedByteArray = response[3]
-	var image := AssetCache.decode_image(bytes)
-	if image != null:
-		target.texture = ImageTexture.create_from_image(image)
+	var result := await AssetCache.new().load_texture_url(self, url, "level_thumbnail")
+	if is_instance_valid(target) and result.ok:
+		target.texture = result.texture
 
 
 func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBoxFlat:

@@ -124,7 +124,18 @@ func NewRouter(deps Dependencies) http.Handler {
 	_ = os.MkdirAll(deps.Config.ContentDir, 0755)
 	mux.Handle("GET /content/", http.StripPrefix("/content/", http.FileServer(http.Dir(deps.Config.ContentDir))))
 	mux.Handle("GET /admin/", http.StripPrefix("/admin/", http.FileServer(http.Dir(deps.Config.AdminDir))))
-	return a.recoverPanic(a.requestLog(a.cors(mux)))
+	return longLivedContentCache(a.recoverPanic(a.requestLog(a.cors(mux))))
+}
+
+func longLivedContentCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/content/") {
+			// Published assets use versioned IDs. Browsers and intermediary CDNs can
+			// retain them for a year; clients also verify catalog-provided hashes.
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *api) cors(next http.Handler) http.Handler {

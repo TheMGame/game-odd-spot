@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"game-odd-spot/server/internal/analytics"
@@ -296,7 +298,27 @@ func TestCORSDoesNotExposeContentToLocalWebBuild(t *testing.T) {
 	}
 }
 
-func newTestHandler() http.Handler {
+func TestContentResponsesAreLongLived(t *testing.T) {
+	contentDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(contentDir, "example.png"), []byte("image"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/content/example.png", nil)
+	response := httptest.NewRecorder()
+	newTestHandler(contentDir).ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if got := response.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("content Cache-Control = %q", got)
+	}
+}
+
+func newTestHandler(contentDirs ...string) http.Handler {
+	contentDir := ""
+	if len(contentDirs) > 0 {
+		contentDir = contentDirs[0]
+	}
 	return httpapi.NewRouter(httpapi.Dependencies{
 		Config: config.Config{
 			Environment:        "test",
@@ -305,6 +327,7 @@ func newTestHandler() http.Handler {
 			Locale:             "en-US",
 			AdminToken:         "test-admin-token",
 			CORSAllowedOrigins: []string{"http://localhost:8000"},
+			ContentDir:         contentDir,
 		},
 		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Sessions:   session.NewMemoryService(),
