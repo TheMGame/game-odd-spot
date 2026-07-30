@@ -145,7 +145,7 @@ func _request_wechat_login_code() -> Dictionary:
 	wechat_auth.begin()
 	for _attempt in range(120):
 		await get_tree().create_timer(0.1).timeout
-		var parsed = JSON.parse_string(str(wechat_auth.getResult()))
+		var parsed = JsonUtils.parse_string(str(wechat_auth.getResult()))
 		if not parsed is Dictionary:
 			continue
 		match str(parsed.get("state", "")):
@@ -233,7 +233,7 @@ func update_user_profile(nickname: String, avatar: String) -> Dictionary:
 		return {"ok": false, "error": "request could not start"}
 	var response: Array = await request.request_completed
 	request.queue_free()
-	var parsed = JSON.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
+	var parsed = JsonUtils.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
 	if response[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
 		return {"ok": false, "error": "USER_PROFILE_UNAVAILABLE"}
 	if response[1] < 200 or response[1] >= 300 or int(parsed.get("code", -1)) != 0:
@@ -313,7 +313,7 @@ func _request_user_server_profile() -> Dictionary:
 		return {"ok": false, "error": "request could not start"}
 	var response: Array = await request.request_completed
 	request.queue_free()
-	var parsed = JSON.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
+	var parsed = JsonUtils.parse_string((response[3] as PackedByteArray).get_string_from_utf8())
 	if response[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
 		return {"ok": false, "error": "USER_PROFILE_UNAVAILABLE"}
 	if response[1] < 200 or response[1] >= 300 or int(parsed.get("code", -1)) != 0:
@@ -336,7 +336,7 @@ func _request_user_server(path: String, body: Dictionary) -> Dictionary:
 	var result: Array = await request.request_completed
 	request.queue_free()
 	var status_code: int = result[1]
-	var parsed = JSON.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
+	var parsed = JsonUtils.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
 	if result[0] != HTTPRequest.RESULT_SUCCESS or not parsed is Dictionary:
 		return {"ok": false, "error": "USER_SERVER_UNAVAILABLE"}
 	if status_code < 200 or status_code >= 300 or int(parsed.get("code", -1)) != 0:
@@ -437,7 +437,7 @@ func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, au
 	if network_result != HTTPRequest.RESULT_SUCCESS:
 		var network_failure := {"ok": false, "error": "NETWORK_ERROR_%s" % network_result, "status": 0, "retryable": true}
 		return await _retry_or_return(network_failure, method, path, body, authenticated, allow_refresh, idempotency_key, attempt)
-	var parsed = JSON.parse_string(response_body.get_string_from_utf8())
+	var parsed = JsonUtils.parse_string(response_body.get_string_from_utf8())
 	if not parsed is Dictionary:
 		return {"ok": false, "error": "INVALID_SERVER_RESPONSE", "status": status_code, "retryable": false}
 	if status_code == 401 and authenticated and allow_refresh:

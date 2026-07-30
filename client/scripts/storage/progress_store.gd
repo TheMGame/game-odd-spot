@@ -74,7 +74,7 @@ func _load() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return
-	var parsed = JSON.parse_string(file.get_as_text())
+	var parsed = JsonUtils.parse_string(file.get_as_text())
 	if parsed is Dictionary and parsed.get("users") is Dictionary:
 		_users = parsed.users
 

@@ -62,7 +62,7 @@ func _load() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return
-	var parsed = JSON.parse_string(file.get_as_text())
+	var parsed = JsonUtils.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
 		return
 	installation_id = str(parsed.get("installation_id", ""))

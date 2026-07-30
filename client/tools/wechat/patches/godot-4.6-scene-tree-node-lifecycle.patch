@@ -1,0 +1,43 @@
+diff --git a/scene/main/scene_tree.cpp b/scene/main/scene_tree.cpp
+--- a/scene/main/scene_tree.cpp
++++ b/scene/main/scene_tree.cpp
+@@ -1185,7 +1185,10 @@ void SceneTree::_process_group(ProcessGroup *p_group, bool p_physics) {
+ 			continue;
+ 		}
+ 
+-		if (!n->can_process() || !n->is_inside_tree()) {
++		// Nodes can leave the tree while another node in the copied process
++		// group is handling this frame. can_process() requires an in-tree node,
++		// so check the lifecycle state first.
++		if (!n->is_inside_tree() || !n->can_process()) {
+ 			continue;
+ 		}
+ 
+@@ -1445,7 +1448,9 @@ void SceneTree::_call_input_pause(const StringName &p_group, CallInputType p_cal
+ 			continue;
+ 		}
+ 
+-		if (!n->can_process()) {
++		// Input dispatch iterates a copied group. A previous callback can remove
++		// another node from the tree before its turn in this same input event.
++		if (!n->is_inside_tree() || !n->can_process()) {
+ 			continue;
+ 		}
+ 
+diff --git a/scene/main/node.cpp b/scene/main/node.cpp
+--- a/scene/main/node.cpp
++++ b/scene/main/node.cpp
+@@ -899,7 +899,12 @@ bool Node::is_processing_input() const {
+ }
+ 
+ bool Node::can_process() const {
+-	ERR_FAIL_COND_V(!is_inside_tree(), false);
++	// A node may be detached by another callback while an input/process group
++	// snapshot is still being iterated. Detached nodes cannot process; return
++	// false without flooding platform logs for this valid lifecycle race.
++	if (!is_inside_tree()) {
++		return false;
++	}
+ 	return !data.tree->is_suspended() && _can_process(data.tree->is_paused());
+ }
+ 

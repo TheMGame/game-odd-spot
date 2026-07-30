@@ -14,3 +14,12 @@ static func is_web_like() -> bool:
 
 static func is_native() -> bool:
 	return not is_web_like()
+
+
+static func vibrate_handheld(duration_ms := 35) -> void:
+	if is_wechat_minigame():
+		var wechat = JavaScriptBridge.get_interface("wx")
+		if wechat != null:
+			wechat.vibrateShort({"type": "light"})
+		return
+	Input.vibrate_handheld(duration_ms)

@@ -61,7 +61,7 @@ func _load() -> void:
 	if not FileAccess.file_exists(SAVE_PATH): return
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null: return
-	var parsed = JSON.parse_string(file.get_as_text())
+	var parsed = JsonUtils.parse_string(file.get_as_text())
 	if parsed is Array: _events = parsed
 
 

@@ -916,3 +916,129 @@ Engine has started!
 6. 当前暂存区内包含服务端两处修复，需要与客户端改动一起审查；
 7. 若只上传源码，必须说明正式微信二进制产物没有随仓库上传；
 8. 后续重新导出前先阅读本文第 15 节，避免用旧 4.7 流程覆盖已验证引擎。
+
+## 18. 2026-07-31 真机节点生命周期修复
+
+正式游戏在 iPhone 上启动成功后，运行阶段出现重复日志：
+
+```text
+Condition "!is_inside_tree()" is true. Returning: false
+at: can_process (scene/main/node.cpp:902)
+```
+
+这不是 WASM 编译失败。日志已显示：
+
+```text
+Engine has started!
+```
+
+说明错误发生在 Godot 场景树运行阶段。
+
+定位到 Godot 4.6 的：
+
+```text
+scene/main/scene_tree.cpp
+```
+
+处理 process group 时使用了：
+
+```cpp
+if (!n->can_process() || !n->is_inside_tree()) {
+    continue;
+}
+```
+
+同一帧中，前一个节点的回调可能将后续节点移出 SceneTree。此时
+`can_process()` 要求节点仍在树内，但原条件先调用 `can_process()`，因此触发断言。
+
+修改为先检查生命周期：
+
+```cpp
+if (!n->is_inside_tree() || !n->can_process()) {
+    continue;
+}
+```
+
+可复现补丁已加入：
+
+```text
+client/tools/wechat/patches/godot-4.6-scene-tree-node-lifecycle.patch
+```
+
+随后重新执行：
+
+- Godot 4.6 微信引擎增量编译；
+- Brotli 压缩；
+- 正式 PCK 重新导出；
+- WASM section 校验；
+- `WebAssembly.validate()`；
+- `WebAssembly.compile()`；
+- Godot 4.6 `--main-pack` smoke test。
+
+本次引擎标识：
+
+```text
+build=20260731-lifecycle-fix
+```
+
+本次 WASM SHA-256：
+
+```text
+302738fb64cc63b69c2e8619cedeae350d0ce6abc6538b5e46c769e1c51ca7a4
+```
+
+本次 PCK SHA-256：
+
+```text
+1a0ed4c3dcb574f04b7ade5295fbdac0c931b7a137c3bae3de9396869d992e8f
+```
+
+同时将游戏振动调用从浏览器 API：
+
+```gdscript
+Input.vibrate_handheld(35)
+```
+
+改为平台封装：
+
+```gdscript
+Platform.vibrate_handheld(35)
+```
+
+微信小游戏使用：
+
+```text
+wx.vibrateShort({ type: "light" })
+```
+
+普通 Web/原生平台继续使用 Godot `Input.vibrate_handheld()`，避免微信端重复输出：
+
+```text
+This browser does not support vibration.
+```
+
+## 19. 2026-07-31 微信本地 JSON 安全解析
+
+真机启动后曾出现：
+
+```text
+Parse JSON failed. Error at line 0: Unknown error getting token
+at: parse_string (core/io/json.cpp:624)
+```
+
+原因是微信小游戏的 `user://` 持久化目录中可能存在零字节或写入未完成的缓存文件。原实现直接调用 `JSON.parse_string()`；该便捷方法遇到空值或损坏内容时会输出引擎错误。
+
+新增 `JsonUtils.parse_string()`，对以下输入统一进行非空检查和无噪声解析：
+
+- Session、游戏进度、同步队列和埋点队列；
+- Catalog 本地缓存；
+- 微信登录 JavaScript 桥返回值；
+- HTTP JSON 响应。
+
+非法或不完整缓存现在会被忽略，并由正常的远端加载或后续保存覆盖，不再阻断启动或输出红色引擎错误。
+
+正式微信 PCK 标识：
+
+```text
+build=20260731-json-guard
+```

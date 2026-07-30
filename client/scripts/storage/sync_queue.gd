@@ -101,7 +101,7 @@ func _load() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return
-	var parsed = JSON.parse_string(file.get_as_text())
+	var parsed = JsonUtils.parse_string(file.get_as_text())
 	if parsed is Array:
 		# Legacy queue entries had no user_id and cannot safely be submitted as another account.
 		_items = (parsed as Array).filter(func(item): return item is Dictionary and not str(item.get("user_id", "")).is_empty())
@@ -142,6 +142,6 @@ func _record_dead_letter(item: Dictionary, result: Dictionary) -> void:
 func _load_dead_letters() -> void:
 	if not FileAccess.file_exists(DEAD_LETTER_PATH):
 		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(DEAD_LETTER_PATH))
+	var parsed = JsonUtils.parse_string(FileAccess.get_file_as_string(DEAD_LETTER_PATH))
 	if parsed is Array:
 		_dead_letters = parsed

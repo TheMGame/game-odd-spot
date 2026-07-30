@@ -771,3 +771,33 @@ EH-free 微信引擎
 + 微信分包和配置校验
 + 真机验收
 ```
+
+## 20. 后续运行期问题：离树节点仍被调度
+
+引擎启动问题解决后，正式游戏真机运行阶段曾重复出现：
+
+```text
+Condition "!is_inside_tree()" is true. Returning: false
+at: can_process (scene/main/node.cpp:902)
+```
+
+Godot 4.6 `SceneTree::_process_group()` 在遍历 process group 副本时，原代码先
+调用 `can_process()`，再判断节点是否仍在 SceneTree。节点可能在同一帧的另一个
+回调中离树，因此检查顺序会触发 `can_process()` 的前置条件断言。
+
+修复为：
+
+```cpp
+if (!n->is_inside_tree() || !n->can_process()) {
+    continue;
+}
+```
+
+该修复属于引擎节点生命周期防御，不修改游戏业务行为。补丁保存在：
+
+```text
+client/tools/wechat/patches/godot-4.6-scene-tree-node-lifecycle.patch
+```
+
+同一轮还将微信振动切换到 `wx.vibrateShort()`，避免 Godot Web 振动 API 输出
+“This browser does not support vibration”。

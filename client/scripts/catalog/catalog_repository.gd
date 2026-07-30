@@ -49,7 +49,7 @@ func _load_disk() -> void:
 	var cache_path := _cache_path()
 	if not FileAccess.file_exists(cache_path):
 		return
-	var parsed = JSON.parse_string(FileAccess.get_file_as_string(cache_path))
+	var parsed = JsonUtils.parse_string(FileAccess.get_file_as_string(cache_path))
 	if parsed is Dictionary and parsed.get("catalog") is Dictionary:
 		_catalog = parsed.catalog
 		_loaded_at = int(parsed.get("loaded_at", 0))

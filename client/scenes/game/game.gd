@@ -146,7 +146,7 @@ func _mark_found(difference: Dictionary) -> void:
 	status_label.text = "找到了！"
 	_show_found_info(difference)
 	if Preferences.vibration_enabled:
-		Input.vibrate_handheld(35)
+		Platform.vibrate_handheld(35)
 	Analytics.track("difference_found", {"level_id": level_data.level_id, "difference_id": id, "found_at_ms": _elapsed_ms()})
 	_sync_progress(id)
 	if found.size() == differences.size():

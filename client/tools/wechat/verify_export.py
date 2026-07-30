@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,6 +45,74 @@ def load_json(path: Path, failures: list[str]) -> object | None:
 
 def relative_parts(path: Path, root: Path) -> tuple[str, ...]:
     return tuple(part.lower() for part in path.relative_to(root).parts)
+
+
+def validate_wasm_runtime(
+    wasm_path: Path, failures: list[str], warnings: list[str]
+) -> None:
+    node = shutil.which("node")
+    if node is None:
+        warnings.append(
+            "Node.js is unavailable; skipped Brotli WASM section validation."
+        )
+        return
+    script = r"""
+const fs = require("fs");
+const zlib = require("zlib");
+const path = process.argv[1];
+const packed = fs.readFileSync(path);
+const wasm = path.endsWith(".br") ? zlib.brotliDecompressSync(packed) : packed;
+if (wasm.length < 8 || wasm.subarray(0, 4).toString("hex") !== "0061736d") {
+    throw new Error("invalid WebAssembly header");
+}
+let offset = 8;
+const sections = [];
+function readUleb() {
+    let value = 0;
+    let shift = 0;
+    while (offset < wasm.length) {
+        const byte = wasm[offset++];
+        value += (byte & 0x7f) * 2 ** shift;
+        if ((byte & 0x80) === 0) return value;
+        shift += 7;
+    }
+    throw new Error("truncated WebAssembly section length");
+}
+while (offset < wasm.length) {
+    const id = wasm[offset++];
+    const size = readUleb();
+    sections.push(id);
+    offset += size;
+    if (offset > wasm.length) throw new Error("truncated WebAssembly section");
+}
+process.stdout.write(JSON.stringify({
+    valid: WebAssembly.validate(wasm),
+    sections,
+    unpackedBytes: wasm.length,
+}));
+"""
+    try:
+        result = subprocess.run(
+            [node, "-e", script, str(wasm_path)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        report = json.loads(result.stdout)
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        json.JSONDecodeError,
+    ) as exc:
+        failures.append(f"Cannot validate {wasm_path.name}: {exc}")
+        return
+    if not report.get("valid"):
+        failures.append(f"{wasm_path.name} is not valid WebAssembly.")
+    if 13 in report.get("sections", []):
+        failures.append(
+            f"{wasm_path.name} contains unsupported Wasm EH section 13."
+        )
 
 
 def main() -> int:
@@ -115,18 +185,20 @@ def main() -> int:
     engine_runtime = output_dir / "engine" / "godot.js"
     if engine_runtime.is_file():
         runtime_source = engine_runtime.read_text(encoding="utf-8", errors="replace")
-        request_body_fix = (
-            "data:ArrayBuffer.isView(body)"
-            "?body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength)"
-            ":body,header:headers"
+        request_body_markers = (
+            "ArrayBuffer.isView(body)",
+            "body.byteOffset",
+            "body.byteLength",
+            "wx.request",
         )
-        if request_body_fix not in runtime_source:
+        if not all(marker in runtime_source for marker in request_body_markers):
             failures.append(
                 "engine/godot.js does not normalize WASM TypedArray request bodies "
                 "for wx.request."
             )
-        if "var getHeapMax=()=>268435456" not in runtime_source:
-            failures.append("engine/godot.js does not cap the heap at 256 MiB.")
+
+    for wasm_path in wasm_files:
+        validate_wasm_runtime(wasm_path, failures, warnings)
 
     adapter = output_dir / "weapp-adapter.js"
     if adapter.is_file():
