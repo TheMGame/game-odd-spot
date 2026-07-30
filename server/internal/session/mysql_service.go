@@ -197,7 +197,16 @@ func (s *MySQLService) UpdateLocale(ctx context.Context, userID, locale string) 
 		return fmt.Errorf("read updated user count: %w", err)
 	}
 	if affected == 0 {
-		return ErrUserNotFound
+		// MySQL reports zero affected rows both when the user is missing and
+		// when locale already has the requested value.
+		var exists int
+		if err := s.db.QueryRowContext(
+			ctx, "SELECT 1 FROM users WHERE id=? LIMIT 1", userID,
+		).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		} else if err != nil {
+			return fmt.Errorf("check updated user: %w", err)
+		}
 	}
 	return nil
 }

@@ -188,7 +188,11 @@ func _use_hint() -> void:
 func _create_hint_limit_dialog() -> void:
 	hint_limit_dialog = AcceptDialog.new()
 	hint_limit_dialog.title = "今日提示已用完"
-	hint_limit_dialog.dialog_text = "每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来，后续也可以通过观看广告增加提示次数。"
+	hint_limit_dialog.dialog_text = (
+		"每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来。"
+		if Platform.is_wechat_minigame()
+		else "每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来，后续也可以通过观看广告增加提示次数。"
+	)
 	hint_limit_dialog.ok_button_text = "知道了"
 	hint_limit_dialog.min_size = Vector2i(620, 300)
 	add_child(hint_limit_dialog)

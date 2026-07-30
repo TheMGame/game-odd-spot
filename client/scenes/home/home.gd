@@ -10,6 +10,7 @@ const MUTED := Color("#b8c9c5")
 var series_items: Array = []
 var series_images: Dictionary = {}
 var series_image_quality: Dictionary = {}
+var series_thumbnail_jobs: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -26,6 +27,7 @@ func _ready() -> void:
 
 func _refresh_series() -> void:
 	series_items.clear()
+	series_thumbnail_jobs.clear()
 	var remote := await CatalogRepository.get_catalog()
 	if not remote.ok:
 		var error := str(remote.get("error", "CATALOG_LOAD_FAILED"))
@@ -42,6 +44,11 @@ func _refresh_series() -> void:
 		return
 	for series in series_items:
 		_add_series_card(series)
+	# Mobile WebAssembly cannot return its linear-memory high-water mark to the
+	# OS. Decode cover images one at a time so several large JPEGs do not create
+	# a permanent multi-gigabyte heap peak on real devices.
+	for job in series_thumbnail_jobs:
+		await _load_series_thumbnail(str(job.url), str(job.series_id))
 
 
 func _show_catalog_message(message: String) -> void:
@@ -118,9 +125,12 @@ func _add_series_card(series: Dictionary) -> void:
 		var first_level: Dictionary = levels[0]
 		var thumbnail_url := str(first_level.get("thumbnail_url", ""))
 		if not thumbnail_url.is_empty():
-			_load_series_thumbnail(thumbnail_url, series_id)
+			series_thumbnail_jobs.append({"url": thumbnail_url, "series_id": series_id})
 	elif not str(series.get("cover_url", "")).is_empty():
-		_load_series_thumbnail(str(series.get("cover_url", "")), series_id)
+		series_thumbnail_jobs.append({
+			"url": str(series.get("cover_url", "")),
+			"series_id": series_id,
+		})
 	Analytics.track("series_impression", {"series_id": series_id})
 
 

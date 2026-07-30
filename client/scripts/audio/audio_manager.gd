@@ -18,7 +18,9 @@ func _ready() -> void:
 	_correct_stream = _load_wav_resource("res://assets/audio/correct.wav")
 	_complete_stream = _load_wav_resource("res://assets/audio/complete.wav")
 	_music_stream = _load_wav_resource("res://assets/audio/quiet_search_loop.wav", true)
-	if OS.has_feature("web"):
+	# oddSpotAudio is provided by web/shell.html only. WeChat minigames use
+	# the engine/plugin audio bridge and do not load that Web shell.
+	if OS.has_feature("web") and not Platform.is_wechat_minigame():
 		_web_audio = JavaScriptBridge.get_interface("oddSpotAudio")
 	_music_player = AudioStreamPlayer.new()
 	_music_player.name = "Music"
@@ -66,7 +68,7 @@ func set_effects_enabled(enabled: bool) -> void:
 func play_correct() -> void:
 	if not Preferences.effects_enabled:
 		return
-	if OS.has_feature("web") and _web_audio != null:
+	if _web_audio != null:
 		_web_audio.play("correct")
 		return
 	_correct_player.play()
@@ -75,7 +77,7 @@ func play_correct() -> void:
 func play_complete() -> void:
 	if not Preferences.effects_enabled:
 		return
-	if OS.has_feature("web") and _web_audio != null:
+	if _web_audio != null:
 		_web_audio.play("complete")
 		return
 	_complete_player.play()
@@ -84,7 +86,7 @@ func play_complete() -> void:
 func play_click() -> void:
 	if not Preferences.effects_enabled:
 		return
-	if OS.has_feature("web") and _web_audio != null:
+	if _web_audio != null:
 		_web_audio.play("click")
 		return
 	_click_player.play()

@@ -162,6 +162,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 29
 text = "登录"
 
+[node name="WechatLoginButton" type="Button" parent="SafeArea/Layout/Card/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 86)
+layout_mode = 2
+theme_override_font_sizes/font_size = 29
+text = "微信登录"
+
 [node name="CreateButton" type="Button" parent="SafeArea/Layout/Card/Content"]
 custom_minimum_size = Vector2(0, 76)
 layout_mode = 2

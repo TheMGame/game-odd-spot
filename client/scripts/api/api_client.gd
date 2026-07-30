@@ -119,6 +119,50 @@ func login_user(account_name: String, password: String) -> Dictionary:
 	return await _exchange_user_token(login_data)
 
 
+func login_wechat() -> Dictionary:
+	if not Platform.is_wechat_minigame():
+		return {"ok": false, "error": "WECHAT_LOGIN_UNAVAILABLE"}
+	var code_result := await _request_wechat_login_code()
+	if not code_result.ok:
+		return code_result
+	var result := await _request_user_server("/api/v1/user/login", {
+		"app_id": USER_SERVER_APP_ID,
+		"login_type": 2,
+		"wx_info": {
+			"code": str(code_result.get("code", "")),
+		},
+	})
+	if not result.ok:
+		return result
+	var login_data: Dictionary = result.data.get("data", {})
+	return await _exchange_user_token(login_data)
+
+
+func _request_wechat_login_code() -> Dictionary:
+	var wechat_auth = JavaScriptBridge.get_interface("oddSpotWechatAuth")
+	if wechat_auth == null:
+		return {"ok": false, "error": "WECHAT_API_UNAVAILABLE"}
+	wechat_auth.begin()
+	for _attempt in range(120):
+		await get_tree().create_timer(0.1).timeout
+		var parsed = JSON.parse_string(str(wechat_auth.getResult()))
+		if not parsed is Dictionary:
+			continue
+		match str(parsed.get("state", "")):
+			"success":
+				var code := str(parsed.get("code", "")).strip_edges()
+				if code.is_empty():
+					return {"ok": false, "error": "WECHAT_LOGIN_CODE_MISSING"}
+				return {"ok": true, "code": code}
+			"failed":
+				return {
+					"ok": false,
+					"error": "WECHAT_LOGIN_FAILED",
+					"message": str(parsed.get("message", "")),
+				}
+	return {"ok": false, "error": "WECHAT_LOGIN_TIMEOUT"}
+
+
 func register_user(account_name: String, password: String) -> Dictionary:
 	var result := await _request_user_server("/api/v1/user/register", {
 		"app_id": USER_SERVER_APP_ID,
@@ -173,7 +217,7 @@ func complete_email_registration(ticket: String, username: String, nickname: Str
 
 func update_user_profile(nickname: String, avatar: String) -> Dictionary:
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = 8.0
 	add_child(request)
 	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
@@ -256,7 +300,7 @@ func refresh_user_profile() -> Dictionary:
 
 func _request_user_server_profile() -> Dictionary:
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = 8.0
 	add_child(request)
 	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
@@ -279,7 +323,7 @@ func _request_user_server_profile() -> Dictionary:
 
 func _request_user_server(path: String, body: Dictionary) -> Dictionary:
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = 8.0
 	add_child(request)
 	var user_server_url := str(ProjectSettings.get_setting("oddspot/network/user_server_base_url", DEFAULT_USER_SERVER_URL)).trim_suffix("/")
@@ -366,7 +410,7 @@ func _request_json(method: HTTPClient.Method, path: String, body: Dictionary, au
 		if not proactive_refresh.ok:
 			return proactive_refresh
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = _request_timeout(method, path)
 	add_child(request)
 	var headers := PackedStringArray(["Accept: application/json"])

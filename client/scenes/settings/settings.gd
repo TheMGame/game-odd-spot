@@ -29,7 +29,7 @@ func _ready() -> void:
 	large_markers_toggle.toggled.connect(_large_markers_toggled)
 	language_selector.item_selected.connect(_language_selected)
 	$SafeArea/Layout/Header/Back.pressed.connect(_go_home)
-	# 当前没有广告，先隐藏“移除广告”；后续接入广告平台时恢复按钮和购买回调。
+	# 当前没有正式广告供应商；微信环境还必须阻断 Mock 购买能力。
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/Purchase.visible = false
 	$SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows/PrivacyPolicy.pressed.connect(_show_privacy)
 	privacy_close.pressed.connect(_hide_privacy)

@@ -5,6 +5,13 @@ client/.godot/
 client/android/
 client/ios/
 client/export/
+client/.cache/godot-minigame/
+client/addons/godot-minigame/
+
+# Local WeChat Mini Game investigation and reproducible engine build workspace
+.tmp/
+diagnostics/wechat-empty-47/
+diagnostics/wechat-empty-46-source/
 
 # Summer Engine local-only state
 .summer/local/
@@ -19,6 +26,8 @@ server/bin/
 server/.env.windows
 server/.env.linux
 *.local.env
+__pycache__/
+*.pyc
 
 # Generated daily challenge content is local operational data, not source code
 content-tools/daily-challenges/

@@ -749,6 +749,13 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := a.deps.Sessions.IssueExternal(r.Context(), profile.UserID, a.deps.Config.Market, locale)
 	if err != nil {
+		a.deps.Logger.Error(
+			"create user-server game session failed",
+			"error", err,
+			"user_id", profile.UserID,
+			"market", a.deps.Config.Market,
+			"locale", locale,
+		)
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create game session")
 		return
 	}

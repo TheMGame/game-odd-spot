@@ -7,6 +7,7 @@ const GOLD := Color("#e6b95c")
 @onready var account_input: LineEdit = $SafeArea/Layout/Card/Content/AccountName
 @onready var password_input: LineEdit = $SafeArea/Layout/Card/Content/Password
 @onready var login_button: Button = $SafeArea/Layout/Card/Content/LoginButton
+@onready var wechat_login_button: Button = $SafeArea/Layout/Card/Content/WechatLoginButton
 @onready var create_button: Button = $SafeArea/Layout/Card/Content/CreateButton
 @onready var status_label: Label = $SafeArea/Layout/Card/Content/Status
 @onready var code_input: LineEdit = $SafeArea/Layout/Card/Content/EmailCode
@@ -22,14 +23,29 @@ var registration_ticket := ""
 
 func _ready() -> void:
 	login_button.pressed.connect(_login)
+	wechat_login_button.pressed.connect(_login_wechat)
 	create_button.pressed.connect(_create_account)
 	send_code_button.pressed.connect(_send_email_code)
 	verify_code_button.pressed.connect(_verify_email_code)
 	complete_registration_button.pressed.connect(_complete_email_registration)
 	account_input.text_submitted.connect(func(_value: String): _login())
+	_apply_login_mode()
 	_apply_style()
-	account_input.grab_focus()
+	if not Platform.is_wechat_minigame():
+		account_input.grab_focus()
 	_restore_session()
+
+
+func _apply_login_mode() -> void:
+	var is_wechat := Platform.is_wechat_minigame()
+	account_input.visible = not is_wechat
+	password_input.visible = not is_wechat
+	login_button.visible = not is_wechat
+	create_button.visible = not is_wechat
+	wechat_login_button.visible = is_wechat
+	if is_wechat:
+		$SafeArea/Layout/Card/Content/Title.text = "微信登录"
+		$SafeArea/Layout/Card/Content/Description.text = "使用当前微信账号登录并同步游戏进度。"
 
 
 func _restore_session() -> void:
@@ -78,6 +94,28 @@ func _login() -> void:
 	status_label.text = _login_error_message(str(result.get("error", "LOGIN_FAILED")))
 
 
+func _login_wechat() -> void:
+	if not Platform.is_wechat_minigame() or wechat_login_button.disabled:
+		return
+	wechat_login_button.disabled = true
+	login_button.disabled = true
+	create_button.disabled = true
+	wechat_login_button.text = "正在登录…"
+	status_label.text = ""
+	var result := await ApiClient.login_wechat()
+	if result.ok:
+		get_tree().change_scene_to_file("res://scenes/home/home.tscn")
+		return
+	wechat_login_button.disabled = false
+	login_button.disabled = false
+	create_button.disabled = false
+	wechat_login_button.text = "微信登录"
+	var error_message := _login_error_message(str(result.get("error", "WECHAT_LOGIN_FAILED")))
+	var detail := str(result.get("message", "")).strip_edges()
+	status_label.text = error_message if detail.is_empty() else "%s\n%s" % [error_message, detail]
+	print("WeChat login failed: ", result)
+
+
 func _create_account() -> void:
 	if send_code_button.visible:
 		_show_login()
@@ -90,6 +128,7 @@ func _show_email_registration() -> void:
 	$SafeArea/Layout/Card/Content/Description.text = "验证邮箱后设置用户名、昵称与头像。"
 	account_input.placeholder_text = "邮箱"
 	login_button.visible = false
+	wechat_login_button.visible = false
 	password_input.visible = false
 	code_input.visible = true
 	send_code_button.visible = true
@@ -104,6 +143,7 @@ func _show_login() -> void:
 	$SafeArea/Layout/Card/Content/Title.text = "欢迎回来"
 	$SafeArea/Layout/Card/Content/Description.text = "使用邮箱和密码登录，同步关卡进度与游戏权益。"
 	login_button.visible = true
+	wechat_login_button.visible = Platform.is_wechat_minigame()
 	password_input.visible = true
 	code_input.visible = false
 	username_input.visible = false
@@ -198,6 +238,12 @@ func _login_error_message(error: String) -> String:
 			return "用户服务暂时不可用"
 		"USER_TOKEN_MISSING":
 			return "用户服务返回的登录凭证不完整"
+		"WECHAT_API_UNAVAILABLE":
+			return "当前环境不支持微信登录"
+		"WECHAT_LOGIN_TIMEOUT":
+			return "微信登录超时，请重试"
+		"WECHAT_LOGIN_CODE_MISSING", "WECHAT_LOGIN_FAILED":
+			return "未能取得微信登录凭证，请重试"
 		_:
 			return error if not error.is_empty() else "登录失败，请稍后再试"
 

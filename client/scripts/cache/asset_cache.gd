@@ -5,9 +5,12 @@ const CACHE_DIR := "user://asset_cache"
 # Images are versioned by asset hash (or URL for legacy thumbnails) and change
 # infrequently. Keep a generous on-device cache so normal navigation does not
 # repeatedly consume CDN bandwidth.
-const CACHE_LIMIT_BYTES := 2 * 1024 * 1024 * 1024
+const CACHE_LIMIT_BYTES := 256 * 1024 * 1024
 const MAX_ASSET_BYTES := 25 * 1024 * 1024
+const SERIES_TEXTURE_MAX_DIMENSION := 1024
+const AVATAR_TEXTURE_MAX_DIMENSION := 256
 const DOWNLOAD_TIMEOUT_SECONDS := 30.0
+static var _audited_hosts: Dictionary = {}
 
 
 func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
@@ -24,7 +27,8 @@ func load_texture(owner: Node, asset: Dictionary) -> Dictionary:
 			return _decode_texture(cached, str(asset.get("content_type", "")))
 
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	_audit_asset_host(url)
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = DOWNLOAD_TIMEOUT_SECONDS
 	owner.add_child(request)
 	var start_error := request.request(url)
@@ -52,13 +56,15 @@ func load_texture_url(owner: Node, url: String, variant := "remote") -> Dictiona
 		return {"ok": false, "error": "ASSET_URL_MISSING"}
 	DirAccess.make_dir_recursive_absolute(CACHE_DIR)
 	var cache_path := "%s/url_%s_%s.bin" % [CACHE_DIR, variant.validate_filename(), url.md5_text()]
+	var max_dimension := _max_dimension_for_variant(variant)
 	if FileAccess.file_exists(cache_path):
 		var cached := FileAccess.get_file_as_bytes(cache_path)
-		var cached_texture := _decode_texture(cached, "")
+		var cached_texture := _decode_texture(cached, "", max_dimension)
 		if cached_texture.ok:
 			return cached_texture
 	var request := HTTPRequest.new()
-	request.accept_gzip = not OS.has_feature("web")
+	_audit_asset_host(url)
+	request.accept_gzip = not Platform.is_web_like()
 	request.timeout = DOWNLOAD_TIMEOUT_SECONDS
 	owner.add_child(request)
 	if request.request(url) != OK:
@@ -71,7 +77,7 @@ func load_texture_url(owner: Node, url: String, variant := "remote") -> Dictiona
 	var bytes: PackedByteArray = response[3]
 	if bytes.size() > MAX_ASSET_BYTES:
 		return {"ok": false, "error": "ASSET_TOO_LARGE"}
-	var decoded := _decode_texture(bytes, "")
+	var decoded := _decode_texture(bytes, "", max_dimension)
 	if not decoded.ok:
 		return decoded
 	var file := FileAccess.open(cache_path, FileAccess.WRITE)
@@ -81,11 +87,30 @@ func load_texture_url(owner: Node, url: String, variant := "remote") -> Dictiona
 	return decoded
 
 
-func _decode_texture(bytes: PackedByteArray, content_type: String) -> Dictionary:
+func _decode_texture(bytes: PackedByteArray, content_type: String, max_dimension := 0) -> Dictionary:
 	var image := decode_image(bytes, content_type)
 	if image == null:
 		return {"ok": false, "error": "ASSET_DECODE_FAILED"}
+	if max_dimension > 0:
+		var longest_side := maxi(image.get_width(), image.get_height())
+		if longest_side > max_dimension:
+			var scale := float(max_dimension) / float(longest_side)
+			image.resize(
+				maxi(1, roundi(image.get_width() * scale)),
+				maxi(1, roundi(image.get_height() * scale)),
+				Image.INTERPOLATE_LANCZOS
+			)
 	return {"ok": true, "texture": ImageTexture.create_from_image(image)}
+
+
+func _max_dimension_for_variant(variant: String) -> int:
+	match variant:
+		"series":
+			return SERIES_TEXTURE_MAX_DIMENSION
+		"avatar":
+			return AVATAR_TEXTURE_MAX_DIMENSION
+		_:
+			return 0
 
 
 static func decode_image(bytes: PackedByteArray, content_type := "") -> Image:
@@ -114,7 +139,11 @@ func _prune_cache() -> void:
 	var total := 0
 	for filename in DirAccess.get_files_at(CACHE_DIR):
 		var path := "%s/%s" % [CACHE_DIR, filename]
-		var size := FileAccess.get_file_as_bytes(path).size()
+		var cache_file := FileAccess.open(path, FileAccess.READ)
+		if cache_file == null:
+			continue
+		var size := cache_file.get_length()
+		cache_file.close()
 		total += size
 		entries.append({"path": path, "size": size, "modified": FileAccess.get_modified_time(path)})
 	if total <= CACHE_LIMIT_BYTES:
@@ -126,3 +155,21 @@ func _prune_cache() -> void:
 		var absolute := ProjectSettings.globalize_path(str(entry.path))
 		if DirAccess.remove_absolute(absolute) == OK:
 			total -= int(entry.size)
+
+
+static func _audit_asset_host(url: String) -> void:
+	if not OS.is_debug_build():
+		return
+	var scheme_separator := url.find("://")
+	if scheme_separator <= 0:
+		return
+	var host_end := url.length()
+	for separator in ["/", "?", "#"]:
+		var separator_index := url.find(separator, scheme_separator + 3)
+		if separator_index >= 0:
+			host_end = mini(host_end, separator_index)
+	var host := url.left(host_end)
+	if _audited_hosts.has(host):
+		return
+	_audited_hosts[host] = true
+	print("[WechatDomainAudit] asset host: %s" % host)
