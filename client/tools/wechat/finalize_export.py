@@ -102,6 +102,45 @@ ROBUST_ENGINE_LOADER = (
     "success:i=>{i.confirm?t():wx.exitMiniProgram&&wx.exitMiniProgram()}})}});"
     "i&&i.onProgressUpdate&&i.onProgressUpdate(e)};t()}"
 )
+BRAND_RENDER_ANCHOR = (
+    "this.backgroundImage&&t.drawImage(this.backgroundImage,0,0,i,e);"
+)
+BRAND_RENDER_BLOCK = BRAND_RENDER_ANCHOR + (
+    't.fillStyle="rgba(7,42,53,.18)",t.fillRect(0,0,i,e);'
+    "const brandDpr=this.dpr,brandLogo=Math.min(160*brandDpr,i*.38),"
+    "brandTop=Math.max(72*brandDpr,e*.1);"
+    "if(this.iconImage){const naturalWidth=this.iconImage.width||1,"
+    "naturalHeight=this.iconImage.height||1,ratio=naturalWidth/naturalHeight,"
+    "logoWidth=ratio>=1?brandLogo:brandLogo*ratio,"
+    "logoHeight=ratio>=1?brandLogo/ratio:brandLogo;"
+    "t.drawImage(this.iconImage,(i-logoWidth)/2,brandTop,logoWidth,logoHeight)}"
+    't.textAlign="center",t.textBaseline="middle",t.fillStyle="#fff7df",'
+    't.font=`bold ${24*brandDpr}px sans-serif`,'
+    't.fillText("火眼金睛",i/2,brandTop+brandLogo+34*brandDpr);'
+    't.fillStyle="rgba(255,247,223,.94)",'
+    't.font=`bold ${13*brandDpr}px sans-serif`,'
+    't.fillText("健康游戏忠告",i/2,brandTop+brandLogo+76*brandDpr);'
+    't.font=`${11*brandDpr}px sans-serif`;'
+    "const advice=[\"抵制不良游戏，拒绝盗版游戏。\","
+    "\"注意自我保护，谨防受骗上当。\","
+    "\"适度游戏益脑，沉迷游戏伤身。\","
+    "\"合理安排时间，享受健康生活。\"];"
+    "advice.forEach((line,index)=>t.fillText(line,i/2,"
+    "brandTop+brandLogo+(102+22*index)*brandDpr));"
+)
+DEFAULT_ICON_CONFIG = """    iconConfig: {
+        visible: true,
+        style: {
+            width: 74,
+            height: 30,
+            bottom: 20,
+        },
+    },"""
+BRANDED_ICON_CONFIG = DEFAULT_ICON_CONFIG.replace("visible: true", "visible: false")
+DEFAULT_ICON_IMAGE = "iconImage: 'images/logo.png'"
+BRANDED_ICON_IMAGE = "iconImage: 'images/oddspot-logo.png'"
+DEFAULT_PROGRESS_COLOR = "foregroundColor: '#4CAF50'"
+BRANDED_PROGRESS_COLOR = "foregroundColor: '#e6b95c'"
 OLD_PROJECT_START = (
     "const pack = '/engine/demo-pck.bin';\n"
     "GODOTSDK.startGame(exe, pack)"
@@ -259,19 +298,46 @@ def main() -> int:
         loader_source = loader_source.replace(
             OLD_ENGINE_LOADER, ROBUST_ENGINE_LOADER, 1
         )
-        loader.write_text(loader_source, encoding="utf-8", newline="\n")
+    if "健康游戏忠告" not in loader_source and BRAND_RENDER_ANCHOR in loader_source:
+        loader_source = loader_source.replace(
+            BRAND_RENDER_ANCHOR, BRAND_RENDER_BLOCK, 1
+        )
+    loader.write_text(loader_source, encoding="utf-8", newline="\n")
     if "[OddSpot] engine subpackage ready" not in loader_source:
         print("godot-loader.js does not contain the robust engine loader.", file=sys.stderr)
+        return 1
+    if "健康游戏忠告" not in loader_source:
+        print("godot-loader.js does not contain the branded healthy-game notice.", file=sys.stderr)
         return 1
     root_game_source = root_game.read_text(encoding="utf-8")
     if "GameGlobal.oddSpotWechatAuth" not in root_game_source:
         root_game_source = root_game_source.replace(
             WECHAT_ADAPTER_IMPORT, WECHAT_BRIDGE_EXPORT, 1
         )
-        root_game.write_text(root_game_source, encoding="utf-8", newline="\n")
     if "GameGlobal.oddSpotWechatAuth" not in root_game_source:
         print("game.js does not expose the WeChat login bridge.", file=sys.stderr)
         return 1
+    root_game_source = root_game_source.replace(
+        DEFAULT_ICON_CONFIG, BRANDED_ICON_CONFIG, 1
+    )
+    root_game_source = root_game_source.replace(
+        DEFAULT_ICON_IMAGE, BRANDED_ICON_IMAGE, 1
+    )
+    root_game_source = root_game_source.replace(
+        DEFAULT_PROGRESS_COLOR, BRANDED_PROGRESS_COLOR, 1
+    )
+    root_game.write_text(root_game_source, encoding="utf-8", newline="\n")
+    if BRANDED_ICON_IMAGE not in root_game_source or BRANDED_ICON_CONFIG not in root_game_source:
+        print("game.js does not use the Odd Spot branded loading screen.", file=sys.stderr)
+        return 1
+
+    brand_logo = Path(__file__).resolve().parents[2] / "assets" / "branding" / "guagua-rabbit-logo.png"
+    if not brand_logo.is_file():
+        print(f"Missing Odd Spot brand logo: {brand_logo}", file=sys.stderr)
+        return 1
+    images_dir = output_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(brand_logo, images_dir / "oddspot-logo.png")
 
     # The minigame fetch bridge receives POST bodies as TypedArray views into
     # WASM memory. wx.request supports ArrayBuffer but not TypedArray here; an
@@ -287,16 +353,14 @@ def main() -> int:
             TYPED_ARRAY_REQUEST, ARRAY_BUFFER_REQUEST, 1
         )
         engine_runtime.write_text(runtime_source, encoding="utf-8", newline="\n")
-    if ARRAY_BUFFER_REQUEST not in runtime_source:
+    request_body_markers = (
+        "ArrayBuffer.isView(body)",
+        "body.byteOffset",
+        "body.byteLength",
+        "wx.request",
+    )
+    if not all(marker in runtime_source for marker in request_body_markers):
         print("engine/godot.js does not normalize TypedArray request bodies.", file=sys.stderr)
-        return 1
-    heap_max_2gb = "var getHeapMax=()=>2147483648"
-    heap_max_256mb = "var getHeapMax=()=>268435456"
-    if heap_max_2gb in runtime_source:
-        runtime_source = runtime_source.replace(heap_max_2gb, heap_max_256mb, 1)
-        engine_runtime.write_text(runtime_source, encoding="utf-8", newline="\n")
-    if heap_max_256mb not in runtime_source:
-        print("engine/godot.js does not cap the iOS heap at 256 MiB.", file=sys.stderr)
         return 1
 
     # Do not rewrite the memory section inside the compressed WASM binary.

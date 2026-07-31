@@ -44,6 +44,7 @@ func _refresh_series() -> void:
 		return
 	for series in series_items:
 		_add_series_card(series)
+	Platform.optimize_touch_scroll($Layout/SeriesScroll)
 	# Mobile WebAssembly cannot return its linear-memory high-water mark to the
 	# OS. Decode cover images one at a time so several large JPEGs do not create
 	# a permanent multi-gigabyte heap peak on real devices.
@@ -113,6 +114,7 @@ func _add_series_card(series: Dictionary) -> void:
 	info.add_child(details)
 
 	var enter := Button.new()
+	enter.mouse_filter = Control.MOUSE_FILTER_PASS
 	enter.custom_minimum_size = Vector2(128, 80)
 	enter.text = "进入"
 	enter.add_theme_font_size_override("font_size", 28)

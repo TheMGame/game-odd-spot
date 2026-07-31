@@ -20,6 +20,7 @@ var _changing_locale := false
 
 
 func _ready() -> void:
+	Platform.optimize_touch_scroll($SafeArea/Layout/Scroll)
 	_load_settings()
 	_apply_style()
 	analytics_toggle.toggled.connect(_analytics_toggled)

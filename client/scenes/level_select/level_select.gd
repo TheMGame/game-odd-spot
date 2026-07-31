@@ -13,6 +13,7 @@ func _ready() -> void:
 	$Layout/Header/Back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/home/home.tscn"))
 	$Layout/Header/Settings.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/settings/settings.tscn"))
 	await _build_cards()
+	Platform.optimize_touch_scroll($Layout/Scroll)
 
 
 func _build_cards() -> void:
@@ -75,6 +76,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 		"title": entry.get("title", entry.get("id", "")),
 	}
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(0, 250)
 	button.disabled = locked
 	button.text = ""
