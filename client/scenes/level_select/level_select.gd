@@ -107,7 +107,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	image.custom_minimum_size = Vector2(250, 218)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_load_thumbnail(image, str(entry.get("thumbnail_url", "")))
+	_load_preview(image, str(entry.get("thumbnail_url", "")), str(entry.get("image_url", "")))
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(image)
 
@@ -155,12 +155,18 @@ func _is_completed(entry: Dictionary) -> bool:
 	)
 
 
-func _load_thumbnail(target: TextureRect, url: String) -> void:
-	if url.is_empty():
+func _load_preview(target: TextureRect, thumbnail_url: String, image_url: String) -> void:
+	# Show the small asset as soon as possible, then replace it in-place when the
+	# full image finishes downloading. Each card runs independently.
+	if not thumbnail_url.is_empty():
+		var thumbnail := await AssetCache.new().load_texture_url(self, thumbnail_url, "level_thumbnail")
+		if is_instance_valid(target) and thumbnail.ok:
+			target.texture = thumbnail.texture
+	if image_url.is_empty() or image_url == thumbnail_url or not is_instance_valid(target):
 		return
-	var result := await AssetCache.new().load_texture_url(self, url, "level_thumbnail")
-	if is_instance_valid(target) and result.ok:
-		target.texture = result.texture
+	var full_image := await AssetCache.new().load_texture_url(self, image_url, "level_preview_full")
+	if is_instance_valid(target) and full_image.ok:
+		target.texture = full_image.texture
 
 
 func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBoxFlat:

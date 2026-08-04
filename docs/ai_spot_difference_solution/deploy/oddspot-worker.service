@@ -1,5 +1,5 @@
 [Unit]
-Description=Odd Spot Content Worker
+Description=Misplaced Detective Content Worker
 After=network-online.target
 Wants=network-online.target
 

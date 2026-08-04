@@ -1,4 +1,4 @@
-# Odd Spot Go 服务端
+# 错位大侦探 Go 服务端
 
 包含 `api`、`worker` 和 `migrate` 三个命令。配置 MySQL 后，身份、会话、关卡进度、奖励、配置、内容审核、分析、运营和生成任务均持久化；development/test 可使用内存实现。
 

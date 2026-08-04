@@ -45,7 +45,7 @@ func _apply_login_mode() -> void:
 	wechat_login_button.visible = is_wechat
 	if is_wechat:
 		$SafeArea/Layout/Card/Content/Title.text = "微信登录"
-		$SafeArea/Layout/Card/Content/Description.text = "使用当前微信账号登录并同步游戏进度。"
+		$SafeArea/Layout/Card/Content/Description.text = "点击登录后可选择是否授权昵称和头像；仅在你同意后读取并展示。"
 
 
 func _restore_session() -> void:
@@ -100,7 +100,7 @@ func _login_wechat() -> void:
 	wechat_login_button.disabled = true
 	login_button.disabled = true
 	create_button.disabled = true
-	wechat_login_button.text = "正在登录…"
+	wechat_login_button.text = "等待微信授权…"
 	status_label.text = ""
 	var result := await ApiClient.login_wechat()
 	if result.ok:

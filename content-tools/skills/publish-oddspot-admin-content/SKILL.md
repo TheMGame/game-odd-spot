@@ -1,9 +1,9 @@
 ---
 name: publish-oddspot-admin-content
-description: Publish Odd Spot content packs to local or production Admin, including selected level images, generated thumbnails, series metadata, runtime level JSON and answer hotspots. Use when importing a new series, updating level images or answers, fixing missing /content assets, synchronizing local work to oddspot.guaguatu.com, or verifying production Admin image URLs.
+description: Publish Misplaced Detective content packs to local or production Admin, including selected level images, generated thumbnails, series metadata, runtime level JSON and answer hotspots. Use when importing a new series, updating level images or answers, fixing missing /content assets, synchronizing local work to oddspot.guaguatu.com, or verifying production Admin image URLs.
 ---
 
-# Publish Odd Spot Admin Content
+# Publish Misplaced Detective Admin Content
 
 Publish assets and metadata through the Admin API. Never treat a successful local upload as a production upload.
 

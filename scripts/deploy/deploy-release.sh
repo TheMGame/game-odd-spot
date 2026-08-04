@@ -43,7 +43,7 @@ if [[ -f "$stage/VERSION" ]]; then
   install -o root -g root -m 0644 "$stage/VERSION" "$install_root/VERSION"
 fi
 
-echo "restarting Odd Spot services"
+echo "restarting Misplaced Detective services"
 systemctl restart oddspot-api.service oddspot-worker.service
 
 for _ in {1..20}; do

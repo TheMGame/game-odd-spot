@@ -54,7 +54,7 @@ alignment = 1
 [node name="Title" type="Label" parent="Layout/TopBar/Heading"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.82, 0.61, 1)
-theme_override_font_sizes/font_size = 36
+theme_override_font_sizes/font_size = 44
 text = "加载关卡"
 horizontal_alignment = 1
 
@@ -87,7 +87,7 @@ show_percentage = false
 [node name="EraRibbon" type="Label" parent="Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.79, 0.66, 0.40, 1)
-theme_override_font_sizes/font_size = 23
+theme_override_font_sizes/font_size = 30
 text = "找出不属于这个年代的物件"
 horizontal_alignment = 1
 
@@ -114,7 +114,7 @@ script = ExtResource("2")
 
 [node name="FoundInfo" type="PanelContainer" parent="Layout"]
 visible = false
-custom_minimum_size = Vector2(0, 190)
+custom_minimum_size = Vector2(0, 230)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Layout/FoundInfo"]
@@ -131,19 +131,19 @@ theme_override_constants/separation = 8
 [node name="Title" type="Label" parent="Layout/FoundInfo/Margin/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.84, 0.48, 0.28, 1)
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 38
 text = "发现时代错误"
 
 [node name="Era" type="Label" parent="Layout/FoundInfo/Margin/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.69, 0.45, 1)
-theme_override_font_sizes/font_size = 23
+theme_override_font_sizes/font_size = 29
 text = "出现年代"
 
 [node name="Reason" type="Label" parent="Layout/FoundInfo/Margin/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.17, 0.20, 0.21, 1)
-theme_override_font_sizes/font_size = 23
+theme_override_font_sizes/font_size = 29
 text = "原因"
 autowrap_mode = 2
 
@@ -186,7 +186,7 @@ text = "还剩 5 个"
 [node name="Status" type="Label" parent="Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.76, 0.83, 0.81, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 28
 text = "加载关卡…"
 horizontal_alignment = 1
 
@@ -199,6 +199,97 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.015, 0.035, 0.05, 0.78)
+
+[node name="HintLimitOverlay" type="ColorRect" parent="."]
+visible = false
+z_index = 20
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.012, 0.027, 0.038, 0.82)
+
+[node name="Card" type="PanelContainer" parent="HintLimitOverlay"]
+custom_minimum_size = Vector2(700, 590)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -350.0
+offset_top = -295.0
+offset_right = 350.0
+offset_bottom = 295.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="HintLimitOverlay/Card"]
+layout_mode = 2
+theme_override_constants/margin_left = 42
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 42
+theme_override_constants/margin_bottom = 34
+
+[node name="Content" type="VBoxContainer" parent="HintLimitOverlay/Card/Margin"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 18
+
+[node name="Sparkles" type="Label" parent="HintLimitOverlay/Card/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.77, 0.47, 0.18, 1)
+theme_override_font_sizes/font_size = 30
+text = "· 线索 ·"
+horizontal_alignment = 1
+
+[node name="HintIcon" type="Button" parent="HintLimitOverlay/Card/Margin/Content"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3")
+icon_kind = "hint"
+glow = true
+
+[node name="Usage" type="Label" parent="HintLimitOverlay/Card/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.64, 0.22, 0.15, 1)
+theme_override_font_sizes/font_size = 30
+text = "今日提示  3 / 3"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HintLimitOverlay/Card/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.19, 0.16, 0.12, 1)
+theme_override_font_sizes/font_size = 46
+text = "今日提示已用完"
+horizontal_alignment = 1
+
+[node name="Message" type="Label" parent="HintLimitOverlay/Card/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.34, 0.29, 0.23, 1)
+theme_override_font_sizes/font_size = 30
+text = "每天有 3 次免费提示\n今天的次数已经全部用完"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Tomorrow" type="Label" parent="HintLimitOverlay/Card/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.37, 0.17, 1)
+theme_override_font_sizes/font_size = 27
+text = "再仔细找找，相信自己！"
+horizontal_alignment = 1
+
+[node name="Close" type="Button" parent="HintLimitOverlay/Card/Margin/Content"]
+custom_minimum_size = Vector2(0, 82)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.91, 0.69, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.8, 1)
+theme_override_font_sizes/font_size = 32
+text = "继续寻找"
 
 [node name="CompletePanel" type="PanelContainer" parent="."]
 visible = false

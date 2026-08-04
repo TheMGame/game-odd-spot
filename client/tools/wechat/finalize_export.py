@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -14,34 +15,58 @@ PROJECT_SUBPACKAGE = "project"
 PROJECT_SUBPACKAGE_PACK = "/subpackages/project/demo-pck.bin"
 ENGINE_BASENAME = "godot-wechat-clean"
 WECHAT_ADAPTER_IMPORT = "import './weapp-adapter'\n"
-WECHAT_BRIDGE_EXPORT = (
-    "import './weapp-adapter'\n"
-    "// Expose the WeChat API to Godot JavaScriptBridge.get_interface('wx').\n"
-    "GameGlobal.wx = wx\n"
+WECHAT_AUTH_OBJECT = (
     "GameGlobal.oddSpotWechatAuth = {\n"
     "    result: { state: 'idle', code: '', message: '' },\n"
     "    begin() {\n"
     "        this.result = { state: 'pending', code: '', message: '' }\n"
-    "        wx.login({\n"
+    "        const login = (profile) => wx.login({\n"
     "            timeout: 10000,\n"
     "            success: (res) => {\n"
     "                this.result = res && res.code\n"
-    "                    ? { state: 'success', code: res.code, message: '' }\n"
+    "                    ? { state: 'success', code: res.code, message: '', profile: profile || {} }\n"
     "                    : { state: 'failed', code: '', message: 'wx.login did not return a code' }\n"
     "            },\n"
     "            fail: (res) => {\n"
     "                this.result = { state: 'failed', code: '', message: (res && res.errMsg) || 'wx.login failed' }\n"
     "            }\n"
     "        })\n"
+    "        if (typeof wx.getUserProfile !== 'function') { login({}); return }\n"
+    "        wx.getUserProfile({\n"
+    "            desc: '用于在游戏中展示你的昵称和头像',\n"
+    "            success: (res) => {\n"
+    "                const user = (res && res.userInfo) || {}\n"
+    "                login({ nickname: user.nickName || '', avatar_url: user.avatarUrl || '' })\n"
+    "            },\n"
+    "            fail: () => login({})\n"
+    "        })\n"
     "    },\n"
     "    getResult() { return JSON.stringify(this.result) }\n"
     "}\n"
+)
+WECHAT_BRIDGE_EXPORT = (
+    "import './weapp-adapter'\n"
+    "// Expose the WeChat API to Godot JavaScriptBridge.get_interface('wx').\n"
+    "GameGlobal.wx = wx\n"
+    + WECHAT_AUTH_OBJECT
 )
 TYPED_ARRAY_REQUEST = "data:body,header:headers"
 ARRAY_BUFFER_REQUEST = (
     "data:ArrayBuffer.isView(body)"
     "?body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength)"
     ":body,header:headers"
+)
+FETCH_CREATE_WITH_DEFAULT_PORT = (
+    "create:function(method,url,headers,body){const requestBody="
+)
+FETCH_CREATE_WITH_NORMALIZED_PORT = (
+    "create:function(method,url,headers,body){"
+    'url=url.replace(/^https:\\/\\/([^/:]+):443(?=\\/|$)/,"https://$1")'
+    '.replace(/^http:\\/\\/([^/:]+):80(?=\\/|$)/,"http://$1");'
+    "const requestBody="
+)
+DEFAULT_PORT_NORMALIZER_MARKER = (
+    'url=url.replace(/^https:\\/\\/([^/:]+):443(?=\\/|$)/,"https://$1")'
 )
 EMPTY_ELEMENT_FOCUS = "value: function focus() { }"
 WECHAT_ELEMENT_FOCUS = """value: function focus() {
@@ -93,10 +118,10 @@ ROBUST_ENGINE_LOADER = (
     "if(o>=.99&&i&&i.offProgressUpdate)i.offProgressUpdate(e)};"
     'i=wx.loadSubpackage({name:"engine",'
     'success:()=>{if(i&&i.offProgressUpdate)i.offProgressUpdate(e);'
-    'console.log("[OddSpot] engine subpackage ready");'
+    'console.log("[MisplacedDetective] engine subpackage ready");'
     "this.updateProgress(.45,this.config.textConfig.initText)},"
     'fail:i=>{const e=i&&i.errMsg||"unknown error";console.error('
-    '"[OddSpot] engine subpackage failed:",e);'
+    '"[MisplacedDetective] engine subpackage failed:",e);'
     'this.currentText="资源加载失败";this.render();wx.showModal&&wx.showModal({'
     'title:"资源加载失败",content:e,confirmText:"重试",cancelText:"退出",'
     "success:i=>{i.confirm?t():wx.exitMiniProgram&&wx.exitMiniProgram()}})}});"
@@ -116,7 +141,7 @@ BRAND_RENDER_BLOCK = BRAND_RENDER_ANCHOR + (
     "t.drawImage(this.iconImage,(i-logoWidth)/2,brandTop,logoWidth,logoHeight)}"
     't.textAlign="center",t.textBaseline="middle",t.fillStyle="#fff7df",'
     't.font=`bold ${24*brandDpr}px sans-serif`,'
-    't.fillText("火眼金睛",i/2,brandTop+brandLogo+34*brandDpr);'
+    't.fillText("错位大侦探",i/2,brandTop+brandLogo+34*brandDpr);'
     't.fillStyle="rgba(255,247,223,.94)",'
     't.font=`bold ${13*brandDpr}px sans-serif`,'
     't.fillText("健康游戏忠告",i/2,brandTop+brandLogo+76*brandDpr);'
@@ -158,7 +183,7 @@ PROJECT_SUBPACKAGE_START = (
     "    },\n"
     "    fail: (res) => {\n"
     "        const message = (res && res.errMsg) || 'unknown error'\n"
-    "        console.error('[OddSpot] project subpackage failed:', message)\n"
+    "        console.error('[MisplacedDetective] project subpackage failed:', message)\n"
     "        GameGlobal.godotLoader.currentText = '资源加载失败'\n"
     "        GameGlobal.godotLoader.render()\n"
     "        if (wx.showModal) wx.showModal({\n"
@@ -222,6 +247,7 @@ def main() -> int:
         return 1
 
     game_source = engine_game.read_text(encoding="utf-8")
+    game_source = game_source.replace("[OddSpot]", "[MisplacedDetective]")
     game_source = game_source.replace(
         "const exe = '/engine/godot';",
         f"const exe = '/engine/{ENGINE_BASENAME}';",
@@ -255,7 +281,7 @@ def main() -> int:
             project_subpackage_pack.unlink()
         shutil.move(str(project_pack), str(project_subpackage_pack))
     (project_subpackage_dir / "game.js").write_text(
-        "// Odd Spot project resource subpackage.\n",
+        "// Misplaced Detective project resource subpackage.\n",
         encoding="utf-8",
         newline="\n",
     )
@@ -286,6 +312,7 @@ def main() -> int:
             continue
         project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
         project_config["libVersion"] = "3.17.0"
+        project_config.setdefault("setting", {})["urlCheck"] = True
         project_config_path.write_text(
             json.dumps(project_config, ensure_ascii=False, indent=4) + "\n",
             encoding="utf-8",
@@ -294,6 +321,13 @@ def main() -> int:
 
     loader = output_dir / "godot-loader.js"
     loader_source = loader.read_text(encoding="utf-8")
+    # Upgrade previously finalized exports when branding changes. The robust
+    # loader may already be present, so the original template anchor is gone.
+    loader_source = loader_source.replace("[OddSpot]", "[MisplacedDetective]")
+    loader_source = loader_source.replace(
+        't.fillText("火眼金睛",i/2,brandTop+brandLogo+34*brandDpr);',
+        't.fillText("错位大侦探",i/2,brandTop+brandLogo+34*brandDpr);',
+    )
     if OLD_ENGINE_LOADER in loader_source:
         loader_source = loader_source.replace(
             OLD_ENGINE_LOADER, ROBUST_ENGINE_LOADER, 1
@@ -303,13 +337,24 @@ def main() -> int:
             BRAND_RENDER_ANCHOR, BRAND_RENDER_BLOCK, 1
         )
     loader.write_text(loader_source, encoding="utf-8", newline="\n")
-    if "[OddSpot] engine subpackage ready" not in loader_source:
+    if "[MisplacedDetective] engine subpackage ready" not in loader_source:
         print("godot-loader.js does not contain the robust engine loader.", file=sys.stderr)
         return 1
     if "健康游戏忠告" not in loader_source:
         print("godot-loader.js does not contain the branded healthy-game notice.", file=sys.stderr)
         return 1
     root_game_source = root_game.read_text(encoding="utf-8")
+    if "GameGlobal.oddSpotWechatAuth" in root_game_source and "wx.getUserProfile" not in root_game_source:
+        root_game_source, replacements = re.subn(
+            r"GameGlobal\.oddSpotWechatAuth = \{.*?^    getResult\(\) \{ return JSON\.stringify\(this\.result\) \}\r?\n\}",
+            WECHAT_AUTH_OBJECT.rstrip("\n"),
+            root_game_source,
+            count=1,
+            flags=re.DOTALL | re.MULTILINE,
+        )
+        if replacements != 1:
+            print("Could not upgrade the existing WeChat login bridge.", file=sys.stderr)
+            return 1
     if "GameGlobal.oddSpotWechatAuth" not in root_game_source:
         root_game_source = root_game_source.replace(
             WECHAT_ADAPTER_IMPORT, WECHAT_BRIDGE_EXPORT, 1
@@ -328,12 +373,12 @@ def main() -> int:
     )
     root_game.write_text(root_game_source, encoding="utf-8", newline="\n")
     if BRANDED_ICON_IMAGE not in root_game_source or BRANDED_ICON_CONFIG not in root_game_source:
-        print("game.js does not use the Odd Spot branded loading screen.", file=sys.stderr)
+        print("game.js does not use the Misplaced Detective branded loading screen.", file=sys.stderr)
         return 1
 
     brand_logo = Path(__file__).resolve().parents[2] / "assets" / "branding" / "guagua-rabbit-logo.png"
     if not brand_logo.is_file():
-        print(f"Missing Odd Spot brand logo: {brand_logo}", file=sys.stderr)
+        print(f"Missing Misplaced Detective brand logo: {brand_logo}", file=sys.stderr)
         return 1
     images_dir = output_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -352,7 +397,17 @@ def main() -> int:
         runtime_source = runtime_source.replace(
             TYPED_ARRAY_REQUEST, ARRAY_BUFFER_REQUEST, 1
         )
-        engine_runtime.write_text(runtime_source, encoding="utf-8", newline="\n")
+    # Godot's HTTP client serializes the default HTTPS port explicitly. The
+    # WeChat review runtime compares wx.request origins literally, so
+    # https://host:443 is rejected even when https://host is configured as a
+    # request legal domain. Strip only default ports before calling wx.request.
+    if FETCH_CREATE_WITH_DEFAULT_PORT in runtime_source:
+        runtime_source = runtime_source.replace(
+            FETCH_CREATE_WITH_DEFAULT_PORT,
+            FETCH_CREATE_WITH_NORMALIZED_PORT,
+            1,
+        )
+    engine_runtime.write_text(runtime_source, encoding="utf-8", newline="\n")
     request_body_markers = (
         "ArrayBuffer.isView(body)",
         "body.byteOffset",
@@ -361,6 +416,9 @@ def main() -> int:
     )
     if not all(marker in runtime_source for marker in request_body_markers):
         print("engine/godot.js does not normalize TypedArray request bodies.", file=sys.stderr)
+        return 1
+    if DEFAULT_PORT_NORMALIZER_MARKER not in runtime_source:
+        print("engine/godot.js does not strip default wx.request ports.", file=sys.stderr)
         return 1
 
     # Do not rewrite the memory section inside the compressed WASM binary.

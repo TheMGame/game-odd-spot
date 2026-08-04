@@ -1,4 +1,4 @@
-# Odd Spot Publishing Contract
+# Misplaced Detective Publishing Contract
 
 ## Local credential file
 

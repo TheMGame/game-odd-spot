@@ -50,6 +50,8 @@ func _refresh_series() -> void:
 	# a permanent multi-gigabyte heap peak on real devices.
 	for job in series_thumbnail_jobs:
 		await _load_series_thumbnail(str(job.url), str(job.series_id))
+	for job in series_thumbnail_jobs:
+		await _load_series_full_image(str(job.get("full_url", "")), str(job.series_id))
 
 
 func _show_catalog_message(message: String) -> void:
@@ -127,7 +129,11 @@ func _add_series_card(series: Dictionary) -> void:
 		var first_level: Dictionary = levels[0]
 		var thumbnail_url := str(first_level.get("thumbnail_url", ""))
 		if not thumbnail_url.is_empty():
-			series_thumbnail_jobs.append({"url": thumbnail_url, "series_id": series_id})
+			series_thumbnail_jobs.append({
+				"url": thumbnail_url,
+				"full_url": str(first_level.get("image_url", "")),
+				"series_id": series_id,
+			})
 	elif not str(series.get("cover_url", "")).is_empty():
 		series_thumbnail_jobs.append({
 			"url": str(series.get("cover_url", "")),
@@ -145,6 +151,14 @@ func _load_series_thumbnail(url: String, series_id: String) -> void:
 	var texture_result := await AssetCache.new().load_texture_url(self, url, "series")
 	if texture_result.ok and series_images.has(series_id):
 		(series_images[series_id] as TextureRect).texture = texture_result.texture
+
+
+func _load_series_full_image(url: String, series_id: String) -> void:
+	if url.is_empty():
+		return
+	var full_result := await AssetCache.new().load_texture_url(self, url, "series_full")
+	if full_result.ok and series_images.has(series_id):
+		(series_images[series_id] as TextureRect).texture = full_result.texture
 
 
 func _refresh_sync() -> void:

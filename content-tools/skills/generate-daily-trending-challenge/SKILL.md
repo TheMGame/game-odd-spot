@@ -1,6 +1,6 @@
 ---
 name: generate-daily-trending-challenge
-description: Search current daily trends, select a safe and visually expressive topic, generate one high-difficulty Odd Spot image, inspect the finished image for actual answer locations, and produce a validated draft level package. Use for 每日挑战、今日热点关卡、热点找茬、daily challenge, or when one current-event-inspired hidden-object level is requested.
+description: Search current daily trends, select a safe and visually expressive topic, generate one high-difficulty Misplaced Detective image, inspect the finished image for actual answer locations, and produce a validated draft level package. Use for 每日挑战、今日热点关卡、热点找茬、daily challenge, or when one current-event-inspired hidden-object level is requested.
 ---
 
 # 每日热点挑战生成器

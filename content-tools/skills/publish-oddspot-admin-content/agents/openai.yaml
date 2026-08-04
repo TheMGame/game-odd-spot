@@ -1,4 +1,4 @@
 interface:
-  display_name: "Odd Spot 内容发布器"
+  display_name: "错位大侦探内容发布器"
   short_description: "上传关卡图片与缩略图并同步线上 Admin 系列和答案热点"
   default_prompt: "使用 $publish-oddspot-admin-content 将选定关卡图片、答案热点和系列配置发布到线上 Admin。"

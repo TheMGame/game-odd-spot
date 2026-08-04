@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a generated daily Odd Spot challenge package."""
+"""Validate a generated daily Misplaced Detective challenge package."""
 
 from __future__ import annotations
 

@@ -125,17 +125,27 @@ func login_wechat() -> Dictionary:
 	var code_result := await _request_wechat_login_code()
 	if not code_result.ok:
 		return code_result
+	var wx_info := {
+		"code": str(code_result.get("code", "")),
+	}
+	var profile: Dictionary = code_result.get("profile", {})
+	if not profile.is_empty():
+		wx_info["nickname"] = str(profile.get("nickname", ""))
+		wx_info["avatar"] = str(profile.get("avatar_url", ""))
+		wx_info["avatar_url"] = str(profile.get("avatar_url", ""))
 	var result := await _request_user_server("/api/v1/user/login", {
 		"app_id": USER_SERVER_APP_ID,
 		"login_type": 2,
-		"wx_info": {
-			"code": str(code_result.get("code", "")),
-		},
+		"wx_info": wx_info,
 	})
 	if not result.ok:
 		return result
 	var login_data: Dictionary = result.data.get("data", {})
-	return await _exchange_user_token(login_data)
+	var exchanged := await _exchange_user_token(login_data)
+	if exchanged.ok and not profile.is_empty():
+		await update_user_profile(str(profile.get("nickname", "")), str(profile.get("avatar_url", "")))
+		await refresh_user_profile()
+	return exchanged
 
 
 func _request_wechat_login_code() -> Dictionary:
@@ -153,7 +163,8 @@ func _request_wechat_login_code() -> Dictionary:
 				var code := str(parsed.get("code", "")).strip_edges()
 				if code.is_empty():
 					return {"ok": false, "error": "WECHAT_LOGIN_CODE_MISSING"}
-				return {"ok": true, "code": code}
+				var profile: Dictionary = parsed.get("profile", {})
+				return {"ok": true, "code": code, "profile": profile}
 			"failed":
 				return {
 					"ok": false,

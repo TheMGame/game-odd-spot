@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Odd Spot Game API
+  title: Misplaced Detective Game API
   version: 1.0.0
 servers:
   - url: https://api.game.example.com

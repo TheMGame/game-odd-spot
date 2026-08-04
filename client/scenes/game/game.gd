@@ -23,7 +23,8 @@ var elapsed_before_session := 0
 var is_anachronism_mode := false
 const DAILY_FREE_HINTS := 3
 const HINTS_PATH := "user://daily_hints.cfg"
-var hint_limit_dialog: AcceptDialog
+@onready var hint_limit_overlay: ColorRect = $HintLimitOverlay
+@onready var hint_limit_card: PanelContainer = $HintLimitOverlay/Card
 
 
 func _ready() -> void:
@@ -174,7 +175,7 @@ func _use_hint() -> void:
 	if remaining <= 0:
 		status_label.text = "今天的 3 次免费提示已经用完了"
 		# 预留：接入激励广告后，可在这里调用 Monetization.show_rewarded_hint() 增加次数。
-		hint_limit_dialog.popup_centered()
+		_show_hint_limit_dialog()
 		return
 	for difference in differences:
 		if not found.has(str(difference.id)):
@@ -186,16 +187,34 @@ func _use_hint() -> void:
 
 
 func _create_hint_limit_dialog() -> void:
-	hint_limit_dialog = AcceptDialog.new()
-	hint_limit_dialog.title = "今日提示已用完"
-	hint_limit_dialog.dialog_text = (
-		"每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来。"
+	$HintLimitOverlay/Card/Margin/Content/Message.text = (
+		"每天有 3 次免费提示\n今天的次数已经全部用完"
 		if Platform.is_wechat_minigame()
-		else "每天共有 3 次免费提示，你今天已经全部用完了。\n请明天再来，后续也可以通过观看广告增加提示次数。"
+		else "每天有 3 次免费提示\n今天的次数已经全部用完"
 	)
-	hint_limit_dialog.ok_button_text = "知道了"
-	hint_limit_dialog.min_size = Vector2i(620, 300)
-	add_child(hint_limit_dialog)
+	$HintLimitOverlay/Card/Margin/Content/Close.pressed.connect(_hide_hint_limit_dialog)
+
+
+func _show_hint_limit_dialog() -> void:
+	hint_limit_overlay.visible = true
+	hint_limit_overlay.modulate.a = 0.0
+	hint_limit_card.scale = Vector2(0.78, 0.78)
+	await get_tree().process_frame
+	hint_limit_card.pivot_offset = hint_limit_card.size * 0.5
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(hint_limit_overlay, "modulate:a", 1.0, 0.22)
+	tween.tween_property(hint_limit_card, "scale", Vector2.ONE, 0.34)
+	$HintLimitOverlay/Card/Margin/Content/Close.grab_focus()
+
+
+func _hide_hint_limit_dialog() -> void:
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(hint_limit_overlay, "modulate:a", 0.0, 0.16)
+	tween.tween_property(hint_limit_card, "scale", Vector2(0.9, 0.9), 0.16)
+	await tween.finished
+	hint_limit_overlay.visible = false
 
 
 func _business_date() -> String:
@@ -347,6 +366,21 @@ func _apply_visual_style() -> void:
 	result.set_border_width_all(4)
 	result.set_corner_radius_all(24)
 	complete_panel.add_theme_stylebox_override("panel", result)
+	var hint_card := StyleBoxFlat.new()
+	hint_card.bg_color = Color("#f3e5c4")
+	hint_card.border_color = Color("#d5a84d")
+	hint_card.set_border_width_all(5)
+	hint_card.set_corner_radius_all(30)
+	hint_card.shadow_color = Color(0.01, 0.02, 0.03, 0.55)
+	hint_card.shadow_size = 18
+	hint_limit_card.add_theme_stylebox_override("panel", hint_card)
+	var hint_close := StyleBoxFlat.new()
+	hint_close.bg_color = Color("#a33d2e")
+	hint_close.border_color = Color("#f2cf78")
+	hint_close.set_border_width_all(3)
+	hint_close.set_corner_radius_all(18)
+	$HintLimitOverlay/Card/Margin/Content/Close.add_theme_stylebox_override("normal", hint_close)
+	$HintLimitOverlay/Card/Margin/Content/Close.add_theme_stylebox_override("hover", hint_close)
 
 
 func _apply_responsive_layout() -> void:

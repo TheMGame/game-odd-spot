@@ -48,7 +48,7 @@ func _ready() -> void:
 		tr("关卡进度与游戏权益正在通过正式账号服务同步。") if has_account
 		else tr("登录正式账号后，可同步关卡进度与游戏权益。")
 	)
-	$SafeArea/Layout/Scroll/Sections/Version.text = tr("火眼金睛 · 版本 %s") % ProjectSettings.get_setting("application/config/version", "0.1.0")
+	$SafeArea/Layout/Scroll/Sections/Version.text = tr("错位大侦探 · 版本 %s") % ProjectSettings.get_setting("application/config/version", "0.1.0")
 	await _load_languages()
 
 

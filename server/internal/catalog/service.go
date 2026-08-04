@@ -18,6 +18,7 @@ type Level struct {
 	Difficulty      int    `json:"difficulty"`
 	DifferenceCount int    `json:"difference_count"`
 	ThumbnailURL    string `json:"thumbnail_url"`
+	ImageURL        string `json:"image_url"`
 	SortOrder       int    `json:"sort_order"`
 	AvailableDate   string `json:"available_date"`
 	Completed       bool   `json:"completed"`
@@ -165,6 +166,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),
 			  ''
 			),
+			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),''),
 			sl.sort_order,
 			COALESCE(
 			  NULLIF(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.available_date')),'null'),
@@ -186,7 +188,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 		}
 		for levelRows.Next() {
 			var level Level
-			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.ThumbnailURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
+			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.ThumbnailURL, &level.ImageURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
 				levelRows.Close()
 				return nil, err
 			}

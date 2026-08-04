@@ -1,5 +1,5 @@
 [Unit]
-Description=Odd Spot API
+Description=Misplaced Detective API
 After=network-online.target
 Wants=network-online.target
 

@@ -25,7 +25,7 @@ foreach ($line in Get-Content -LiteralPath $resolvedEnv -Encoding UTF8) {
 
 Push-Location (Join-Path $root 'server')
 try {
-    Write-Host "Starting Odd Spot $Target with $resolvedEnv"
+    Write-Host "Starting Misplaced Detective $Target with $resolvedEnv"
     go run "./cmd/$Target"
     if ($LASTEXITCODE -ne 0) { throw "$Target exited with code $LASTEXITCODE" }
 } finally {

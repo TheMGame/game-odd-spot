@@ -14,7 +14,7 @@ general/accessibility_support=true
 
 [application]
 
-config/name="火眼金睛"
+config/name="错位大侦探"
 config/version="0.1.0"
 run/main_scene="res://scenes/bootstrap/bootstrap.tscn"
 config/features=PackedStringArray("4.7")
@@ -53,7 +53,7 @@ enabled=PackedStringArray("res://addons/godot-minigame/plugin.cfg")
 
 [gui]
 
-theme/custom_font="res://assets/fonts/NotoSansSC-Game.ttf"
+theme/custom_font="res://assets/fonts/NotoSansSC-Wechat.ttf"
 theme/default_font_size=22
 
 [internationalization]

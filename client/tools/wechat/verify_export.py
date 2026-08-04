@@ -170,7 +170,7 @@ def main() -> int:
     loader = output_dir / "godot-loader.js"
     if loader.is_file():
         loader_source = loader.read_text(encoding="utf-8", errors="replace")
-        if "[OddSpot] engine subpackage ready" not in loader_source:
+        if "[MisplacedDetective] engine subpackage ready" not in loader_source:
             failures.append("godot-loader.js lacks robust subpackage completion handling.")
         if "engine subpackage progress:" in loader_source:
             failures.append("godot-loader.js still logs every progress event.")
@@ -179,6 +179,8 @@ def main() -> int:
         root_game_source = root_game.read_text(encoding="utf-8", errors="replace")
         if "GameGlobal.oddSpotWechatAuth" not in root_game_source:
             failures.append("game.js does not expose the WeChat login bridge.")
+        if "wx.getUserProfile" not in root_game_source:
+            failures.append("game.js does not request optional WeChat nickname/avatar consent.")
     if (output_dir / "engine" / "empty-tips.bin").exists():
         failures.append("Template demo pack engine/empty-tips.bin was not removed.")
 
@@ -195,6 +197,11 @@ def main() -> int:
             failures.append(
                 "engine/godot.js does not normalize WASM TypedArray request bodies "
                 "for wx.request."
+            )
+        if 'url=url.replace(/^https:\\/\\/([^/:]+):443' not in runtime_source:
+            failures.append(
+                "engine/godot.js does not remove the explicit HTTPS :443 port "
+                "before wx.request legal-domain validation."
             )
 
     for wasm_path in wasm_files:
@@ -239,6 +246,11 @@ def main() -> int:
             warnings.append("AppID is still a placeholder; the export is not ready to upload.")
         elif not re.fullmatch(r"wx[0-9a-zA-Z]{16}", app_id):
             warnings.append("AppID does not match the expected wx + 16 character format.")
+        if project_config.get("setting", {}).get("urlCheck") is not True:
+            failures.append(
+                "project.config.json must enable urlCheck so legal-domain errors "
+                "are caught before review."
+            )
 
     if "game.json" in by_name:
         game_config = load_json(by_name["game.json"], failures)

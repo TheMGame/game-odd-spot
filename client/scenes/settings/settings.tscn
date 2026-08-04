@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource path="res://scenes/settings/settings.gd" type="Script" id="1"]
 [ext_resource path="res://scripts/ui/icon_button.gd" type="Script" id="2"]
+[ext_resource path="res://assets/ui/toggle-off.svg" type="Texture2D" id="3_toggle_off"]
+[ext_resource path="res://assets/ui/toggle-on.svg" type="Texture2D" id="4_toggle_on"]
 
 [node name="Settings" type="Control"]
 layout_mode = 3
@@ -130,30 +132,66 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Vibration" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 button_pressed = true
-theme_override_font_sizes/font_size = 24
+theme_override_constants/icon_max_width = 144
+theme_override_font_sizes/font_size = 34
+theme_override_icons/checked = ExtResource("4_toggle_on")
+theme_override_icons/unchecked = ExtResource("3_toggle_off")
+theme_override_icons/checked_disabled = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_disabled = ExtResource("3_toggle_off")
+theme_override_icons/checked_hover = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_hover = ExtResource("3_toggle_off")
+theme_override_icons/checked_pressed = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_pressed = ExtResource("3_toggle_off")
 text = "触感反馈"
 
 [node name="Music" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 button_pressed = true
-theme_override_font_sizes/font_size = 24
+theme_override_constants/icon_max_width = 144
+theme_override_font_sizes/font_size = 34
+theme_override_icons/checked = ExtResource("4_toggle_on")
+theme_override_icons/unchecked = ExtResource("3_toggle_off")
+theme_override_icons/checked_disabled = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_disabled = ExtResource("3_toggle_off")
+theme_override_icons/checked_hover = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_hover = ExtResource("3_toggle_off")
+theme_override_icons/checked_pressed = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_pressed = ExtResource("3_toggle_off")
 text = "背景音乐"
 
 [node name="Effects" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 button_pressed = true
-theme_override_font_sizes/font_size = 24
+theme_override_constants/icon_max_width = 144
+theme_override_font_sizes/font_size = 34
+theme_override_icons/checked = ExtResource("4_toggle_on")
+theme_override_icons/unchecked = ExtResource("3_toggle_off")
+theme_override_icons/checked_disabled = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_disabled = ExtResource("3_toggle_off")
+theme_override_icons/checked_hover = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_hover = ExtResource("3_toggle_off")
+theme_override_icons/checked_pressed = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_pressed = ExtResource("3_toggle_off")
 text = "操作音效"
 
 [node name="LargeMarkers" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_constants/icon_max_width = 144
+theme_override_font_sizes/font_size = 34
+theme_override_icons/checked = ExtResource("4_toggle_on")
+theme_override_icons/unchecked = ExtResource("3_toggle_off")
+theme_override_icons/checked_disabled = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_disabled = ExtResource("3_toggle_off")
+theme_override_icons/checked_hover = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_hover = ExtResource("3_toggle_off")
+theme_override_icons/checked_pressed = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_pressed = ExtResource("3_toggle_off")
 text = "加大差异标记"
 
 [node name="Language" type="HBoxContainer" parent="SafeArea/Layout/Scroll/Sections/ExperienceCard/Rows"]
@@ -185,10 +223,19 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="Analytics" type="CheckButton" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
-custom_minimum_size = Vector2(0, 76)
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 button_pressed = true
-theme_override_font_sizes/font_size = 24
+theme_override_constants/icon_max_width = 144
+theme_override_font_sizes/font_size = 34
+theme_override_icons/checked = ExtResource("4_toggle_on")
+theme_override_icons/unchecked = ExtResource("3_toggle_off")
+theme_override_icons/checked_disabled = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_disabled = ExtResource("3_toggle_off")
+theme_override_icons/checked_hover = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_hover = ExtResource("3_toggle_off")
+theme_override_icons/checked_pressed = ExtResource("4_toggle_on")
+theme_override_icons/unchecked_pressed = ExtResource("3_toggle_off")
 text = "帮助改进游戏"
 
 [node name="AnalyticsNote" type="Label" parent="SafeArea/Layout/Scroll/Sections/PrivacyCard/Rows"]
@@ -231,7 +278,7 @@ text = "退出当前会话"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.68, 0.67, 1)
 theme_override_font_sizes/font_size = 18
-text = "火眼金睛 · 版本 0.1.0"
+text = "错位大侦探 · 版本 0.1.0"
 horizontal_alignment = 1
 
 [node name="PrivacyDialog" type="Control" parent="."]
