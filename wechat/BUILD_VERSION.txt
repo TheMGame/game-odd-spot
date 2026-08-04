@@ -1,0 +1,4 @@
+0.1.1-media-entry-fixed
+
+Required subpackage entry:
+subpackages/media/game.js

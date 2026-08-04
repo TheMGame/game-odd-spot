@@ -1,0 +1,14 @@
+{
+  "deviceOrientation": "portrait",
+  "showStatusBar": false,
+  "subpackages": [
+    {
+      "name": "media",
+      "root": "subpackages/media"
+    }
+  ],
+  "networkTimeout": {
+    "request": 15000,
+    "downloadFile": 30000
+  }
+}

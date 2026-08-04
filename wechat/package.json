@@ -1,0 +1,8 @@
+{
+  "name": "oddspot-wechat-native",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "check": "node tests/check-syntax.js && node tests/run-tests.js"
+  }
+}

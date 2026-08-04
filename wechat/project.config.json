@@ -1,0 +1,19 @@
+{
+  "appid": "wx80a481e147abda26",
+  "compileType": "game",
+  "libVersion": "3.17.0",
+  "projectname": "错位大侦探-原生微信版",
+  "description": "错位大侦探原生微信小游戏客户端",
+  "setting": {
+    "useCompilerPlugins": false,
+    "urlCheck": true,
+    "es6": true,
+    "minified": true,
+    "postcss": false,
+    "enhance": true,
+    "showShadowRootInWxmlPanel": false,
+    "packNpmManually": false,
+    "ignoreUploadUnusedFiles": false
+  },
+  "condition": {}
+}
