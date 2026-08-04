@@ -42,6 +42,9 @@ class OddSpotApp {
     this.running = true
     this.frame = this.frame.bind(this)
     this.api.onSessionExpired = () => this.showLogin()
+    this.homeBunny = null
+    this._homeBunnyAnim = { frames: [], frame: 0, loaded: false, total: 49, fps: 12, frameAccum: 0, x: 140, dir: 1, vx: 0.32, nextSpeedAt: 0 }
+    this._homeBunnyArea = { y: 0, h: 0 }
   }
 
   async start() {
@@ -49,9 +52,40 @@ class OddSpotApp {
     this.audio.start()
     this.assets.bundled('assets/branding/guagua-rabbit-logo.png').then((image) => { this.logo = image }).catch(() => {})
     this.assets.bundled('assets/branding/default-avatar.png').then((image) => { this.avatar = image }).catch(() => {})
+    this.loadHomeBunny()
     this.analytics.track('app_open')
     this.scheduleFrame()
     await this.bootstrap()
+  }
+
+  async loadHomeBunny() {
+    const fs = wx.getFileSystemManager()
+    const dir = 'assets/animations'
+    let files = []
+    try {
+      const list = fs.readdirSync(dir) || []
+      for (const name of list) {
+        const lower = String(name).toLowerCase()
+        if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) files.push(name)
+      }
+    } catch (_) {
+      for (let i = 1; i <= 160; i += 1) {
+        const name = `frame_${String(i).padStart(3, '0')}.png`
+        try { fs.accessSync(`${dir}/${name}`); files.push(name) } catch (_) { break }
+      }
+    }
+    const compare = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare
+    files.sort((a, b) => compare(a, b))
+    const collected = []
+    for (const name of files) {
+      try {
+        const img = await this.assets.bundled(`${dir}/${name}`)
+        if (img) collected.push(img)
+      } catch (_) {}
+    }
+    this._homeBunnyAnim.frames = collected
+    this._homeBunnyAnim.loaded = collected.length > 0
+    if (this._homeBunnyAnim.frame >= collected.length) this._homeBunnyAnim.frame = 0
   }
 
   bindEvents() {
@@ -277,6 +311,7 @@ class OddSpotApp {
   async logout() { this.audio.click(); await this.api.logout(); this.showLogin() }
 
   render() {
+    if (this.scene === 'home' || this.scene === 'levels') this.updateHomeBunny(1000 / 60)
     const r = this.renderer; r.begin()
     if (this.scene === 'loading') this.renderLoading()
     else if (this.scene === 'login') this.renderLogin()
@@ -285,6 +320,28 @@ class OddSpotApp {
     else if (this.scene === 'settings') this.renderSettings()
     else if (this.scene === 'game') this.renderGame()
     if (this.modal) this.renderModal()
+  }
+
+  updateHomeBunny(dtMs) {
+    const anim = this._homeBunnyAnim
+    if (!anim.loaded) return
+    const fps = anim.fps
+    anim.frameAccum += dtMs
+    const step = 1000 / fps
+    while (anim.frameAccum >= step) { anim.frameAccum -= step; anim.frame = (anim.frame + 1) % anim.frames.length }
+    const w = this.renderer.width, area = this._homeBunnyArea
+    const bunnyW = (area && area.size) ? area.size : 260
+    const minX = (area && area.left != null) ? area.left : 18
+    const maxX = (area && area.right != null) ? area.right : (w - 18 - bunnyW)
+    if (!anim._speedInit || Date.now() > anim.nextSpeedAt) {
+      anim.vx = 0.14 + Math.random() * 0.46
+      anim.dir = Math.random() < 0.5 ? -1 : 1
+      anim.nextSpeedAt = Date.now() + 2400 + Math.floor(Math.random() * 4600)
+      anim._speedInit = true
+    }
+    anim.x += anim.vx * anim.dir * (dtMs / 16.67)
+    if (anim.x <= minX) { anim.x = minX; anim.dir = 1; anim.nextSpeedAt = Date.now() + 2000 + Math.floor(Math.random() * 4000); anim.vx = 0.18 + Math.random() * 0.52 }
+    else if (anim.x >= maxX) { anim.x = maxX; anim.dir = -1; anim.nextSpeedAt = Date.now() + 2000 + Math.floor(Math.random() * 4000); anim.vx = 0.18 + Math.random() * 0.52 }
   }
 
   renderLoading() {
@@ -396,7 +453,38 @@ class OddSpotApp {
     r.text(numText, innerStart + statsLabelW, cy, statsSize, COLORS.gold, 'left', 'bold')
     r.button('daily', { x: dailyX, y: rowY, w: dailyW, h: rowH }, dailyLabel, { fill: '#3f7565', border: '#8bb09f', size: Math.min(28, Math.round(dailyW * 0.13)) })
     r.iconButton('settings', 946, 34 + top, 96, 'settings')
-    const clip = { x: 38, y: 150 + top, w: 1004, h: h - 250 - top }; const cs = r.ctx; cs.save(); cs.beginPath(); cs.rect(clip.x, clip.y, clip.w, clip.h); cs.clip()
+    const anim = this._homeBunnyAnim
+    if (top > 40 && anim.loaded) {
+      const marginX = 18
+      const bunnySize = Math.max(140, Math.min(Math.round(top * 1.1), 320))
+      const minX = marginX
+      const maxX = r.width - marginX - bunnySize
+      this._homeBunnyArea = { y: 0, h: top, left: minX, right: maxX, size: bunnySize }
+      if (anim.x < minX) anim.x = minX
+      if (anim.x > maxX) anim.x = maxX
+      const bunnyY = (top - bunnySize) / 2
+      const frameImage = anim.frames[anim.frame % anim.frames.length]
+      if (frameImage) {
+        c.save()
+        c.globalCompositeOperation = 'source-over'
+        c.globalAlpha = 1
+        const cx = anim.x + bunnySize / 2, cy = bunnyY + bunnySize / 2
+        if (anim.dir < 0) { c.translate(cx, cy); c.scale(-1, 1); c.translate(-cx, -cy) }
+        const srcW = frameImage.width, srcH = frameImage.height
+        if (srcW > 0 && srcH > 0) {
+          const fit = Math.min(bunnySize / srcW, bunnySize / srcH)
+          const dw = Math.round(srcW * fit), dh = Math.round(srcH * fit)
+          const dx = Math.round(anim.x + (bunnySize - dw) / 2)
+          const dy = Math.round(bunnyY + (bunnySize - dh) / 2)
+          c.drawImage(frameImage, 0, 0, srcW, srcH, dx, dy, dw, dh)
+        }
+        c.restore()
+      }
+    } else {
+      this._homeBunnyArea = null
+    }
+    const contentTop = 150 + top
+    const clip = { x: 38, y: contentTop, w: 1004, h: h - contentTop - 100 }; const cs = r.ctx; cs.save(); cs.beginPath(); cs.rect(clip.x, clip.y, clip.w, clip.h); cs.clip()
     let y = clip.y - this.scroll.home
     if (!this.catalogData) r.text(this.status, 540, 260, 28, COLORS.muted, 'center')
     for (const series of this.enabledSeries()) {
@@ -416,12 +504,37 @@ class OddSpotApp {
   }
   renderLevels() {
     const r = this.renderer, h = r.height, top = r.safeTop, series = this.seriesById(this.selectedSeriesId)
+    const c = r.ctx
     r.iconButton('home', 28, 34 + top, 96, 'back'); r.iconButton('settings', 956, 34 + top, 96, 'settings')
+    const anim = this._homeBunnyAnim
+    if (top > 40 && anim.loaded) {
+      const marginX = 18
+      const bunnySize = Math.max(140, Math.min(Math.round(top * 1.1), 320))
+      const minX = marginX, maxX = r.width - marginX - bunnySize
+      if (anim.x < minX) anim.x = minX
+      if (anim.x > maxX) anim.x = maxX
+      const bunnyY = (top - bunnySize) / 2
+      const frameImage = anim.frames[anim.frame % anim.frames.length]
+      if (frameImage) {
+        c.save(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1
+        const cx = anim.x + bunnySize / 2, cy = bunnyY + bunnySize / 2
+        if (anim.dir < 0) { c.translate(cx, cy); c.scale(-1, 1); c.translate(-cx, -cy) }
+        const srcW = frameImage.width, srcH = frameImage.height
+        if (srcW > 0 && srcH > 0) {
+          const fit = Math.min(bunnySize / srcW, bunnySize / srcH)
+          const dw = Math.round(srcW * fit), dh = Math.round(srcH * fit)
+          const dx = Math.round(anim.x + (bunnySize - dw) / 2)
+          const dy = Math.round(bunnyY + (bunnySize - dh) / 2)
+          c.drawImage(frameImage, 0, 0, srcW, srcH, dx, dy, dw, dh)
+        }
+        c.restore()
+      }
+    }
     r.text(series ? series.title : '系列关卡', 540, 68 + top, 42, COLORS.gold, 'center', 'bold')
     if (series && series.description) r.text(series.description, 540, 112 + top, 23, COLORS.muted, 'center', 'normal', 760)
     const levels = series && Array.isArray(series.levels) ? series.levels : []
     let firstUnfinished = levels.findIndex((level) => !this.isLevelCompleted(level)); if (firstUnfinished < 0) firstUnfinished = levels.length
-    const clip = { x: 28, y: 155 + top, w: 1024, h: h - 180 - top }; const c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.levels
+    const clip = { x: 28, y: 155 + top, w: 1024, h: h - 180 - top }; const cs = r.ctx; cs.save(); cs.beginPath(); cs.rect(clip.x, clip.y, clip.w, clip.h); cs.clip(); let y = clip.y - this.scroll.levels
     levels.forEach((level, index) => {
       const completed = this.isLevelCompleted(level), locked = this.selectedSeriesId !== 'daily_task' && !completed && index > firstUnfinished
       const rect = { x: 28, y, w: 1024, h: 250 }; r.rect(rect.x, rect.y, rect.w, rect.h, locked ? '#183039' : COLORS.card, 18, locked ? '#52666b' : '#c49a4a', 2)
@@ -435,7 +548,7 @@ class OddSpotApp {
       if (rect.y + rect.h >= clip.y && rect.y <= clip.y + clip.h) r.register(locked ? `locked:${level.id}` : `level:${level.id}`, rect)
       y += 268
     })
-    c.restore(); this.maxScroll = Math.max(0, y + this.scroll.levels - clip.y - clip.h)
+    cs.restore(); this.maxScroll = Math.max(0, y + this.scroll.levels - clip.y - clip.h)
   }
   isLevelCompleted(level) { return Boolean(level.completed) || this.progress.isCompleted(String(level.id), Number(level.version || 1)) }
 
