@@ -13,6 +13,10 @@ class Renderer {
     this.height = 1920
     this.pixelRatio = 1
     this.scale = 1
+    this.safeTop = 0
+    this.safeBottom = 0
+    this.safeLeft = 0
+    this.safeRight = 0
     this.hitboxes = []
     this.resize()
   }
@@ -22,6 +26,26 @@ class Renderer {
     this.pixelRatio = info.pixelRatio || 1
     this.scale = Number(info.windowWidth) / this.width
     this.height = Number(info.windowHeight) / this.scale
+    const safeArea = info.safeArea
+    if (safeArea) {
+      this.safeTop = safeArea.top / this.scale
+      this.safeBottom = (Number(info.windowHeight) - safeArea.bottom) / this.scale
+      this.safeLeft = safeArea.left / this.scale
+      this.safeRight = (Number(info.windowWidth) - safeArea.right) / this.scale
+    } else {
+      this.safeTop = 0
+      this.safeBottom = 0
+      this.safeLeft = 0
+      this.safeRight = 0
+    }
+    try {
+      const menu = wx.getMenuButtonBoundingClientRect()
+      if (menu) {
+        const menuTopPx = Number(menu.top) + Number(menu.height) + 8
+        const menuTop = menuTopPx / this.scale
+        if (menuTop > this.safeTop) this.safeTop = menuTop
+      }
+    } catch (_) {}
     this.canvas.width = Math.round(Number(info.windowWidth) * this.pixelRatio)
     this.canvas.height = Math.round(Number(info.windowHeight) * this.pixelRatio)
   }

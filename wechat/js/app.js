@@ -117,6 +117,15 @@ class OddSpotApp {
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
+    {
+      let completed = 0, total = 0
+      for (const series of this.enabledSeries()) {
+        const levels = Array.isArray(series.levels) ? series.levels : []
+        total += levels.length
+        for (const level of levels) { if (this.isLevelCompleted(level)) completed++ }
+      }
+      this.homeStats = { completed, total }
+    }
     this.status = this.sync.pendingCount() ? `${this.sync.pendingCount()} 条进度等待联网同步` : this.i18n.t('syncDone')
     this.loadHomeCovers()
     this.sync.flush().then(() => { this.status = this.sync.pendingCount() ? `${this.sync.pendingCount()} 条进度等待联网同步` : this.i18n.t('syncDone') })
@@ -287,30 +296,107 @@ class OddSpotApp {
     if (this.error) r.button('retry', { x: 300, y: h * .72, w: 480, h: 92 }, this.i18n.t('retry'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 30 })
   }
   renderLogin() {
-    const r = this.renderer, h = r.height
-    if (this.logo) r.image(this.logo, { x: 390, y: 90, w: 300, h: 250 }, 'contain')
-    r.text(this.i18n.t('app'), 540, 390, 60, COLORS.gold, 'center', 'bold')
-    r.text(this.i18n.t('tagline'), 540, 465, 25, COLORS.muted, 'center')
-    const card = { x: 64, y: 570, w: 952, h: 480 }
+    const r = this.renderer, h = r.height, top = r.safeTop, bottom = r.safeBottom
+    if (this.logo) r.image(this.logo, { x: 390, y: 90 + top, w: 300, h: 250 }, 'contain')
+    r.text(this.i18n.t('app'), 540, 390 + top, 60, COLORS.gold, 'center', 'bold')
+    r.text(this.i18n.t('tagline'), 540, 465 + top, 25, COLORS.muted, 'center')
+    const card = { x: 64, y: 570 + top, w: 952, h: 480 }
     r.rect(card.x, card.y, card.w, card.h, COLORS.card, 24, COLORS.cardBorder, 2)
-    r.text(this.i18n.t('wechatTitle'), 110, 635, 40, COLORS.paper, 'left', 'bold')
-    r.wrappedText(this.i18n.t('wechatDescription'), 110, 715, 860, 25, COLORS.muted, 38, 4)
-    r.button('wechatLogin', { x: 110, y: 840, w: 860, h: 96 }, this.loginBusy ? this.i18n.t('loggingIn') : this.i18n.t('wechatLogin'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 30, disabled: this.loginBusy })
-    if (this.status) r.wrappedText(this.status, 540, 990, 820, 22, '#d9ad64', 32, 3, 'center')
-    r.text(this.i18n.t('loginAgreement'), 540, Math.min(h - 70, 1150), 18, '#9bb5b0', 'center')
+    r.text(this.i18n.t('wechatTitle'), 110, 635 + top, 40, COLORS.paper, 'left', 'bold')
+    r.wrappedText(this.i18n.t('wechatDescription'), 110, 715 + top, 860, 25, COLORS.muted, 38, 4)
+    r.button('wechatLogin', { x: 110, y: 840 + top, w: 860, h: 96 }, this.loginBusy ? this.i18n.t('loggingIn') : this.i18n.t('wechatLogin'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 30, disabled: this.loginBusy })
+    if (this.status) r.wrappedText(this.status, 540, 990 + top, 820, 22, '#d9ad64', 32, 3, 'center')
+    r.text(this.i18n.t('loginAgreement'), 540, Math.min(h - 70, 1150 + top), 18, '#9bb5b0', 'center')
+    const adviceTop = Math.min(h - 70, 1150 + top) + 50
+    const adviceBottom = h - (bottom + 40)
+    const adviceAvailable = Math.max(260, adviceBottom - adviceTop)
+    const adviceCenter = (adviceTop + adviceBottom) / 2
+    const titleSize = Math.min(52, Math.round(adviceAvailable * 0.12))
+    const lineSize = Math.min(42, Math.round(adviceAvailable * 0.095))
+    const titleGap = Math.round(adviceAvailable * 0.11)
+    const lineGap = Math.round(adviceAvailable * 0.115)
+    const linesTotal = 4
+    const blockHeight = titleSize + titleGap + lineSize * linesTotal + lineGap * (linesTotal - 1)
+    const blockStartY = adviceCenter - blockHeight / 2
+    const adviceTitleY = blockStartY + titleSize / 2
+    const adviceLinesY = blockStartY + titleSize + titleGap
+    r.text('健康游戏忠告', 540, adviceTitleY, titleSize, '#d9c07b', 'center', 'bold')
+    const adviceLines = ['抵制不良游戏，拒绝盗版游戏。', '注意自我保护，谨防受骗上当。', '适度游戏益脑，沉迷游戏伤身。', '合理安排时间，享受健康生活。']
+    adviceLines.forEach((line, index) => r.text(line, 540, adviceLinesY + lineSize / 2 + index * (lineSize + lineGap), lineSize, '#8ca9a4', 'center'))
   }
   renderHome() {
-    const r = this.renderer, h = r.height
+    const r = this.renderer, h = r.height, top = r.safeTop, c = r.ctx
     const identity = this.session.data.username || `玩家 · ${String(this.session.data.user_id || '').slice(-6)}`
-    const identityRect = { x: 38, y: 44, w: 300, h: 76 }
-    r.rect(identityRect.x, identityRect.y, identityRect.w, identityRect.h, '#1b4350', 18, COLORS.cardBorder, 1)
-    if (this.avatar) {
-      const c = r.ctx; c.save(); c.beginPath(); c.arc(77, 82, 25, 0, Math.PI * 2); c.clip(); r.image(this.avatar, { x: 52, y: 57, w: 50, h: 50 }, 'cover'); c.restore()
+    const stats = this.homeStats || { completed: 0, total: 0 }
+    const settingsCx = 946, settingsHalf = 48, settingsW = 96
+    const settingsLeft = settingsCx - settingsHalf
+    const dailyLabel = this.i18n.t('daily')
+    const rowY = 44 + top, rowH = 76, cy = rowY + rowH / 2
+    const avatarPad = 24, namePad = 14, gap = 18, statsPad = 20, dailyPad = 28
+    const avatarW = 50, avatarCxOffset = 12
+    const settingsEnd = settingsCx + settingsHalf
+    const screenRight = 1080
+    const gapR = 16
+    const dailyMinW = 150, dailyMaxW = 300
+    const userMinW = 150, statsMinW = 160
+    const leftStart = 38, rightEnd = settingsLeft - 20
+    let userW = 290, statsW = 240, dailyW = 220
+    const maxCombinedLeft = rightEnd - leftStart - gap
+    for (let iter = 0; iter < 2; iter += 1) {
+      if (userW + gap + statsW <= maxCombinedLeft) break
+      const overflow = userW + gap + statsW - maxCombinedLeft
+      if (overflow <= 0) break
+      const canShrinkStats = statsW - statsMinW
+      if (canShrinkStats > 0) {
+        const takeStats = Math.min(canShrinkStats, overflow)
+        statsW -= takeStats
+      }
+      const remain = overflow - Math.min(canShrinkStats, overflow)
+      if (remain > 0) {
+        const canShrinkUser = userW - userMinW
+        const takeUser = Math.min(canShrinkUser, remain)
+        userW -= takeUser
+      }
     }
-    r.text(identity, 112, 82, 25, COLORS.paper, 'left', 'normal', 208); r.register('identity', identityRect)
-    r.button('daily', { x: 430, y: 44, w: 220, h: 76 }, this.i18n.t('daily'), { fill: '#3f7565', border: '#8bb09f', size: 28 })
-    r.iconButton('settings', 946, 34, 96, 'settings')
-    const clip = { x: 38, y: 150, w: 1004, h: h - 250 }; const c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
+    const dailyLeftMax = rightEnd - gapR
+    const dailyMinLeft = dailyLeftMax - dailyMaxW
+    const dailyRight = rightEnd
+    const dailyX = Math.max(rightEnd - dailyMaxW, rightEnd - dailyW)
+    dailyW = dailyRight - dailyX
+    const userX = leftStart
+    const userRight = userX + userW
+    const statsX = Math.min(userRight + gap, dailyX - statsW - gap)
+    statsW = Math.min(statsW, Math.max(statsMinW, dailyX - userRight - gap))
+    const nameSize = 25, nameMaxW = Math.max(60, userW - (avatarW + avatarPad + namePad * 2))
+    const identityRect = { x: userX, y: rowY, w: userW, h: rowH }
+    r.rect(identityRect.x, identityRect.y, identityRect.w, identityRect.h, '#1b4350', 18, COLORS.cardBorder, 1)
+    const avatarCx = userX + avatarCxOffset + avatarW / 2
+    if (this.avatar) {
+      c.save(); c.beginPath(); c.arc(avatarCx, cy, 25, 0, Math.PI * 2); c.clip()
+      r.image(this.avatar, { x: avatarCx - 25, y: cy - 25, w: 50, h: 50 }, 'cover')
+      c.restore()
+    }
+    const nameX = avatarCx + 25 + namePad
+    r.text(identity, nameX, cy, nameSize, COLORS.paper, 'left', 'normal', nameMaxW)
+    r.register('identity', identityRect)
+    const labelBase = this.i18n.t('completedLabel'), numText = `${stats.completed}${stats.total ? ` / ${stats.total}` : ''}`
+    let statsSize = 23
+    const statsMaxInner = Math.max(90, statsW - statsPad * 2)
+    for (let trySize = 24; trySize >= 14; trySize -= 1) {
+      c.font = `bold ${trySize}px sans-serif`; const numW = c.measureText(numText).width
+      c.font = `${trySize}px sans-serif`; const labelW = c.measureText(labelBase).width
+      if (labelW + numW <= statsMaxInner) { statsSize = trySize; break }
+    }
+    c.font = `bold ${statsSize}px sans-serif`; const statsNumW = c.measureText(numText).width
+    c.font = `${statsSize}px sans-serif`; const statsLabelW = c.measureText(labelBase).width
+    const statsInner = statsLabelW + statsNumW
+    r.rect(statsX, rowY + 2, statsW, rowH - 4, '#1a3742', 36, '#7a9d99', 1)
+    const innerStart = statsX + (statsW - statsInner) / 2
+    r.text(labelBase, innerStart, cy, statsSize, '#9cb5b1', 'left', 'normal')
+    r.text(numText, innerStart + statsLabelW, cy, statsSize, COLORS.gold, 'left', 'bold')
+    r.button('daily', { x: dailyX, y: rowY, w: dailyW, h: rowH }, dailyLabel, { fill: '#3f7565', border: '#8bb09f', size: Math.min(28, Math.round(dailyW * 0.13)) })
+    r.iconButton('settings', 946, 34 + top, 96, 'settings')
+    const clip = { x: 38, y: 150 + top, w: 1004, h: h - 250 - top }; const cs = r.ctx; cs.save(); cs.beginPath(); cs.rect(clip.x, clip.y, clip.w, clip.h); cs.clip()
     let y = clip.y - this.scroll.home
     if (!this.catalogData) r.text(this.status, 540, 260, 28, COLORS.muted, 'center')
     for (const series of this.enabledSeries()) {
@@ -325,17 +411,17 @@ class OddSpotApp {
       if (rect.y + rect.h >= clip.y && rect.y <= clip.y + clip.h) r.button(`series:${series.id}`, { x: rect.x + rect.w - 156, y: rect.y + 342, w: 128, h: 80 }, this.i18n.t('enter'), { fill: '#3f7565', border: '#8bb09f', size: 28 })
       y += 472
     }
-    c.restore(); this.maxScroll = Math.max(0, y + this.scroll.home - clip.y - clip.h)
+    cs.restore(); this.maxScroll = Math.max(0, y + this.scroll.home - clip.y - clip.h)
     r.text(this.status, 540, h - 60, 20, '#a8c2bd', 'center')
   }
   renderLevels() {
-    const r = this.renderer, h = r.height, series = this.seriesById(this.selectedSeriesId)
-    r.iconButton('home', 28, 34, 96, 'back'); r.iconButton('settings', 956, 34, 96, 'settings')
-    r.text(series ? series.title : '系列关卡', 540, 68, 42, COLORS.gold, 'center', 'bold')
-    if (series && series.description) r.text(series.description, 540, 112, 23, COLORS.muted, 'center', 'normal', 760)
+    const r = this.renderer, h = r.height, top = r.safeTop, series = this.seriesById(this.selectedSeriesId)
+    r.iconButton('home', 28, 34 + top, 96, 'back'); r.iconButton('settings', 956, 34 + top, 96, 'settings')
+    r.text(series ? series.title : '系列关卡', 540, 68 + top, 42, COLORS.gold, 'center', 'bold')
+    if (series && series.description) r.text(series.description, 540, 112 + top, 23, COLORS.muted, 'center', 'normal', 760)
     const levels = series && Array.isArray(series.levels) ? series.levels : []
     let firstUnfinished = levels.findIndex((level) => !this.isLevelCompleted(level)); if (firstUnfinished < 0) firstUnfinished = levels.length
-    const clip = { x: 28, y: 155, w: 1024, h: h - 180 }; const c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.levels
+    const clip = { x: 28, y: 155 + top, w: 1024, h: h - 180 - top }; const c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.levels
     levels.forEach((level, index) => {
       const completed = this.isLevelCompleted(level), locked = this.selectedSeriesId !== 'daily_task' && !completed && index > firstUnfinished
       const rect = { x: 28, y, w: 1024, h: 250 }; r.rect(rect.x, rect.y, rect.w, rect.h, locked ? '#183039' : COLORS.card, 18, locked ? '#52666b' : '#c49a4a', 2)
@@ -354,9 +440,9 @@ class OddSpotApp {
   isLevelCompleted(level) { return Boolean(level.completed) || this.progress.isCompleted(String(level.id), Number(level.version || 1)) }
 
   renderSettings() {
-    const r = this.renderer, h = r.height
-    r.iconButton('home', 28, 26, 80, 'back'); r.text(this.i18n.t('settings'), 540, 56, 44, COLORS.gold, 'center', 'bold'); r.text(this.i18n.t('settingsSubtitle'), 540, 104, 21, COLORS.muted, 'center')
-    const clip = { x: 36, y: 145, w: 1008, h: h - 165 }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.settings
+    const r = this.renderer, h = r.height, top = r.safeTop
+    r.iconButton('home', 28, 26 + top, 80, 'back'); r.text(this.i18n.t('settings'), 540, 56 + top, 44, COLORS.gold, 'center', 'bold'); r.text(this.i18n.t('settingsSubtitle'), 540, 104 + top, 21, COLORS.muted, 'center')
+    const clip = { x: 36, y: 145 + top, w: 1008, h: h - 165 - top }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.settings
     const section = (title) => { r.text(title, 36, y + 24, 24, '#d7aa57'); y += 54 }
     section(this.i18n.t('account')); r.rect(36, y, 1008, 205, COLORS.card, 20, COLORS.cardBorder, 1); r.text(this.session.data.username || this.i18n.t('signedIn'), 66, y + 55, 32, COLORS.paper, 'left', 'bold'); r.wrappedText(this.i18n.t('accountDesc'), 66, y + 112, 940, 22, COLORS.muted, 32, 3); y += 235
     section(this.i18n.t('gameExperience')); r.rect(36, y, 1008, 620, COLORS.card, 20, COLORS.cardBorder, 1)
@@ -375,16 +461,27 @@ class OddSpotApp {
   }
 
   renderGame() {
-    const r = this.renderer, h = r.height, game = this.game
-    r.iconButton('levels', 14, 12, 96, 'back')
-    r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52, 42, COLORS.gold, 'center', 'bold', 660)
+    const r = this.renderer, h = r.height, top = r.safeTop, game = this.game
+    r.iconButton('levels', 14, 12 + top, 96, 'back')
+    r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52 + top, 42, COLORS.gold, 'center', 'bold', 660)
     const total = game && game.level ? game.level.differences.length : 0, found = game ? Object.keys(game.found).length : 0
-    r.text(`${found} / ${total}`, 540, 96, 27, '#d6e3df', 'center'); r.iconButton('hint', 956, 12, 96, 'hint', true, found === total && total > 0)
-    r.progress(18, 125, 1044, 16, found, total || 1)
-    if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320, 28, COLORS.muted, 'center'); return }
-    r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175, 29, '#caaa66', 'center', 'normal', 940)
-    const bottomReserve = game.foundInfo ? 330 : 110
-    const imageTop = 215, imageBottom = h - bottomReserve, available = Math.max(300, imageBottom - imageTop)
+    r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center'); r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)
+    r.progress(18, 125 + top, 1044, 16, found, total || 1)
+    if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
+    r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 29, '#caaa66', 'center', 'normal', 940)
+    let panelHeight = 0, reasonLines = 0
+    if (game.foundInfo) {
+      const reason = String(game.foundInfo.reason || '').trim()
+      reasonLines = Math.max(1, r.wrap(reason, 990, 27).length)
+      const contentTop = 140
+      const reasonHeight = reasonLines * 37
+      const bottomPad = 44
+      panelHeight = contentTop + reasonHeight + bottomPad
+    }
+    const statusReserve = 110
+    const foundInfoReserve = game.foundInfo ? panelHeight + 56 : 0
+    const bottomReserve = Math.max(statusReserve, foundInfoReserve + 48)
+    const imageTop = 215 + top, imageBottom = h - bottomReserve, available = Math.max(300, imageBottom - imageTop)
     game.imageRects = []
     if (game.level.mode === 'spot_difference') {
       const each = (available - 16) / 2
@@ -392,10 +489,13 @@ class OddSpotApp {
       game.imageRects.push(this.renderGameImage(game.image, { x: 18, y: imageTop + each + 16, w: 1044, h: each }, game, 1))
     } else game.imageRects.push(this.renderGameImage(game.image, { x: 18, y: imageTop, w: 1044, h: available }, game, 0))
     if (game.foundInfo) {
-      const y = h - 300; r.rect(18, y, 1044, 225, '#eadbbd', 14, '#a53b2b', 2)
-      r.text(game.foundInfo.title, 42, y + 42, 36, '#d47b48', 'left', 'bold', 990); r.text(game.foundInfo.era, 42, y + 91, 27, '#886e48', 'left', 'normal', 990); r.wrappedText(game.foundInfo.reason, 42, y + 140, 990, 27, '#2b3335', 37, 3)
+      const y = h - (panelHeight + 48); r.rect(18, y, 1044, panelHeight, '#eadbbd', 14, '#a53b2b', 2)
+      r.text(game.foundInfo.title, 42, y + 42, 36, '#d47b48', 'left', 'bold', 990)
+      r.text(game.foundInfo.era, 42, y + 91, 27, '#886e48', 'left', 'normal', 990)
+      r.wrappedText(game.foundInfo.reason, 42, y + 140, 990, 27, '#2b3335', 37, reasonLines)
     }
     r.text(this.status, 540, h - 35, 25, '#c2d3cf', 'center', 'normal', 980)
+    this.clampGameView()
     if (game.complete) this.renderComplete()
   }
   renderGameImage(image, rect, game) {
@@ -434,7 +534,7 @@ class OddSpotApp {
       r.text(this.i18n.t('hintLimitUsage'), 540, rect.y + 240, 30, '#a33826', 'center'); r.text(this.i18n.t('hintLimitTitle'), 540, rect.y + 305, 44, '#30291f', 'center', 'bold')
       r.wrappedText(this.i18n.t('hintLimitMessage'), 540, rect.y + 365, 610, 28, '#574a3b', 40, 3, 'center'); r.button('modalClose', { x: 235, y: rect.y + 475, w: 610, h: 82 }, this.i18n.t('continueSearching'), { fill: '#a33d2e', border: '#f2cf78', size: 31 })
     } else if (this.modal === 'privacy') {
-      const rect = { x: 42, y: 80, w: 996, h: h - 160 }; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 24, COLORS.gold, 2)
+      const top = r.safeTop; const rect = { x: 42, y: 80 + top, w: 996, h: h - 160 - top }; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 24, COLORS.gold, 2)
       r.text(this.i18n.t('privacyPolicy'), 540, rect.y + 58, 38, COLORS.gold, 'center', 'bold')
       const clip = { x: 76, y: rect.y + 105, w: 928, h: rect.h - 220 }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); const textHeight = r.wrappedText(this.i18n.t('privacy'), clip.x, clip.y + 20 - this.scroll.privacy, clip.w, 23, COLORS.muted, 35, 200); c.restore(); this.privacyMaxScroll = Math.max(0, textHeight - clip.h + 40)
       r.button('modalClose', { x: 200, y: rect.y + rect.h - 95, w: 680, h: 70 }, this.i18n.t('privacyClose'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 26 })
@@ -454,7 +554,7 @@ class OddSpotApp {
     if (!this.modal && ['home', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
     if (!this.modal && this.scene === 'game' && this.game && this.game.imageRects.some((item) => item && inside(point, item.panel))) {
       if (points.length >= 2 && this.touch.pinchDistance > 1) {
-        const next = clamp(this.touch.pinchZoom * distance(points[0], points[1]) / this.touch.pinchDistance, 1, 4); this.game.view.zoom = next
+        const next = clamp(this.touch.pinchZoom * distance(points[0], points[1]) / this.touch.pinchDistance, 1, 4); this.game.view.zoom = next; this.clampGameView()
       } else if (this.game.view.zoom > 1) { this.game.view.x = this.touch.gameViewStart.x + dx; this.game.view.y = this.touch.gameViewStart.y + dy; this.clampGameView() }
     }
   }
@@ -473,10 +573,19 @@ class OddSpotApp {
   currentScroll() { return this.modal === 'privacy' ? this.scroll.privacy : this.scroll[this.scene] || 0 }
   setCurrentScroll(value) { if (this.scroll[this.scene] != null) this.scroll[this.scene] = value }
   clampGameView() {
-    if (!this.game || this.game.view.zoom <= 1.001) { if (this.game) { this.game.view.x = 0; this.game.view.y = 0 }; return }
-    const rect = this.game.imageRects[0]; if (!rect || !rect.draw) return
-    const limitX = Math.max(0, (rect.draw.w - rect.panel.w) / 2), limitY = Math.max(0, (rect.draw.h - rect.panel.h) / 2)
-    this.game.view.x = clamp(this.game.view.x, -limitX, limitX); this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
+    if (!this.game) return
+    if (this.game.view.zoom <= 1.001) { this.game.view.x = 0; this.game.view.y = 0; return }
+    const rects = Array.isArray(this.game.imageRects) ? this.game.imageRects.filter((item) => item && item.draw) : []
+    if (!rects.length) return
+    let limitX = Infinity, limitY = Infinity
+    for (const rect of rects) {
+      limitX = Math.min(limitX, Math.max(0, (rect.draw.w - rect.panel.w) / 2))
+      limitY = Math.min(limitY, Math.max(0, (rect.draw.h - rect.panel.h) / 2))
+    }
+    if (!isFinite(limitX)) limitX = 0
+    if (!isFinite(limitY)) limitY = 0
+    this.game.view.x = clamp(this.game.view.x, -limitX, limitX)
+    this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
     if (this.scene === 'game' && this.game && this.game.complete && !['replay', 'map', 'next'].includes(id)) return
