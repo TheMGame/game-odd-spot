@@ -142,7 +142,7 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	info.add_child(seals)
 	var state := Label.new()
 	var completed := _is_completed(entry)
-	state.text = "✓ 已完成" if completed else ("🔒 尚未解锁" if locked else "◆ 当前关卡")
+	state.text = "已完成" if completed else ("尚未解锁" if locked else "当前关卡")
 	state.add_theme_color_override("font_color", JADE if completed else GOLD)
 	state.add_theme_font_size_override("font_size", 26)
 	info.add_child(state)

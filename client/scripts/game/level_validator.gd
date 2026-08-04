@@ -34,6 +34,11 @@ static func validate(level: Dictionary) -> Dictionary:
 		if id.is_empty() or ids.has(id):
 			return _failure("LEVEL_DIFFERENCE_ID_INVALID")
 		ids[id] = true
+		if mode == "find_anachronism":
+			if str(difference.get("era", "")).strip_edges().is_empty():
+				return _failure("LEVEL_CLUE_MISSING")
+			if str(difference.get("explanation", "")).strip_edges().is_empty():
+				return _failure("LEVEL_CLUE_REASONING_MISSING")
 		var shape := str(difference.get("shape", ""))
 		if shape == "circle":
 			if not _unit_number(difference.get("x")) or not _unit_number(difference.get("y")):

@@ -5,6 +5,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	_test_level_validator(failures)
 	_test_builtin_translations(failures)
+	_test_api_base_url_isolation(failures)
 	if failures.is_empty():
 		print("Godot unit checks passed.")
 		quit(0)
@@ -55,6 +56,14 @@ func _test_builtin_translations(failures: Array[String]) -> void:
 		)
 	TranslationServer.set_locale("zh-CN")
 	_expect(TranslationServer.translate("设置") == "设置", "Chinese locale did not restore source text", failures)
+
+
+func _test_api_base_url_isolation(failures: Array[String]) -> void:
+	var local := "http://127.0.0.1:8080"
+	var production := "https://oddspot.guaguatu.com"
+	var api_client := root.get_node("ApiClient")
+	_expect(api_client.resolve_base_url(true, local, production) == local, "editor API override was ignored", failures)
+	_expect(api_client.resolve_base_url(false, local, production) == production, "exported build accepted local API override", failures)
 
 
 func _valid_level() -> Dictionary:

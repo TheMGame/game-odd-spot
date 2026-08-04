@@ -498,12 +498,21 @@ func new_request_id() -> String:
 
 
 func _configure_base_url() -> void:
-	var environment_url := OS.get_environment("ODDSPOT_API_BASE_URL").strip_edges()
-	if not environment_url.is_empty():
-		base_url = environment_url.trim_suffix("/")
-		return
 	var production_url := str(ProjectSettings.get_setting("oddspot/network/production_base_url", "")).strip_edges()
-	if not production_url.is_empty():
-		base_url = production_url.trim_suffix("/")
-		return
-	base_url = DEFAULT_BASE_URL
+	# Exported runtimes may inherit environment variables from their host (the
+	# WeChat developer tool reports itself as Windows and does this in practice).
+	# Local overrides are therefore editor-only; every packaged build uses the
+	# endpoint signed into project.godot.
+	base_url = resolve_base_url(
+		OS.has_feature("editor"),
+		OS.get_environment("ODDSPOT_API_BASE_URL"),
+		production_url,
+	)
+
+
+static func resolve_base_url(is_editor: bool, environment_url: String, production_url: String) -> String:
+	var clean_environment := environment_url.strip_edges().trim_suffix("/")
+	if is_editor and not clean_environment.is_empty():
+		return clean_environment
+	var clean_production := production_url.strip_edges().trim_suffix("/")
+	return clean_production if not clean_production.is_empty() else DEFAULT_BASE_URL

@@ -155,9 +155,10 @@ func _mark_found(difference: Dictionary) -> void:
 
 
 func _show_found_info(difference: Dictionary) -> void:
-	found_title.text = "✓ 找到：%s" % str(difference.get("label", difference.get("id", "时代错误")))
-	found_era.text = "出现年代：%s" % str(difference.get("era", "北宋以后"))
-	found_reason.text = str(difference.get("explanation", "这个物件不属于当前历史年代。"))
+	found_title.text = "已找到：%s" % str(difference.get("label", difference.get("id", "时代错误")))
+	found_era.text = "线索：%s" % str(difference.get("era", "暂无线索"))
+	var reasoning := str(difference.get("explanation", "")).strip_edges()
+	found_reason.text = "线索推理：%s" % (reasoning if not reasoning.is_empty() else "这条素材尚缺少推理说明，请通过右上角举报反馈。")
 	found_info.visible = true
 
 

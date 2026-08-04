@@ -52,11 +52,25 @@ try {
     $project = $project.Replace('enabled=PackedStringArray("godot-minigame")', 'enabled=PackedStringArray()')
     [IO.File]::WriteAllText($projectPath, $project, [Text.UTF8Encoding]::new($false))
 
+    # This compatibility directory is persistent to retain expensive 4.6
+    # imports, but exported scripts must never come from a previous build.
+    # Removing only generated script/scene export caches keeps font imports
+    # intact while forcing Godot to compile the current API configuration.
+    $exportCache = Join-Path $compatDir ".godot\exported"
+    if (Test-Path -LiteralPath $exportCache -PathType Container) {
+        Remove-Item -LiteralPath $exportCache -Recurse -Force
+    }
+
+    $previousErrorPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & $Godot46 --headless --editor --path $compatDir --quit
+    $importExitCode = $LASTEXITCODE
     # This local 4.6.2 build can crash while shutting the headless editor down;
     # the export and load smoke test below are the authoritative checks.
 
     & $Godot46 --headless --path $compatDir --export-pack Web $temporaryPack
+    $exportExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorPreference
     # Godot 4.6.2 on Windows can crash during shutdown after savepack has
     # completed. Accept the artifact only after a real 4.6 load smoke test.
     if (-not (Test-Path -LiteralPath $temporaryPack -PathType Leaf)) {
@@ -64,6 +78,9 @@ try {
     }
     if ((Get-Item -LiteralPath $temporaryPack).Length -lt 1MB) {
         throw "Godot 4.6 compatibility PCK is unexpectedly small."
+    }
+    if ($exportExitCode -ne 0 -and $exportExitCode -ne -1073741819) {
+        throw "Godot 4.6 compatibility PCK export failed with exit code $exportExitCode."
     }
 
     $previousErrorPreference = $ErrorActionPreference

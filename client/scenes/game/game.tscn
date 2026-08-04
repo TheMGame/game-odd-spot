@@ -138,13 +138,13 @@ text = "发现时代错误"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.69, 0.45, 1)
 theme_override_font_sizes/font_size = 29
-text = "出现年代"
+text = "线索"
 
 [node name="Reason" type="Label" parent="Layout/FoundInfo/Margin/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.17, 0.20, 0.21, 1)
 theme_override_font_sizes/font_size = 29
-text = "原因"
+text = "线索推理"
 autowrap_mode = 2
 
 [node name="Journal" type="PanelContainer" parent="Layout"]

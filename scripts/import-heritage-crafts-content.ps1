@@ -36,6 +36,23 @@ $tierScores = @{
   expert = 5
 }
 
+function Get-CraftKnowledge($difference) {
+  $label = [string]$difference.label
+  if ($label -match 'LED|数字|数显|红外|平板电脑|蓝牙|无线|激光') {
+    return @{ clue = '依赖20世纪后期至21世纪的电子技术'; reason = "${label}依靠半导体、传感器或数字显示工作，而画面呈现的是以人力、经验和传统手工具完成的工序。" }
+  }
+  if ($label -match '电动|电磨|电圆锯|电钻|焊机|电磁炉|喷釉枪|喷涂枪|热熔胶枪|热风枪|真空封口机|抛光机|打磨机') {
+    return @{ clue = '机械化设备比传统工序晚出现'; reason = "${label}需要电机、电热元件或现代供电系统；传统作坊以手工工具和炉火完成同一步骤，动力来源明显不一致。" }
+  }
+  if ($label -match '塑料|涤纶|尼龙|丙烯|环氧|聚氨酯|气泡膜|保鲜膜|透明胶带|扎带|丁腈|气雾|喷漆') {
+    return @{ clue = '现代合成材料，20世纪才进入日常生产'; reason = "${label}使用石化工业制造的合成材料；传统作坊通常采用竹木、纸、天然纤维、动物胶或天然漆，因此材质本身就是时代线索。" }
+  }
+  if ($label -match '十字螺丝|订书机|自动回墨|安全帽|防护面罩|干燥剂') {
+    return @{ clue = '现代标准化工业用品'; reason = "${label}依赖标准化零件、模具或现代工业生产体系，和画面中就地取材、手工制作的传统工具体系不相符。" }
+  }
+  return @{ clue = '现代工业制品'; reason = "${label}的材料、结构和制造方式来自现代工业体系，传统作坊没有相应的能源、设备或批量生产条件。" }
+}
+
 foreach ($level in $manifest.levels) {
   $imagePath = Join-Path $ExportDir "$($level.id).png"
   if (-not (Test-Path -LiteralPath $imagePath -PathType Leaf)) {
@@ -54,6 +71,7 @@ foreach ($level in $manifest.levels) {
   $score = $tierScores[$level.tier]
   $differences = @(
     foreach ($difference in $level.differences) {
+      $knowledge = Get-CraftKnowledge $difference
       @{
         id = $difference.id
         shape = "circle"
@@ -61,8 +79,8 @@ foreach ($level in $manifest.levels) {
         y = $difference.y
         radius = $difference.radius
         label = $difference.label
-        era = "modern"
-        explanation = $difference.explanation
+        era = $knowledge.clue
+        explanation = "$($knowledge.reason)$($difference.explanation)"
         difficulty = $score
         operation = "anachronism"
       }

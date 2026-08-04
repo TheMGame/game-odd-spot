@@ -96,9 +96,11 @@ def validate(directory: Path) -> list[str]:
             fail(errors, f"{prefix}.id 重复：{target_id}")
         if target_id:
             seen_ids.add(target_id)
-        for field in ("name", "description"):
+        for field in ("name", "description", "clue", "reasoning"):
             if not isinstance(item.get(field), str) or not item[field].strip():
                 fail(errors, f"{prefix}.{field} 不能为空")
+        if isinstance(item.get("reasoning"), str) and len(item["reasoning"].strip()) < 20:
+            fail(errors, f"{prefix}.reasoning 至少20字，需解释知识依据与场景矛盾")
         for field in ("x", "y"):
             value = item.get(field)
             if not isinstance(value, (int, float)) or not 0 <= value <= 1:

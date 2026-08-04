@@ -62,11 +62,17 @@ FETCH_CREATE_WITH_DEFAULT_PORT = (
 FETCH_CREATE_WITH_NORMALIZED_PORT = (
     "create:function(method,url,headers,body){"
     'url=url.replace(/^https:\\/\\/([^/:]+):443(?=\\/|$)/,"https://$1")'
-    '.replace(/^http:\\/\\/([^/:]+):80(?=\\/|$)/,"http://$1");'
+    '.replace(/^http:\\/\\/([^/:]+):80(?=\\/|$)/,"http://$1")'
+    '.replace(/^http:\\/\\/(?:127\\.0\\.0\\.1|localhost)(?::\\d+)?(?=\\/|$)/,"https://oddspot.guaguatu.com");'
     "const requestBody="
 )
 DEFAULT_PORT_NORMALIZER_MARKER = (
     'url=url.replace(/^https:\\/\\/([^/:]+):443(?=\\/|$)/,"https://$1")'
+)
+LOOPBACK_API_GUARD_MARKER = '"https://oddspot.guaguatu.com"'
+LOOPBACK_API_REWRITE = (
+    '.replace(/^http:\\/\\/(?:127\\.0\\.0\\.1|localhost)(?::\\d+)?(?=\\/|$)/,'
+    '"https://oddspot.guaguatu.com")'
 )
 EMPTY_ELEMENT_FOCUS = "value: function focus() { }"
 WECHAT_ELEMENT_FOCUS = """value: function focus() {
@@ -407,6 +413,15 @@ def main() -> int:
             FETCH_CREATE_WITH_NORMALIZED_PORT,
             1,
         )
+    elif (
+        DEFAULT_PORT_NORMALIZER_MARKER in runtime_source
+        and LOOPBACK_API_GUARD_MARKER not in runtime_source
+    ):
+        runtime_source = runtime_source.replace(
+            DEFAULT_PORT_NORMALIZER_MARKER,
+            DEFAULT_PORT_NORMALIZER_MARKER + LOOPBACK_API_REWRITE,
+            1,
+        )
     engine_runtime.write_text(runtime_source, encoding="utf-8", newline="\n")
     request_body_markers = (
         "ArrayBuffer.isView(body)",
@@ -419,6 +434,9 @@ def main() -> int:
         return 1
     if DEFAULT_PORT_NORMALIZER_MARKER not in runtime_source:
         print("engine/godot.js does not strip default wx.request ports.", file=sys.stderr)
+        return 1
+    if LOOPBACK_API_GUARD_MARKER not in runtime_source:
+        print("engine/godot.js does not guard against loopback API URLs.", file=sys.stderr)
         return 1
 
     # Do not rewrite the memory section inside the compressed WASM binary.

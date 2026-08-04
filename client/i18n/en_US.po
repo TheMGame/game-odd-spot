@@ -193,10 +193,10 @@ msgid "通关"
 msgstr "Continue"
 
 msgid "出现年代"
-msgstr "Appeared in"
+msgstr "Clue"
 
 msgid "原因"
-msgstr "Reason"
+msgstr "Clue reasoning"
 
 msgid "发现手记"
 msgstr "Discovery notes"

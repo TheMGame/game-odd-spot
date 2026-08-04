@@ -28,4 +28,4 @@ Catalog 使用内存和磁盘缓存；已访问的关卡图片使用带 SHA-256 
 
 本地检查运行 `scripts/test-all.ps1`，包括 Go test/vet、Godot 场景冒烟测试和客户端单元测试。PR 与 master push 也会运行相同类别的 CI 检查。
 
-客户端默认连接生产 API `https://oddspot.guaguatu.com`。仅在需要本地调试时，通过运行环境变量 `ODDSPOT_API_BASE_URL` 显式覆盖，例如 `http://127.0.0.1:8080`；Android 模拟器应填写宿主机可访问地址。
+客户端默认连接生产 API `https://oddspot.guaguatu.com`。仅在 Godot 编辑器内本地调试时，通过运行环境变量 `ODDSPOT_API_BASE_URL` 显式覆盖，例如 `http://127.0.0.1:8080`；任何导出包都会忽略该变量，避免宿主环境污染生产配置。

@@ -193,10 +193,10 @@ msgid "通关"
 msgstr "通关"
 
 msgid "出现年代"
-msgstr "出现年代"
+msgstr "线索"
 
 msgid "原因"
-msgstr "原因"
+msgstr "线索推理"
 
 msgid "发现手记"
 msgstr "发现手记"

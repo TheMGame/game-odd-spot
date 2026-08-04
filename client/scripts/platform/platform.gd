@@ -2,7 +2,6 @@ class_name Platform
 extends RefCounted
 
 const FEATURE_WECHAT_MINIGAME := "wechat_minigame"
-const WECHAT_SCROLL_DRIVER := preload("res://scripts/platform/wechat_scroll_driver.gd")
 
 
 static func is_wechat_minigame() -> bool:
@@ -37,7 +36,12 @@ static func optimize_touch_scroll(scroll: ScrollContainer) -> void:
 	scroll.scroll_deadzone = 4
 	_set_scroll_buttons_to_pass(scroll)
 	if not scroll.has_node("WechatScrollDriver"):
-		var driver := WECHAT_SCROLL_DRIVER.new()
+		# Build the path at runtime so the Web exporter can omit this
+		# WeChat-only script without recording it as a pack dependency.
+		var driver_script := load("res://scripts/platform/" + "wechat_scroll_driver.gd") as Script
+		if driver_script == null:
+			return
+		var driver = driver_script.new()
 		driver.name = "WechatScrollDriver"
 		scroll.add_child(driver)
 		driver.configure(scroll)

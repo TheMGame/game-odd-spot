@@ -63,8 +63,8 @@ $differences = @(
       y = $difference.y
       radius = $difference.radius
       label = $difference.name
-      era = "not_in_scene"
-      explanation = $difference.description
+      era = $difference.clue
+      explanation = $difference.reasoning
       difficulty = 4
       operation = "anachronism"
     }
