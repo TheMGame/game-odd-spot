@@ -1,5 +1,7 @@
 extends Control
 
+const HOME_SCENE := preload("res://scenes/home/home.tscn")
+
 const INK := Color("#0b1b29")
 const PAPER := Color("#f3e8cf")
 const GOLD := Color("#e6b95c")
@@ -8,12 +10,96 @@ const JADE := Color("#72a58f")
 
 @onready var cards: VBoxContainer = $Layout/Scroll/Cards
 
+var locked_overlay: ColorRect
+var locked_card: PanelContainer
+
 
 func _ready() -> void:
-	$Layout/Header/Back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/home/home.tscn"))
+	_create_locked_dialog()
+	$Layout/Header/Back.pressed.connect(func(): get_tree().change_scene_to_packed(HOME_SCENE))
 	$Layout/Header/Settings.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/settings/settings.tscn"))
 	await _build_cards()
 	Platform.optimize_touch_scroll($Layout/Scroll)
+
+
+func _create_locked_dialog() -> void:
+	locked_overlay = ColorRect.new()
+	locked_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	locked_overlay.color = Color(INK, 0.82)
+	locked_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	locked_overlay.z_index = 100
+	locked_overlay.visible = false
+	add_child(locked_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	locked_overlay.add_child(center)
+	locked_card = PanelContainer.new()
+	locked_card.custom_minimum_size = Vector2(720, 610)
+	locked_card.add_theme_stylebox_override("panel", _round_box(Color("#f3e8cf"), GOLD, 24, 4))
+	center.add_child(locked_card)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 42)
+	margin.add_theme_constant_override("margin_top", 34)
+	margin.add_theme_constant_override("margin_right", 42)
+	margin.add_theme_constant_override("margin_bottom", 34)
+	locked_card.add_child(margin)
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 18)
+	margin.add_child(content)
+
+	var eyebrow := Label.new()
+	eyebrow.text = "· 案件锁定 ·"
+	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	eyebrow.add_theme_color_override("font_color", CINNABAR)
+	eyebrow.add_theme_font_size_override("font_size", 27)
+	content.add_child(eyebrow)
+
+	var seal := PanelContainer.new()
+	seal.custom_minimum_size = Vector2(104, 104)
+	seal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	seal.add_theme_stylebox_override("panel", _round_box(Color("#8f352c"), GOLD, 52, 4))
+	content.add_child(seal)
+	var seal_text := Label.new()
+	seal_text.text = "锁"
+	seal_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	seal_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	seal_text.add_theme_color_override("font_color", PAPER)
+	seal_text.add_theme_font_size_override("font_size", 40)
+	seal.add_child(seal_text)
+
+	var progress := Label.new()
+	progress.text = "解锁条件"
+	progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	progress.add_theme_color_override("font_color", CINNABAR)
+	progress.add_theme_font_size_override("font_size", 27)
+	content.add_child(progress)
+	var heading := Label.new()
+	heading.text = "前一案件尚未完成"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.add_theme_color_override("font_color", INK)
+	heading.add_theme_font_size_override("font_size", 40)
+	content.add_child(heading)
+	var message := Label.new()
+	message.text = "完成上一案件后，本关将自动解锁。\n循序追查，真相就在下一程。"
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.add_theme_color_override("font_color", Color("#725c45"))
+	message.add_theme_font_size_override("font_size", 27)
+	message.add_theme_constant_override("line_spacing", 8)
+	content.add_child(message)
+
+	var close := Button.new()
+	close.text = "继续探索"
+	close.custom_minimum_size = Vector2(0, 82)
+	close.add_theme_font_size_override("font_size", 30)
+	close.add_theme_color_override("font_color", PAPER)
+	close.add_theme_stylebox_override("normal", _round_box(Color("#ad3f30"), GOLD, 10, 2))
+	close.add_theme_stylebox_override("hover", _round_box(Color("#c4513f"), Color("#f0cf82"), 10, 3))
+	close.add_theme_stylebox_override("pressed", _round_box(Color("#8f3028"), GOLD, 10, 2))
+	close.pressed.connect(_hide_locked_dialog)
+	content.add_child(close)
 
 
 func _build_cards() -> void:
@@ -78,13 +164,15 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	var button := Button.new()
 	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(0, 250)
-	button.disabled = locked
 	button.text = ""
-	button.add_theme_stylebox_override("normal", _round_box(Color("#173a46"), Color(GOLD, 0.72), 18, 2))
-	button.add_theme_stylebox_override("hover", _round_box(Color("#22505d"), GOLD, 18, 3))
+	button.add_theme_stylebox_override("normal", _round_box(Color("#183039") if locked else Color("#173a46"), Color("#52666b") if locked else Color(GOLD, 0.72), 18, 2))
+	button.add_theme_stylebox_override("hover", _round_box(Color("#203941") if locked else Color("#22505d"), Color("#6d8084") if locked else GOLD, 18, 3))
 	button.add_theme_stylebox_override("pressed", _round_box(Color("#12323d"), CINNABAR, 18, 3))
 	button.add_theme_stylebox_override("disabled", _round_box(Color("#183039"), Color("#52666b"), 18, 1))
 	button.pressed.connect(func():
+		if locked:
+			_show_locked_dialog()
+			return
 		LevelLoader.select_remote_level(str(entry.get("id", "")))
 		get_tree().change_scene_to_file("res://scenes/game/game.tscn")
 	)
@@ -146,6 +234,27 @@ func _add_level_card(index: int, entry: Dictionary, locked: bool) -> void:
 	state.add_theme_color_override("font_color", JADE if completed else GOLD)
 	state.add_theme_font_size_override("font_size", 26)
 	info.add_child(state)
+
+
+func _show_locked_dialog() -> void:
+	locked_overlay.visible = true
+	locked_overlay.modulate.a = 0.0
+	locked_card.scale = Vector2(0.82, 0.82)
+	await get_tree().process_frame
+	locked_card.pivot_offset = locked_card.size * 0.5
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(locked_overlay, "modulate:a", 1.0, 0.2)
+	tween.tween_property(locked_card, "scale", Vector2.ONE, 0.32)
+
+
+func _hide_locked_dialog() -> void:
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(locked_overlay, "modulate:a", 0.0, 0.14)
+	tween.tween_property(locked_card, "scale", Vector2(0.92, 0.92), 0.14)
+	await tween.finished
+	locked_overlay.visible = false
 
 
 func _is_completed(entry: Dictionary) -> bool:

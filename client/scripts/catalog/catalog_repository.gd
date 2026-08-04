@@ -15,8 +15,14 @@ func _ready() -> void:
 
 
 func get_catalog(force_refresh := false) -> Dictionary:
-	if not force_refresh and not _catalog.is_empty() and Time.get_unix_time_from_system() - _loaded_at < TTL_SECONDS:
+	if not force_refresh and not _catalog.is_empty():
+		if Time.get_unix_time_from_system() - _loaded_at >= TTL_SECONDS and not _loading:
+			_refresh_catalog()
 		return {"ok": true, "data": _catalog.duplicate(true), "source": "cache"}
+	return await _refresh_catalog()
+
+
+func _refresh_catalog() -> Dictionary:
 	if _loading:
 		await request_finished
 		return _last_result.duplicate(true)

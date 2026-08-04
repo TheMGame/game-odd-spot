@@ -1,5 +1,7 @@
 extends Control
 
+const HOME_SCENE := preload("res://scenes/home/home.tscn")
+
 const CARD_FILL := Color("#173a46")
 const CARD_BORDER := Color("#5b7d87")
 const GOLD := Color("#e6b95c")
@@ -214,7 +216,7 @@ func _logout() -> void:
 
 
 func _go_home() -> void:
-	get_tree().change_scene_to_file("res://scenes/home/home.tscn")
+	get_tree().change_scene_to_packed(HOME_SCENE)
 
 
 func _round_box(fill: Color, border: Color, radius: int, width: int) -> StyleBoxFlat:

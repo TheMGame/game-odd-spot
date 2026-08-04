@@ -1,5 +1,7 @@
 extends Control
 
+const LEVEL_SELECT_SCENE := preload("res://scenes/level_select/level_select.tscn")
+
 @onready var base_panel: SpotImage = $Layout/BasePanel
 @onready var target_panel: SpotImage = $Layout/ImageFrame/Margin/TargetPanel
 @onready var counter: Label = $Layout/TopBar/Heading/Counter
@@ -34,17 +36,15 @@ func _ready() -> void:
 	target_panel.view_changed.connect(_sync_base_view)
 	hint_button.pressed.connect(_use_hint)
 	$Layout/TopBar/Report.pressed.connect(_report_level)
-	$Layout/TopBar/Back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn"))
+	$Layout/TopBar/Back.pressed.connect(func(): get_tree().change_scene_to_packed(LEVEL_SELECT_SCENE))
 	$CompletePanel/Margin/Content/Actions/Next.pressed.connect(_next_level)
-	$CompletePanel/Margin/Content/Actions/Map.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn"))
+	$CompletePanel/Margin/Content/Actions/Map.pressed.connect(func(): get_tree().change_scene_to_packed(LEVEL_SELECT_SCENE))
 	$CompletePanel/Margin/Content/Actions/Replay.pressed.connect(_replay_level)
 	_create_hint_limit_dialog()
 	resized.connect(_apply_responsive_layout)
 	_apply_visual_style()
 	_apply_responsive_layout()
 	_load_level()
-
-
 func _load_level() -> void:
 	var loaded := await LevelLoader.new().load_first_level()
 	if not loaded.ok:
@@ -332,7 +332,7 @@ func _next_level() -> void:
 	if has_next:
 		get_tree().reload_current_scene()
 	else:
-		get_tree().change_scene_to_file("res://scenes/level_select/level_select.tscn")
+		get_tree().change_scene_to_packed(LEVEL_SELECT_SCENE)
 
 
 func _replay_level() -> void:
