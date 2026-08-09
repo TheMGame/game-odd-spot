@@ -1,0 +1,12 @@
+{
+  "name": "oddspot-webgame-native",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild game.js --bundle --platform=browser --target=es2020 --minify --sourcemap --outfile=app.bundle.js",
+    "check": "npm run build && node tests/run-tests.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8"
+  }
+}

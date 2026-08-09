@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#102a35">
+  <meta name="description" content="错位大侦探原生 Web 游戏">
+  <title>错位大侦探</title>
+  <link rel="preload" href="assets/branding/guagua-rabbit-logo.png" as="image">
+  <link rel="stylesheet" href="styles.css?v=0.2.1">
+</head>
+<body>
+  <main id="game-shell" aria-label="错位大侦探游戏">
+    <canvas id="game-canvas" aria-label="游戏画面"></canvas>
+    <div id="safe-area-probe" aria-hidden="true"></div>
+
+    <section id="login-panel" class="login-panel" aria-labelledby="login-title" hidden>
+      <div class="login-card">
+        <h1 id="login-title">欢迎回来</h1>
+        <p id="login-description">使用邮箱和密码登录，同步关卡进度与游戏权益。</p>
+
+        <div id="login-form" class="form-stack">
+          <label>邮箱<input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
+          <label>密码<input id="login-password" type="password" autocomplete="current-password" minlength="10" placeholder="至少 10 个字符"></label>
+          <button id="login-submit" class="primary" type="button">登录</button>
+          <button id="show-registration" class="secondary" type="button">使用邮箱创建账号</button>
+        </div>
+
+        <div id="registration-form" class="form-stack" hidden>
+          <label>邮箱<input id="register-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
+          <div class="code-row">
+            <label>验证码<input id="email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位验证码"></label>
+            <button id="send-code" class="secondary" type="button">发送验证码</button>
+          </div>
+          <button id="verify-code" class="primary" type="button">验证邮箱</button>
+          <button id="back-to-login" class="text-button" type="button">返回账号登录</button>
+        </div>
+
+        <div id="registration-profile" class="form-stack" hidden>
+          <label>设置密码<input id="register-password" type="password" autocomplete="new-password" minlength="10" placeholder="至少 10 个字符"></label>
+          <label>确认密码<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="10" placeholder="再次输入密码"></label>
+          <label>昵称（可选）<input id="register-nickname" type="text" maxlength="64" placeholder="不填则使用系统默认昵称"></label>
+          <button id="complete-registration" class="primary" type="button">完成注册并登录</button>
+        </div>
+
+        <p id="login-status" class="login-status" role="status" aria-live="polite"></p>
+        <p class="agreement">登录即表示你同意用户协议与隐私政策</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    window.ODDSPOT_CONFIG = window.ODDSPOT_CONFIG || {}
+  </script>
+  <script defer src="app.bundle.js?v=0.2.1"></script>
+</body>
+</html>

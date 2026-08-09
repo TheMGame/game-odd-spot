@@ -124,6 +124,7 @@ func _create_account() -> void:
 
 
 func _show_email_registration() -> void:
+	var existing_email := account_input.text.strip_edges()
 	$SafeArea/Layout/Card/Content/Title.text = "邮箱注册"
 	$SafeArea/Layout/Card/Content/Description.text = "验证邮箱后设置用户名、昵称与头像。"
 	account_input.placeholder_text = "邮箱"
@@ -135,10 +136,14 @@ func _show_email_registration() -> void:
 	verify_code_button.visible = true
 	create_button.text = "返回账号登录"
 	status_label.text = ""
-	account_input.grab_focus()
+	if existing_email.is_empty():
+		account_input.grab_focus()
+	else:
+		send_code_button.grab_focus()
 
 
 func _show_login() -> void:
+	var existing_email := account_input.text.strip_edges()
 	registration_ticket = ""
 	$SafeArea/Layout/Card/Content/Title.text = "欢迎回来"
 	$SafeArea/Layout/Card/Content/Description.text = "使用邮箱和密码登录，同步关卡进度与游戏权益。"
@@ -154,6 +159,10 @@ func _show_login() -> void:
 	complete_registration_button.visible = false
 	create_button.text = "使用邮箱创建账号"
 	status_label.text = ""
+	if existing_email.is_empty():
+		account_input.grab_focus()
+	else:
+		password_input.grab_focus()
 
 
 func _send_email_code() -> void:
