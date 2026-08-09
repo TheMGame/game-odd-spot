@@ -1,6 +1,6 @@
 ---
 name: generate-daily-trending-challenge
-description: Search current daily trends, select a safe and visually expressive topic, generate one high-difficulty Misplaced Detective image, inspect the finished image for actual answer locations, and produce a validated draft level package. Use for 每日挑战、今日热点关卡、热点找茬、daily challenge, or when one current-event-inspired hidden-object level is requested.
+description: Search current domestic trends, select a safe and visually expressive non-sports topic, generate one natural high-difficulty Misplaced Detective image without frontal faces, inspect the finished image for actual answer locations, and produce a validated draft level package. Use for 每日挑战、今日热点关卡、热点找茬、daily challenge, or when one current-event-inspired hidden-object level is requested.
 ---
 
 # 每日热点挑战生成器
@@ -31,15 +31,28 @@ description: Search current daily trends, select a safe and visually expressive 
 5. 选择既有热度、又能转化成丰富视觉场景的主题，而不是只看标题声量。
 6. 在 `sources.md` 记录候选、选择理由、淘汰理由、来源标题、链接、发布日期和事件日期。
 
+默认不选择体育主题。优先考虑吃喝玩乐、暑期旅游、夜间文旅、公共文化、
+非遗、美食市集、展览和普通城市生活；只有用户明确要求体育时才选择体育。
+
 若当天没有兼具安全性与视觉表现力的热点，选择近期仍在持续的无害公共话题，并在 `sources.md` 明确说明，不要虚构热点。
 
 ### 3. 设计高难度关卡
 
-默认设计 8 个答案，难度为 `hard`。用户明确要求专家难度时可改为 10 个。
+默认设计 8 个答案，难度为 `hard`。用户明确要求专家难度时改为 10 个。
+
+开始设计前，扫描最近 30 个 `build/daily-challenges/*/*/level.json` 和
+`prompt.md`，列出近期主题、场景构图和答案物品。新关卡不得重复近期主题的
+核心构图；同主题续作必须更换地点、人物活动和全部答案物品，并在
+`sources.md` 写明去重记录。
+
+完整阅读 `references/image-quality-and-continuity.md`，把其中的真实性、
+小型异常物和人物面孔限制写进本次 `prompt.md`。
 
 - 把热点转化为一个统一、可信、细节密集的场景。
 - 玩法默认为“找出不属于该场景、主题或时代的物品”，模式使用 `find_anachronism`。
 - 答案物品必须小而可辨识，约 25%–35% 被遮挡或融入相近色环境。
+- 异常物优先依附在正常装备、人物穿戴、摊位器具或环境结构中；禁止把转椅、
+  台灯等大型孤立道具摆在空地上制造明显的“后贴感”。
 - 分散答案位置，避免规则网格、集中在边缘或都落在同一视觉层级。
 - 加入合理的相似物、重复纹理和非答案干扰物，但每个答案只能出现一次。
 - 不依靠可读文字、品牌标志、名人面孔或新闻截图来识别主题或答案。
@@ -54,6 +67,10 @@ description: Search current daily trends, select a safe and visually expressive 
 - 禁止拼图、左右对比、多面板、答案圈选、箭头、编号、水印和解释文字。
 - 首次只生成一张。
 - 生成后立即目视检查：整体质量、主题可读性、每个答案是否真实存在且只出现一次、是否有融合或畸形。
+- 检查所有人物均无清晰正面人脸。只允许背影、侧脸、低头、远景、被帽檐或
+  环境自然遮挡的脸；发现直视镜头或完整正脸时必须定向编辑。
+- 按 `references/image-quality-and-continuity.md` 检查皮肤、衣物、光影、镜头、
+  构图和异常物融合度。任何塑料皮、冲突阴影、对称摆拍或孤立大件均不通过。
 - 若检查失败，优先定向编辑同一张图；仅当整体构图不可救时重生成一张。
 
 ### 5. 从成图识别答案坐标
@@ -103,6 +120,10 @@ content-tools/skills/publish-oddspot-admin-content/scripts/publish-importer.ps1 
 - 热点有可追溯来源，日期正确。
 - 只有一张正式候选图。
 - 主题安全、视觉明确，不消费悲剧或争议。
+- 默认选题为国内非体育内容，并优先吃喝玩乐与文化旅游。
+- 不出现清晰正面人脸或直视镜头的人物。
+- 画面通过真实性检查，异常物小型、自然遮挡且融入正常场景。
+- 已检查近期关卡并记录必要的主题、构图和答案去重信息。
 - 默认 8 个高难度答案全部真实存在、唯一且可点击。
 - 坐标来自最终成图，审核图与配置一致。
 - 校验脚本通过。

@@ -68,6 +68,7 @@ class Preferences {
       analytics: true, vibration: true, music: true, effects: true,
       largeMarkers: false, locale: String(system.language || '').startsWith('zh') ? 'zh-CN' : 'en-US',
       localeMode: 'automatic', localePackVersion: 0,
+      watermarkEnabled: true, watermarkText: '',
     }, read(KEYS.preferences, {}))
   }
 

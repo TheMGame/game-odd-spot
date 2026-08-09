@@ -96,7 +96,57 @@ async function saveSeries(event){event.preventDefault();const existing=state.cat
 function newLevel(seriesId=""){const series=state.catalog.find(s=>s.id===seriesId)||state.catalog[0];if(!series)return showSeriesModal();state.series=series;state.levelEntry={sort_order:(series.levels?.length||0)*10+10};state.level={schema_version:1,level_id:`level_${Date.now()}`,level_version:1,mode:series.mode,title:"未命名关卡",instruction:"圈出 5 个不属于这个年代的物件",assets:{image:{asset_id:"",url:"",sha256:"",bytes:0,content_type:"image/png"},width:1024,height:1536},differences:[],difficulty:{total:1}};state.selected=0;renderEditor()}
 async function uploadLibraryAsset(file){if(!file)return;try{const id=`asset_${Date.now()}`,asset=await api(`/assets/${id}`,{method:"POST",headers:{"Content-Type":file.type},body:file});toast("素材上传成功");await loadData();renderLibrary();return asset}catch(e){toast(e.message,"error")}}
 function renderReview(){shell("review","审核中心");const levels=state.catalog.flatMap(s=>s.levels||[]);$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>审核中心</h1><p>检查图片、热点位置与历史解释</p></div></div>${levelTable(levels)}</div>`}
-function renderSettings(){shell("settings","系统设置");$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>系统设置</h1><p>环境与 API 连接</p></div></div><section class="card form-stack" style="max-width:600px"><label>Admin API<input id="settings-api" value="${escapeHtml(apiBase())}"></label><label>生产客户端 API<input value="在 client/project.godot 配置 oddspot/network/production_base_url" readonly></label><button class="btn primary" onclick="localStorage.setItem('oddspot_admin_api',$('settings-api').value);toast('设置已保存')">保存设置</button></section></div>`}
+function renderSettings(){shell("settings","系统设置");const wm=getWatermarkConfig();$("view").innerHTML=`<div class="page"><div class="page-header"><div><h1>系统设置</h1><p>环境与 API 连接</p></div></div>
+<section class="card form-stack" style="max-width:600px"><h3 style="margin:0 0 4px">连接配置</h3><label>Admin API<input id="settings-api" value="${escapeHtml(apiBase())}"></label><label>生产客户端 API<input value="在 client/project.godot 配置 oddspot/network/production_base_url" readonly></label><button class="btn primary" onclick="localStorage.setItem('oddspot_admin_api',$('settings-api').value);toast('设置已保存')">保存设置</button></section>
+<section class="card form-stack" style="max-width:820px;margin-top:20px">
+<h3 style="margin:0 0 4px">微信小游戏图片水印（AI 生成声明）</h3>
+<p style="margin:0 0 14px;color:#68717d">开启后，微信版本所有游戏图片上显示水印文字（默认右上角标签），用于合规声明 AI 生成内容。配置修改后需同步到 <code>wechat/js/config.js</code> 的 WATERMARK 对象中。</p>
+<label><input id="wm-enabled" type="checkbox" ${wm.enabled?"checked":""} onchange="saveWatermarkConfig()"> 启用水印功能</label>
+<label>水印文字<input id="wm-text" value="${escapeHtml(wm.text)}" oninput="saveWatermarkConfig()" placeholder="内容由 AI 生成"></label>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+<label>水印模式<select id="wm-mode" onchange="saveWatermarkConfig()">
+<option value="corner" ${wm.mode==="corner"?"selected":""}>角落标签（推荐）</option>
+<option value="tile" ${wm.mode==="tile"?"selected":""}>全屏斜向平铺</option>
+</select></label>
+<label>标签位置<select id="wm-placement" onchange="saveWatermarkConfig()">
+<option value="top-right" ${wm.placement==="top-right"?"selected":""}>右上角</option>
+<option value="top-left" ${wm.placement==="top-left"?"selected":""}>左上角</option>
+<option value="bottom-right" ${wm.placement==="bottom-right"?"selected":""}>右下角</option>
+<option value="bottom-left" ${wm.placement==="bottom-left"?"selected":""}>左下角</option>
+<option value="four-corners" ${wm.placement==="four-corners"?"selected":""}>四角同显</option>
+</select></label>
+<label>字号（px）<input id="wm-size" type="number" min="10" max="80" value="${wm.size}" oninput="saveWatermarkConfig()"></label>
+</div>
+<div id="wm-corner-options" style="display:${wm.mode==="corner"?"grid":"none"};grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:2px">
+<label>边距（px）<input id="wm-margin" type="number" min="0" max="200" value="${wm.margin}" oninput="saveWatermarkConfig()"></label>
+<label>内边距 X<input id="wm-px" type="number" min="0" max="120" value="${wm.px}" oninput="saveWatermarkConfig()"></label>
+<label>内边距 Y<input id="wm-py" type="number" min="0" max="120" value="${wm.py}" oninput="saveWatermarkConfig()"></label>
+<label>圆角（px）<input id="wm-radius" type="number" min="0" max="60" value="${wm.radius}" oninput="saveWatermarkConfig()"></label>
+<label>文字颜色<input id="wm-color" type="color" value="${wm.color}" oninput="saveWatermarkConfig()"> <small style="color:#68717d">纯色</small></label>
+<label>不透明度<input id="wm-opacity" type="range" min="10" max="100" value="${wm.opacity}" oninput="saveWatermarkConfig()"><small id="wm-opacity-label">${wm.opacity}%</small></label>
+<label>背景色<input id="wm-bgcolor" type="color" value="${wm.bgcolor}" oninput="saveWatermarkConfig()"> <small style="color:#68717d">纯色</small></label>
+<label>背景不透明度<input id="wm-bgopacity" type="range" min="0" max="100" value="${wm.bgopacity}" oninput="saveWatermarkConfig()"><small id="wm-bgopacity-label">${wm.bgopacity}%</small></label>
+<label>描边色<input id="wm-bordercolor" type="color" value="${wm.bordercolor}" oninput="saveWatermarkConfig()"> <small style="color:#68717d">纯色</small></label>
+</div>
+<div id="wm-tile-options" style="display:${wm.mode==="tile"?"grid":"none"};grid-template-columns:1fr 1fr;gap:10px;margin-top:2px">
+<label>倾斜角度（度）<input id="wm-angle" type="number" min="-90" max="90" value="${wm.angle}" oninput="saveWatermarkConfig()"></label>
+<label>横向间距（px）<input id="wm-mx" type="number" min="0" max="500" value="${wm.mx}" oninput="saveWatermarkConfig()"></label>
+<label>纵向间距（px）<input id="wm-my" type="number" min="0" max="500" value="${wm.my}" oninput="saveWatermarkConfig()"></label>
+<label>文字颜色<input id="wm-tile-color" type="color" value="${wm.tileColor||wm.color}" oninput="saveWatermarkConfig()"><small style="color:#68717d">纯色</small></label>
+<label>平铺不透明度<input id="wm-tile-opacity" type="range" min="5" max="100" value="${wm.tileOpacity||wm.opacity}" oninput="saveWatermarkConfig()"><small id="wm-tile-opacity-label">${wm.tileOpacity||wm.opacity}%</small></label>
+</div>
+<div style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:7px;padding:14px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b>预览效果</b><button class="btn small" onclick="refreshWatermarkPreview()">↻ 刷新预览</button></div>
+<div id="wm-preview" style="aspect-ratio:3/4;background:linear-gradient(135deg,#2c5560,#102a35);border-radius:5px;position:relative;overflow:hidden;max-width:420px;margin:auto">
+<div id="wm-preview-canvas-wrap" style="position:absolute;inset:0"></div>
+</div>
+</div>
+<label>生成配置代码（复制到 wechat/js/config.js 的 WATERMARK 对象中）
+<textarea id="wm-code" rows="18" readonly onclick="this.select();document.execCommand('copy');toast('配置代码已复制到剪贴板')" style="font-family:monospace;font-size:12px;cursor:pointer;line-height:1.5" title="点击即可复制"></textarea>
+<small style="color:#68717d">提示：点击上方代码框可直接复制全部代码</small>
+</label>
+</section>
+</div>`;refreshWatermarkCode();refreshWatermarkPreview()}
 
 const baseShowSeriesModal=showSeriesModal;
 const baseRenderEditor=renderEditor;
@@ -186,6 +236,180 @@ async function uploadSeriesCover(file){
     toast("封面已上传并加入素材库");
   }catch(e){$("series-cover-state").textContent="上传失败";toast(e.message,"error")}
 }
+
+const WM_KEY="oddspot_admin_watermark_v1";
+function getWatermarkConfig(){
+  const def={enabled:true,mode:"corner",text:"内容由 AI 生成",placement:"top-right",size:22,
+    margin:18,px:16,py:10,radius:10,color:"#ffffff",opacity:88,
+    bgcolor:"#0b1b29",bgopacity:58,bordercolor:"#e6b95c",borderopacity:55,
+    angle:-25,mx:40,my:60,tileColor:"#ffffff",tileOpacity:45};
+  try{return Object.assign({},def,JSON.parse(localStorage.getItem(WM_KEY)||"{}"))}catch(_){return def}
+}
+function saveWatermarkConfig(){
+  const mode=$("wm-mode").value;
+  const base={
+    enabled:$("wm-enabled").checked,
+    mode,
+    text:$("wm-text").value,
+    placement:$("wm-placement").value,
+    size:Number($("wm-size").value)||22,
+  };
+  if(mode==="corner"){Object.assign(base,{
+    margin:Number($("wm-margin").value)||18,
+    px:Number($("wm-px").value)||16,
+    py:Number($("wm-py").value)||10,
+    radius:Number($("wm-radius").value)||10,
+    color:$("wm-color").value||"#ffffff",
+    opacity:Number($("wm-opacity").value)||88,
+    bgcolor:$("wm-bgcolor").value||"#0b1b29",
+    bgopacity:Number($("wm-bgopacity").value)||58,
+    bordercolor:$("wm-bordercolor").value||"#e6b95c",
+  })}else{Object.assign(base,{
+    angle:Number($("wm-angle").value)||-25,
+    mx:Number($("wm-mx").value)||40,
+    my:Number($("wm-my").value)||60,
+    tileColor:$("wm-tile-color").value||"#ffffff",
+    tileOpacity:Number($("wm-tile-opacity").value)||45,
+  })}
+  localStorage.setItem(WM_KEY,JSON.stringify(base));
+  const op=$("wm-opacity-label"),bgop=$("wm-bgopacity-label"),top=$("wm-tile-opacity-label");
+  if(op)op.textContent=`${base.opacity??0}%`;
+  if(bgop)bgop.textContent=`${base.bgopacity??0}%`;
+  if(top)top.textContent=`${base.tileOpacity??0}%`;
+  refreshWatermarkCode();refreshWatermarkPreview();
+}
+function rgbFromHex(hex){
+  const h=String(hex||"#ffffff").replace("#","");
+  const v=h.length===3?h.split("").map(c=>c+c).join(""):h;
+  const n=parseInt(v,16);
+  return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+}
+function rgba(hex,opacity0_100,fallback){
+  try{const rgb=rgbFromHex(hex);return `rgba(${rgb.r},${rgb.g},${rgb.b},${(Math.max(0,Math.min(100,Number(opacity0_100)||0))/100).toFixed(2)})`}
+  catch(_){return fallback||"rgba(255,255,255,0.5)"}
+}
+function refreshWatermarkCode(){
+  if(!$("wm-code"))return;
+  const c=getWatermarkConfig();
+  const lines=["  WATERMARK: {",
+    `    ENABLED: ${c.enabled},`,
+    `    MODE: '${c.mode}',`,
+    `    TEXT: ${JSON.stringify(c.text||"内容由 AI 生成")},`,
+  ];
+  if(c.mode==="corner"){
+    const cornerShadow = (Math.max(0,Math.min(100,Number(c.opacity)||0))*.7/100).toFixed(2)
+    lines.push(
+      `    PLACEMENT: '${c.placement||"top-right"}',`,
+      `    FONT_SIZE: ${c.size},`,
+      `    COLOR: '${rgba(c.color,c.opacity,"rgba(255,255,255,0.88)")}',`,
+      `    SHADOW_COLOR: 'rgba(0,0,0,${cornerShadow})',`,
+      `    BG_COLOR: '${rgba(c.bgcolor,c.bgopacity,"rgba(11,27,41,0.58)")}',`,
+      `    BORDER_COLOR: '${rgba(c.bordercolor,55,"rgba(230,185,92,0.55)")}',`,
+      `    RADIUS: ${c.radius},`,
+      `    PADDING_X: ${c.px},`,
+      `    PADDING_Y: ${c.py},`,
+      `    MARGIN: ${c.margin},`,
+    )
+  }
+  lines.push("    TILE: {");
+  const tileShadow = (Math.max(0,Math.min(100,Number(c.tileOpacity||c.opacity)||0))*.6/100).toFixed(2)
+  lines.push(
+    `      ANGLE: ${c.angle},`,
+    `      MARGIN_X: ${c.mx},`,
+    `      MARGIN_Y: ${c.my},`,
+    `      COLOR: '${rgba(c.tileColor||c.color,c.tileOpacity||c.opacity,"rgba(255,255,255,0.45)")}',`,
+    `      SHADOW_COLOR: 'rgba(0,0,0,${tileShadow})',`,
+  );
+  lines.push("    },");
+  lines.push("  },");
+  $("wm-code").value=lines.join("\n");
+}
+function drawCornerPreview(ctx,w,h,cfg){
+  if(!cfg.enabled||!cfg.text)return;
+  const text=String(cfg.text);
+  const fontSize=cfg.size*.55;
+  ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
+  ctx.font=`bold ${fontSize}px "Microsoft YaHei",sans-serif`;
+  const metrics=ctx.measureText(text);
+  const textW=metrics.width,textH=fontSize;
+  const padX=(cfg.px||16)*.55,padY=(cfg.py||10)*.55;
+  const boxW=textW+padX*2,boxH=textH+padY*2;
+  const edge=(cfg.margin||18)*.55;
+  const radius=Math.min((cfg.radius||10)*.55,boxW/2,boxH/2);
+  const placements=[];
+  const p=cfg.placement||"top-right";
+  if(p==="four-corners")placements.push("top-right","top-left","bottom-right","bottom-left");
+  else placements.push(p);
+  for(const placement of placements){
+    let bx,by;
+    if(placement==="top-right"){bx=w-boxW-edge;by=edge}
+    else if(placement==="top-left"){bx=edge;by=edge}
+    else if(placement==="bottom-right"){bx=w-boxW-edge;by=h-boxH-edge}
+    else if(placement==="bottom-left"){bx=edge;by=h-boxH-edge}
+    else{bx=w-boxW-edge;by=edge}
+    ctx.beginPath();
+    ctx.moveTo(bx+radius,by);
+    ctx.arcTo(bx+boxW,by,bx+boxW,by+boxH,radius);
+    ctx.arcTo(bx+boxW,by+boxH,bx,by+boxH,radius);
+    ctx.arcTo(bx,by+boxH,bx,by,radius);
+    ctx.arcTo(bx,by,bx+boxW,by,radius);
+    ctx.closePath();
+    ctx.fillStyle=rgba(cfg.bgcolor,cfg.bgopacity,"rgba(11,27,41,0.58)");ctx.fill();
+    ctx.strokeStyle=rgba(cfg.bordercolor,55,"rgba(230,185,92,0.55)");ctx.lineWidth=1.2;ctx.stroke();
+    const tx=bx+padX,ty=by+padY+textH*0.08;
+    ctx.textAlign="left";ctx.textBaseline="top";
+    ctx.shadowColor="rgba(0,0,0,0.55)";ctx.shadowBlur=3;
+    ctx.fillStyle=rgba(cfg.color,cfg.opacity,"rgba(255,255,255,0.88)");
+    ctx.fillText(text,tx,ty);
+  }
+  ctx.restore();
+}
+function drawTilePreview(ctx,w,h,cfg){
+  if(!cfg.enabled||!cfg.text)return;
+  const rgb=rgbFromHex(cfg.tileColor||cfg.color);
+  const op=Number(cfg.tileOpacity||cfg.opacity)||45;
+  const text=String(cfg.text);
+  const fontSize=cfg.size*.55;
+  ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
+  ctx.font=`bold ${fontSize}px "Microsoft YaHei",sans-serif`;
+  const metrics=ctx.measureText(text);
+  const textW=metrics.width,textH=fontSize*1.4;
+  const stepX=textW+(cfg.mx||40)*.55,stepY=textH+(cfg.my||60)*.55;
+  const diag=Math.hypot(w,h);
+  const rows=Math.ceil(diag/stepY)+2,cols=Math.ceil(diag/stepX)+2;
+  ctx.translate(w/2,h/2);ctx.rotate(((cfg.angle||-25))*Math.PI/180);
+  ctx.fillStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${(op/100).toFixed(2)})`;
+  ctx.shadowColor=`rgba(0,0,0,${Math.min(.5,op*.6/100).toFixed(2)})`;ctx.shadowBlur=2;
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  for(let r=-rows;r<=rows;r+=1){for(let c=-cols;c<=cols;c+=1){const ox=r%2===0?0:stepX/2;ctx.fillText(text,c*stepX+ox,r*stepY)}}
+  ctx.restore();
+}
+function refreshWatermarkPreview(){
+  const wrap=$("wm-preview-canvas-wrap");if(!wrap)return;
+  wrap.innerHTML="";
+  const cfg=getWatermarkConfig();
+  const canvas=document.createElement("canvas");
+  const parent=$("wm-preview");if(!parent)return;
+  const rect=parent.getBoundingClientRect();
+  const scale=window.devicePixelRatio||1;
+  canvas.style.width="100%";canvas.style.height="100%";canvas.style.display="block";
+  canvas.width=Math.max(300,Math.round(rect.width*scale));
+  canvas.height=Math.max(400,Math.round(rect.height*scale));
+  wrap.appendChild(canvas);
+  const ctx=canvas.getContext("2d");
+  ctx.setTransform(scale,0,0,scale,0,0);
+  const w=rect.width,h=rect.height;
+  const bg=ctx.createLinearGradient(0,0,w,h);
+  bg.addColorStop(0,"#d3b98a");bg.addColorStop(1,"#9a7a52");
+  ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#c2a679";ctx.fillRect(w*.08,h*.12,w*.35,h*.22);
+  ctx.fillStyle="#7a5f3e";ctx.fillRect(w*.55,h*.55,w*.32,h*.28);
+  ctx.fillStyle="#b59368";ctx.fillRect(w*.12,h*.58,w*.28,h*.24);
+  ctx.fillStyle="#5a462f";ctx.beginPath();ctx.arc(w*.28,h*.26,w*.07,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#6b5341";ctx.fillRect(w*.7,h*.15,w*.22,h*.04);
+  cfg.mode==="corner"?drawCornerPreview(ctx,w,h,cfg):drawTilePreview(ctx,w,h,cfg);
+}
+window.addEventListener("resize",()=>{if(state.view==="settings")refreshWatermarkPreview()});
 
 document.querySelectorAll(".nav-item").forEach(x=>x.onclick=()=>navigate(x.dataset.view));
 $("api-base").value=apiBase();

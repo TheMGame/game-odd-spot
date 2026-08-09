@@ -491,7 +491,8 @@ class OddSpotApp {
       const levels = Array.isArray(series.levels) ? series.levels : []
       const rect = { x: 38, y, w: 1004, h: 450 }
       r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 22, '#d9aa4f', 3)
-      if (this.covers[series.id]) r.image(this.covers[series.id], { x: rect.x + 3, y: rect.y + 3, w: rect.w - 6, h: 300 }, 'cover')
+      const coverRect = { x: rect.x + 3, y: rect.y + 3, w: rect.w - 6, h: 300 }
+      if (this.covers[series.id]) { r.image(this.covers[series.id], coverRect, 'cover'); r.watermark(coverRect, this.getWatermarkConfig()) }
       r.text(series.title || series.display_name || series.id, rect.x + 24, rect.y + 345, 34, COLORS.gold, 'left', 'bold', 650)
       const detail = `${levels.length} ${this.i18n.t('levels')}${series.description ? ` · ${series.description}` : ''}`
       r.text(detail, rect.x + 24, rect.y + 402, 25, COLORS.muted, 'left', 'normal', 680)
@@ -538,7 +539,8 @@ class OddSpotApp {
     levels.forEach((level, index) => {
       const completed = this.isLevelCompleted(level), locked = this.selectedSeriesId !== 'daily_task' && !completed && index > firstUnfinished
       const rect = { x: 28, y, w: 1024, h: 250 }; r.rect(rect.x, rect.y, rect.w, rect.h, locked ? '#183039' : COLORS.card, 18, locked ? '#52666b' : '#c49a4a', 2)
-      if (this.covers[`level:${level.id}`]) r.image(this.covers[`level:${level.id}`], { x: rect.x + 16, y: rect.y + 16, w: 250, h: 218 }, 'cover')
+      const coverRect = { x: rect.x + 16, y: rect.y + 16, w: 250, h: 218 }
+      if (this.covers[`level:${level.id}`]) { r.image(this.covers[`level:${level.id}`], coverRect, 'cover'); r.watermark(coverRect, this.getWatermarkConfig()) }
       const tx = rect.x + 292
       r.text(`第 ${String(index + 1).padStart(2, '0')} 关`, tx, rect.y + 38, 26, '#d2ad69')
       r.wrappedText(level.title || level.id, tx, rect.y + 90, 650, 35, locked ? 'rgba(243,232,207,.38)' : COLORS.paper, 45, 2)
@@ -558,12 +560,14 @@ class OddSpotApp {
     const clip = { x: 36, y: 145 + top, w: 1008, h: h - 165 - top }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.settings
     const section = (title) => { r.text(title, 36, y + 24, 24, '#d7aa57'); y += 54 }
     section(this.i18n.t('account')); r.rect(36, y, 1008, 205, COLORS.card, 20, COLORS.cardBorder, 1); r.text(this.session.data.username || this.i18n.t('signedIn'), 66, y + 55, 32, COLORS.paper, 'left', 'bold'); r.wrappedText(this.i18n.t('accountDesc'), 66, y + 112, 940, 22, COLORS.muted, 32, 3); y += 235
-    section(this.i18n.t('gameExperience')); r.rect(36, y, 1008, 620, COLORS.card, 20, COLORS.cardBorder, 1)
+    section(this.i18n.t('gameExperience')); r.rect(36, y, 1008, 740, COLORS.card, 20, COLORS.cardBorder, 1)
     r.toggle('toggle:vibration', 70, y + 25, this.i18n.t('vibration'), this.preferences.data.vibration)
     r.toggle('toggle:music', 70, y + 145, this.i18n.t('music'), this.preferences.data.music)
     r.toggle('toggle:effects', 70, y + 265, this.i18n.t('effects'), this.preferences.data.effects)
     r.toggle('toggle:largeMarkers', 70, y + 385, this.i18n.t('largeMarkers'), this.preferences.data.largeMarkers)
-    r.text(this.i18n.t('language'), 70, y + 555, 28, COLORS.paper); r.button('language', { x: 680, y: y + 512, w: 320, h: 78 }, this.preferences.data.locale === 'zh-CN' ? '简体中文' : 'English', { fill: '#255462', border: '#81a59f', size: 24 }); y += 650
+    r.toggle('toggle:watermarkEnabled', 70, y + 505, '图片水印（AI声明）', this.preferences.data.watermarkEnabled !== false)
+    r.wrappedText('开启后，所有游戏图片将平铺显示“内容由 AI 生成”水印，支持内容管理后台自定义文字内容。', 70, y + 605, 900, 20, COLORS.muted, 30, 2)
+    r.text(this.i18n.t('language'), 70, y + 675, 28, COLORS.paper); r.button('language', { x: 680, y: y + 632, w: 320, h: 78 }, this.preferences.data.locale === 'zh-CN' ? '简体中文' : 'English', { fill: '#255462', border: '#81a59f', size: 24 }); y += 770
     section(this.i18n.t('privacySupport')); r.rect(36, y, 1008, 340, COLORS.card, 20, COLORS.cardBorder, 1)
     r.toggle('toggle:analytics', 70, y + 20, this.i18n.t('analytics'), this.preferences.data.analytics); r.wrappedText(this.i18n.t('analyticsNote'), 70, y + 130, 890, 20, COLORS.muted, 30, 2)
     r.button('privacy', { x: 70, y: y + 220, w: 930, h: 78 }, this.i18n.t('privacyPolicy'), { fill: '#1b4350', border: COLORS.cardBorder, size: 24 }); y += 375
@@ -615,8 +619,21 @@ class OddSpotApp {
     const r = this.renderer; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 14, '#d9aa4f', 3)
     const inner = { x: rect.x + 4, y: rect.y + 4, w: rect.w - 8, h: rect.h - 8 }
     const draw = r.image(image, inner, 'contain', game.view.zoom, { x: game.view.x, y: game.view.y })
-    if (draw) for (const marker of game.markers) this.renderMarker(draw, marker)
+    if (draw) {
+      r.watermark(inner, this.getWatermarkConfig())
+      for (const marker of game.markers) this.renderMarker(draw, marker)
+    }
     return { panel: inner, draw }
+  }
+  getWatermarkConfig() {
+    const wm = config.WATERMARK || {}
+    const base = Object.assign({}, wm)
+    if (wm.TILE && typeof wm.TILE === 'object') Object.assign(base, wm.TILE)
+    if (this.preferences && this.preferences.data) {
+      if (this.preferences.data.watermarkEnabled === false) base.ENABLED = false
+      if (typeof this.preferences.data.watermarkText === 'string' && this.preferences.data.watermarkText.trim()) base.TEXT = this.preferences.data.watermarkText
+    }
+    return base
   }
   renderMarker(draw, marker) {
     const r = this.renderer, center = { x: draw.x + marker.point.x * draw.w, y: draw.y + marker.point.y * draw.h }, radius = this.preferences.data.largeMarkers ? 38 : 28

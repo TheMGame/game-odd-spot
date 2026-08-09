@@ -65,7 +65,7 @@ $differences = @(
       label = $difference.name
       era = $difference.clue
       explanation = $difference.reasoning
-      difficulty = 4
+      difficulty = $(if ($config.difficulty -eq "expert") { 5 } else { 4 })
       operation = "anachronism"
     }
   }
@@ -85,14 +85,14 @@ $runtime = @{
   }
   differences = $differences
   tags = @{
-    regions = @("international")
+    regions = @("china")
     themes = @("daily_challenge", "current_events")
     styles = @("editorial_hidden_object")
     scenes = @((Split-Path -Leaf $challengeDir))
     risk = @()
   }
   difficulty = @{
-    total = 4
+    total = $(if ($config.difficulty -eq "expert") { 5 } else { 4 })
     object_size = 4
     color_similarity = 4
     visual_density = 5

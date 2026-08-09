@@ -132,6 +132,102 @@ class Renderer {
     return draw
   }
   progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, '#203d47', h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }
+  watermark(rect, config) {
+    if (!config || !config.ENABLED || !config.TEXT) return
+    const mode = config.MODE || 'corner'
+    if (mode === 'tile') { this.watermarkTile(rect, config); return }
+    this.watermarkCorner(rect, config)
+  }
+  watermarkCorner(rect, config) {
+    const c = this.ctx
+    const text = String(config.TEXT)
+    const fontSize = config.FONT_SIZE || 22
+    const color = config.COLOR || 'rgba(255,255,255,0.85)'
+    const shadowColor = config.SHADOW_COLOR || 'rgba(0,0,0,0.6)'
+    const paddingX = config.PADDING_X || 16
+    const paddingY = config.PADDING_Y || 10
+    const bgColor = config.BG_COLOR || 'rgba(11,27,41,0.55)'
+    const borderColor = config.BORDER_COLOR || 'rgba(230,185,92,0.5)'
+    const radius = config.RADIUS || 10
+    const placement = config.PLACEMENT || 'top-right'
+    c.save()
+    c.beginPath()
+    c.rect(rect.x, rect.y, rect.w, rect.h)
+    c.clip()
+    c.font = `bold ${fontSize}px sans-serif`
+    const metrics = c.measureText(text)
+    const textW = metrics.width
+    const textH = fontSize
+    const boxW = textW + paddingX * 2
+    const boxH = textH + paddingY * 2
+    const edge = config.MARGIN || 18
+    let bx, by, tx, ty, textAlign = 'left', textBaseline = 'top'
+    if (placement === 'top-right') { bx = rect.x + rect.w - boxW - edge; by = rect.y + edge; tx = bx + paddingX; ty = by + paddingY + textH * 0.1 }
+    else if (placement === 'top-left') { bx = rect.x + edge; by = rect.y + edge; tx = bx + paddingX; ty = by + paddingY + textH * 0.1 }
+    else if (placement === 'bottom-right') { bx = rect.x + rect.w - boxW - edge; by = rect.y + rect.h - boxH - edge; tx = bx + paddingX; ty = by + paddingY + textH * 0.1 }
+    else if (placement === 'bottom-left') { bx = rect.x + edge; by = rect.y + rect.h - boxH - edge; tx = bx + paddingX; ty = by + paddingY + textH * 0.1 }
+    else if (placement === 'four-corners') {
+      ;['top-right', 'top-left', 'bottom-right', 'bottom-left'].forEach((p) => this.watermarkCorner(rect, Object.assign({}, config, { PLACEMENT: p })))
+      c.restore(); return
+    }
+    else { bx = rect.x + rect.w - boxW - edge; by = rect.y + edge; tx = bx + paddingX; ty = by + paddingY + textH * 0.1 }
+    c.beginPath()
+    const r = Math.min(radius, boxW / 2, boxH / 2)
+    c.moveTo(bx + r, by)
+    c.arcTo(bx + boxW, by, bx + boxW, by + boxH, r)
+    c.arcTo(bx + boxW, by + boxH, bx, by + boxH, r)
+    c.arcTo(bx, by + boxH, bx, by, r)
+    c.arcTo(bx, by, bx + boxW, by, r)
+    c.closePath()
+    if (bgColor) { c.fillStyle = bgColor; c.fill() }
+    if (borderColor) { c.strokeStyle = borderColor; c.lineWidth = 1.5; c.stroke() }
+    c.textAlign = textAlign; c.textBaseline = textBaseline
+    c.shadowColor = shadowColor; c.shadowBlur = 3
+    c.fillStyle = color
+    c.fillText(text, tx, ty)
+    c.restore()
+  }
+  watermarkTile(rect, config) {
+    const c = this.ctx
+    const text = String(config.TEXT)
+    const fontSize = config.FONT_SIZE || 22
+    const color = config.COLOR || 'rgba(255,255,255,0.45)'
+    const shadowColor = config.SHADOW_COLOR || 'rgba(0,0,0,0.3)'
+    const angle = (config.ANGLE || -25) * Math.PI / 180
+    const marginX = config.MARGIN_X || 40
+    const marginY = config.MARGIN_Y || 60
+    c.save()
+    c.beginPath()
+    c.rect(rect.x, rect.y, rect.w, rect.h)
+    c.clip()
+    c.font = `bold ${fontSize}px sans-serif`
+    const metrics = c.measureText(text)
+    const textW = metrics.width
+    const textH = fontSize * 1.4
+    const stepX = textW + marginX
+    const stepY = textH + marginY
+    const diag = Math.hypot(rect.w, rect.h)
+    const rows = Math.ceil(diag / stepY) + 2
+    const cols = Math.ceil(diag / stepX) + 2
+    const cx = rect.x + rect.w / 2
+    const cy = rect.y + rect.h / 2
+    c.translate(cx, cy)
+    c.rotate(angle)
+    c.fillStyle = color
+    c.shadowColor = shadowColor
+    c.shadowBlur = 2
+    c.textAlign = 'center'
+    c.textBaseline = 'middle'
+    for (let row = -rows; row <= rows; row += 1) {
+      for (let col = -cols; col <= cols; col += 1) {
+        const offsetX = (row % 2 === 0 ? 0 : stepX / 2)
+        const x = col * stepX + offsetX
+        const y = row * stepY
+        c.fillText(text, x, y)
+      }
+    }
+    c.restore()
+  }
 }
 
 function roundedPath(c, x, y, w, h, radius) {
