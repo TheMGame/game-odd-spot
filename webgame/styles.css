@@ -78,6 +78,66 @@ button { -webkit-tap-highlight-color: transparent; }
 .login-status.error { color: #ff9b87 !important; }
 .agreement { margin: 8px 0 0 !important; color: #8fa7a3 !important; font-size: 11px !important; text-align: center; }
 
+/* Tab 切换 */
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #0d2832;
+  border: 1px solid #4e7178;
+}
+.tab-btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  color: #a7bdb8;
+  background: transparent;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all .18s ease;
+}
+.tab-btn.active {
+  color: #1b4654;
+  background: linear-gradient(180deg, #f3d37b, #e6b95c);
+  box-shadow: 0 3px 10px rgba(230, 185, 92, .25);
+}
+
+/* 头像上传 */
+.avatar-uploader {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+  cursor: pointer;
+}
+.avatar-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px dashed #74949a;
+  background: #0f2a35;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #8fa7a3;
+  transition: border-color .18s ease;
+}
+.avatar-preview:hover { border-color: #e6b95c; }
+.avatar-preview-lg { width: 96px; height: 96px; }
+.avatar-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.avatar-placeholder { font-size: 26px; font-weight: 700; color: #74949a; }
+.avatar-hint { margin: 0; color: #8fa7a3; font-size: 12px; }
+
+/* 用户设置面板位置更低（避免与顶部工具栏重叠） */
+#user-panel.login-panel {
+  inset: max(160px, 20vh) max(18px, 5vw) auto;
+}
+
 @media (max-height: 720px) {
   .login-panel { top: 185px; }
   .login-card { padding: 16px; }

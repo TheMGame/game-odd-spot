@@ -7,7 +7,7 @@
   <meta name="description" content="错位大侦探原生 Web 游戏">
   <title>错位大侦探</title>
   <link rel="preload" href="assets/branding/guagua-rabbit-logo.png" as="image">
-  <link rel="stylesheet" href="styles.css?v=0.2.1">
+  <link rel="stylesheet" href="styles.css?v=0.2.2">
 </head>
 <body>
   <main id="game-shell" aria-label="错位大侦探游戏">
@@ -17,26 +17,42 @@
     <section id="login-panel" class="login-panel" aria-labelledby="login-title" hidden>
       <div class="login-card">
         <h1 id="login-title">欢迎回来</h1>
-        <p id="login-description">使用邮箱和密码登录，同步关卡进度与游戏权益。</p>
+        <p id="login-description">使用邮箱或手机号登录，同步关卡进度与游戏权益。</p>
 
-        <div id="login-form" class="form-stack">
-          <label>邮箱<input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
-          <label>密码<input id="login-password" type="password" autocomplete="current-password" minlength="10" placeholder="至少 10 个字符"></label>
-          <button id="login-submit" class="primary" type="button">登录</button>
-          <button id="show-registration" class="secondary" type="button">使用邮箱创建账号</button>
+        <!-- 邮箱 / 手机号 切换 Tab -->
+        <div class="login-tabs" role="tablist">
+          <button id="tab-email" class="tab-btn active" role="tab" aria-selected="true" data-mode="email">邮箱登录</button>
+          <button id="tab-phone" class="tab-btn" role="tab" aria-selected="false" data-mode="phone">手机号登录</button>
         </div>
 
+        <!-- 登录表单 -->
+        <div id="login-form" class="form-stack">
+          <label id="label-login-account">邮箱<input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
+          <label>密码<input id="login-password" type="password" autocomplete="current-password" minlength="10" placeholder="至少 10 个字符"></label>
+          <button id="login-submit" class="primary" type="button">登录</button>
+          <button id="show-registration" class="secondary" type="button" data-text-email="使用邮箱创建账号" data-text-phone="使用手机号创建账号">使用邮箱创建账号</button>
+        </div>
+
+        <!-- 注册步骤 1：发送验证码 -->
         <div id="registration-form" class="form-stack" hidden>
-          <label>邮箱<input id="register-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
+          <label id="label-register-account">邮箱<input id="register-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
           <div class="code-row">
             <label>验证码<input id="email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位验证码"></label>
-            <button id="send-code" class="secondary" type="button">发送验证码</button>
+            <button id="send-code" class="secondary" type="button" data-text-email="发送邮箱验证码" data-text-phone="发送短信验证码">发送邮箱验证码</button>
           </div>
-          <button id="verify-code" class="primary" type="button">验证邮箱</button>
+          <button id="verify-code" class="primary" type="button" data-text-email="验证邮箱" data-text-phone="验证手机号">验证邮箱</button>
           <button id="back-to-login" class="text-button" type="button">返回账号登录</button>
         </div>
 
+        <!-- 注册步骤 2：设置密码 + 昵称 + 头像 -->
         <div id="registration-profile" class="form-stack" hidden>
+          <div class="avatar-uploader" id="register-avatar-uploader">
+            <div class="avatar-preview" id="register-avatar-preview">
+              <span class="avatar-placeholder">+</span>
+            </div>
+            <p class="avatar-hint">点击上传头像（可选）</p>
+            <input id="register-avatar-file" type="file" accept="image/*" capture="environment" hidden>
+          </div>
           <label>设置密码<input id="register-password" type="password" autocomplete="new-password" minlength="10" placeholder="至少 10 个字符"></label>
           <label>确认密码<input id="register-password-confirm" type="password" autocomplete="new-password" minlength="10" placeholder="再次输入密码"></label>
           <label>昵称（可选）<input id="register-nickname" type="text" maxlength="64" placeholder="不填则使用系统默认昵称"></label>
@@ -47,11 +63,32 @@
         <p class="agreement">登录即表示你同意用户协议与隐私政策</p>
       </div>
     </section>
+
+    <!-- 用户设置面板（头像上传入口） -->
+    <section id="user-panel" class="login-panel" aria-hidden="true" hidden>
+      <div class="login-card">
+        <h1>个人设置</h1>
+        <div class="avatar-uploader" id="user-avatar-uploader">
+          <div class="avatar-preview avatar-preview-lg" id="user-avatar-preview">
+            <span class="avatar-placeholder">+</span>
+          </div>
+          <p class="avatar-hint">点击头像上传图片</p>
+          <input id="user-avatar-file" type="file" accept="image/*" capture="environment" hidden>
+        </div>
+        <div class="form-stack">
+          <label>昵称<input id="user-nickname" type="text" maxlength="64" placeholder="请输入昵称"></label>
+          <button id="user-save-profile" class="primary" type="button">保存修改</button>
+          <button id="user-close-panel" class="secondary" type="button">返回游戏</button>
+          <button id="user-logout" class="text-button" type="button">退出登录</button>
+        </div>
+        <p id="user-status" class="login-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
   </main>
 
   <script>
     window.ODDSPOT_CONFIG = window.ODDSPOT_CONFIG || {}
   </script>
-  <script defer src="app.bundle.js?v=0.2.1"></script>
+  <script defer src="app.bundle.js?v=0.2.2"></script>
 </body>
 </html>

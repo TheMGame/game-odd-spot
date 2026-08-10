@@ -65,10 +65,28 @@ class ApiClient {
     return { ok: false, status: Number(response.statusCode || 0), error: response.data && response.data.message ? String(response.data.message) : response.errMsg || 'USER_SERVER_UNAVAILABLE', data: response.data || {} }
   }
 
-  async loginUser(accountName, password) {
+  async uploadUserAvatar(fileOrBlob) {
+    if (!this.session.data.user_server_token) return { ok: false, error: 'USER_PROFILE_SESSION_MISSING' }
+    const formData = new FormData()
+    formData.append('avatar', fileOrBlob)
+    const response = await this.fetchJson(`${config.USER_SERVER_BASE_URL}/api/v1/user/avatar/upload`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${this.session.data.user_server_token}` },
+      body: formData,
+    }, 30000)
+    if (!(response.statusCode >= 200 && response.statusCode < 300 && response.data && Number(response.data.code) === 0)) return { ok: false, error: response.data && response.data.message ? response.data.message : 'AVATAR_UPLOAD_FAILED' }
+    const data = response.data.data || {}
+    const url = data.avatar_url || data.url || ''
+    if (url) this.session.update({ avatar_url: url })
+    return { ok: true, data: { avatar_url: url } }
+  }
+
+  async loginUser(accountName, password, mode = 'auto') {
     const account = String(accountName || '').trim()
     const body = { app_id: config.USER_SERVER_APP_ID, login_type: 1, password }
-    if (account.includes('@')) body.email = account.toLowerCase()
+    const isPhone = mode === 'phone' || /^1[3-9]\d{9}$/.test(account.replace(/^\+?86/, '').replace(/[\s-]/g, ''))
+    if (isPhone) body.tel_num = account.replace(/^\+?86/, '').replace(/[\s-]/g, '')
+    else if (account.includes('@')) body.email = account.toLowerCase()
     else body.username = account
     const login = await this.userRequest('/api/v1/user/login', body)
     if (!login.ok) return login
@@ -79,8 +97,26 @@ class ApiClient {
     return this.userRequest('/api/v1/user/email/send-code', { app_id: config.USER_SERVER_APP_ID, email: String(email || '').trim().toLowerCase(), purpose: 'login' })
   }
 
+  async sendPhoneCode(phone) {
+    const normalized = String(phone || '').replace(/^\+?86/, '').replace(/[\s-]/g, '').trim()
+    return this.userRequest('/api/v1/user/phone/send-code', { app_id: config.USER_SERVER_APP_ID, phone: normalized })
+  }
+
   async verifyEmailCode(email, code) {
     const result = await this.userRequest('/api/v1/user/email/verify', { app_id: config.USER_SERVER_APP_ID, email: String(email || '').trim().toLowerCase(), code: String(code || '').trim() })
+    if (!result.ok) return result
+    const verification = result.data.data || {}
+    if (verification.login_info) {
+      const exchanged = await this.exchangeUserToken(verification.login_info)
+      if (exchanged.ok) exchanged.logged_in = true
+      return exchanged
+    }
+    return { ok: true, data: verification, logged_in: false }
+  }
+
+  async verifyPhoneCode(phone, code) {
+    const normalized = String(phone || '').replace(/^\+?86/, '').replace(/[\s-]/g, '').trim()
+    const result = await this.userRequest('/api/v1/user/phone/verify', { app_id: config.USER_SERVER_APP_ID, phone: normalized, code: String(code || '').trim() })
     if (!result.ok) return result
     const verification = result.data.data || {}
     if (verification.login_info) {
@@ -97,6 +133,17 @@ class ApiClient {
       app_id: config.USER_SERVER_APP_ID,
       registration_ticket: String(ticket || ''),
       username,
+      nickname: String(nickname || '').trim(),
+      password,
+    })
+    if (!result.ok) return result
+    return this.exchangeUserToken(result.data.data || {})
+  }
+
+  async completePhoneRegistration(ticket, nickname, password) {
+    const result = await this.userRequest('/api/v1/user/phone/complete-registration', {
+      app_id: config.USER_SERVER_APP_ID,
+      registration_ticket: String(ticket || ''),
       nickname: String(nickname || '').trim(),
       password,
     })
@@ -147,7 +194,7 @@ class ApiClient {
 
   async refreshSession() {
     if (!this.session.data.refresh_token) return { ok: false, error: 'REFRESH_TOKEN_MISSING' }
-    const result = await this.request('POST', '/v1/sessions/refresh', { refresh_token: this.session.data.refresh_token }, false, false)
+    const result = await this.request('POST', '/v1/sessions/refresh', { refresh_token: this.session.data.refresh_token }, true, false)
     if (result.ok) this.session.update(result.data.data || {})
     else if ([400, 401, 403].includes(result.status) && /INVALID|EXPIRED|REVOKED|NOT_FOUND/.test(String(result.error).toUpperCase())) {
       this.session.clear()
@@ -158,6 +205,9 @@ class ApiClient {
 
   async logout() {
     if (this.session.hasToken() && this.session.data.refresh_token) await this.request('POST', '/v1/sessions/logout', { refresh_token: this.session.data.refresh_token }, true, false)
+    if (this.session.data.user_server_refresh_token) {
+      await this.userRequest('/api/v1/user/logout', { app_id: config.USER_SERVER_APP_ID, refresh_token: this.session.data.user_server_refresh_token }).catch(() => {})
+    }
     this.session.clear()
   }
 
