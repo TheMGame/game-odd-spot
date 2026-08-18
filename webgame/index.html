@@ -7,7 +7,7 @@
   <meta name="description" content="错位大侦探原生 Web 游戏">
   <title>错位大侦探</title>
   <link rel="preload" href="assets/branding/guagua-rabbit-logo.png" as="image">
-  <link rel="stylesheet" href="styles.css?v=0.2.2">
+  <link rel="stylesheet" href="styles.css?v=0.2.3">
 </head>
 <body>
   <main id="game-shell" aria-label="错位大侦探游戏">
@@ -30,6 +30,7 @@
           <label id="label-login-account">邮箱<input id="login-email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com"></label>
           <label>密码<input id="login-password" type="password" autocomplete="current-password" minlength="10" placeholder="至少 10 个字符"></label>
           <button id="login-submit" class="primary" type="button">登录</button>
+          <button id="phone-oneclick-login" class="secondary" type="button" hidden>本机号码一键登录</button>
           <button id="show-registration" class="secondary" type="button" data-text-email="使用邮箱创建账号" data-text-phone="使用手机号创建账号">使用邮箱创建账号</button>
         </div>
 
@@ -40,6 +41,7 @@
             <label>验证码<input id="email-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 位验证码"></label>
             <button id="send-code" class="secondary" type="button" data-text-email="发送邮箱验证码" data-text-phone="发送短信验证码">发送邮箱验证码</button>
           </div>
+          <button id="phone-oneclick-register" class="primary" type="button" hidden>本机号码一键注册</button>
           <button id="verify-code" class="primary" type="button" data-text-email="验证邮箱" data-text-phone="验证手机号">验证邮箱</button>
           <button id="back-to-login" class="text-button" type="button">返回账号登录</button>
         </div>
@@ -89,6 +91,8 @@
   <script>
     window.ODDSPOT_CONFIG = window.ODDSPOT_CONFIG || {}
   </script>
-  <script defer src="app.bundle.js?v=0.2.2"></script>
+  <script src="https://sdk.shujumohe.com/aliyun_numberauthsdk_web@3.0.0.js"
+          onerror="this.remove && this.remove()"></script>
+  <script defer src="app.bundle.js?v=0.2.3"></script>
 </body>
 </html>

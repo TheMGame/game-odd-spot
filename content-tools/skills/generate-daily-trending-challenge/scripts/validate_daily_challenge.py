@@ -80,9 +80,17 @@ def validate(directory: Path) -> list[str]:
             fail(errors, "image.width/height 必须为 1024/1536")
 
     differences = data.get("differences")
-    expected = 10 if data.get("difficulty") == "expert" else 8
-    if not isinstance(differences, list) or len(differences) != expected:
-        fail(errors, f"differences 必须恰好包含 {expected} 项")
+    difficulty = data.get("difficulty")
+    valid_count = (
+        isinstance(differences, list)
+        and (
+            (difficulty == "hard" and len(differences) == 8)
+            or (difficulty == "expert" and 10 <= len(differences) <= 12)
+        )
+    )
+    if not valid_count:
+        requirement = "8" if difficulty == "hard" else "10–12"
+        fail(errors, f"differences 必须包含 {requirement} 项")
         differences = differences if isinstance(differences, list) else []
 
     seen_ids: set[str] = set()

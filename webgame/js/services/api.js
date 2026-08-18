@@ -102,6 +102,23 @@ class ApiClient {
     return this.userRequest('/api/v1/user/phone/send-code', { app_id: config.USER_SERVER_APP_ID, phone: normalized })
   }
 
+  async getPhoneH5AuthToken(pageURL) {
+    const page = String(pageURL || window.location.href).split('#')[0]
+    return this.userRequest('/api/v1/user/phone/h5/auth-token', {
+      app_id: config.USER_SERVER_APP_ID,
+      page_url: page,
+    })
+  }
+
+  async h5PhoneLogin(spToken) {
+    const result = await this.userRequest('/api/v1/user/phone/h5/login', {
+      app_id: config.USER_SERVER_APP_ID,
+      sp_token: String(spToken || '').trim(),
+    })
+    if (!result.ok) return result
+    return this.exchangeUserToken(result.data.data || {})
+  }
+
   async verifyEmailCode(email, code) {
     const result = await this.userRequest('/api/v1/user/email/verify', { app_id: config.USER_SERVER_APP_ID, email: String(email || '').trim().toLowerCase(), code: String(code || '').trim() })
     if (!result.ok) return result

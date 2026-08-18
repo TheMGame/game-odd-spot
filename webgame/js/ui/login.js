@@ -11,6 +11,8 @@ class LoginView {
     this.ticket = ''
     this.registerAvatarURL = ''
     this.currentMode = 'email'
+    this.h5PhoneOneClickReady = false
+    this.h5PhoneOneClickFailed = false
     this.bind()
     this.initAvatarUploaders()
   }
@@ -19,6 +21,8 @@ class LoginView {
     document.getElementById('tab-email').addEventListener('click', () => this.setMode('email'))
     document.getElementById('tab-phone').addEventListener('click', () => this.setMode('phone'))
     document.getElementById('login-submit').addEventListener('click', () => this.login())
+    document.getElementById('phone-oneclick-login').addEventListener('click', () => this.runH5OneClick(false))
+    document.getElementById('phone-oneclick-register').addEventListener('click', () => this.runH5OneClick(true))
     document.getElementById('show-registration').addEventListener('click', () => this.showRegistration())
     document.getElementById('back-to-login').addEventListener('click', () => this.showLogin())
     document.getElementById('send-code').addEventListener('click', () => this.sendCode())
@@ -135,6 +139,134 @@ class LoginView {
       document.getElementById('login-description').textContent = isPhone
         ? '使用手机号和密码登录，同步关卡进度与游戏权益。'
         : '使用邮箱和密码登录，同步关卡进度与游戏权益。'
+    }
+    if (isPhone) {
+      if (!this.h5PhoneOneClickFailed && !this.h5PhoneOneClickReady) {
+        this.tryEnableH5OneClick().catch(() => {})
+      } else {
+        this.updateOneClickButtons(this.h5PhoneOneClickReady)
+      }
+    } else {
+      this.updateOneClickButtons(false)
+    }
+  }
+
+  updateOneClickButtons(visible) {
+    const loginBtn = document.getElementById('phone-oneclick-login')
+    const registerBtn = document.getElementById('phone-oneclick-register')
+    if (loginBtn) loginBtn.hidden = !visible
+    if (registerBtn) registerBtn.hidden = !visible
+  }
+
+  async tryEnableH5OneClick() {
+    this.h5PhoneOneClickFailed = false
+    const available = this.h5OneClickEnvironmentAvailable()
+    if (!available) {
+      this.h5PhoneOneClickFailed = true
+      this.updateOneClickButtons(false)
+      return
+    }
+    try {
+      const pageURL = (window.location.href || '').split('#')[0]
+      const tokenResult = await this.app.api.getPhoneH5AuthToken(pageURL)
+      if (!tokenResult.ok || !tokenResult.data || !tokenResult.data.access_token || !tokenResult.data.jwt_token) {
+        this.h5PhoneOneClickFailed = true
+        this.updateOneClickButtons(false)
+        return
+      }
+      this.h5PhoneAuthInfo = {
+        accessToken: tokenResult.data.access_token,
+        jwtToken: tokenResult.data.jwt_token,
+        pageURL,
+      }
+      this.h5PhoneOneClickReady = true
+      this.updateOneClickButtons(true)
+    } catch (err) {
+      this.h5PhoneOneClickFailed = true
+      this.updateOneClickButtons(false)
+    }
+  }
+
+  h5OneClickEnvironmentAvailable() {
+    if (!window.location || !/^https:$/i.test(window.location.protocol)) return false
+    const ua = String(navigator && navigator.userAgent || '').toLowerCase()
+    if (/iphone|ipad|ipod|android|harmony|hongmeng/.test(ua) === false) return false
+    if (typeof window.NumberAuthSdk !== 'undefined' && typeof window.NumberAuthSdk.getVerifyToken === 'function') return true
+    if (typeof window.Alibaba !== 'undefined' && typeof window.Alibaba.NumberAuthSdk !== 'undefined') return true
+    return false
+  }
+
+  async runH5OneClick(isRegistrationContext) {
+    if (!this.h5PhoneOneClickReady || !this.h5PhoneAuthInfo) {
+      this.updateOneClickButtons(false)
+      this.setStatus('当前环境不支持一键登录，请使用短信验证码或密码登录', true)
+      return
+    }
+    this.app.audio.click()
+    this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', true, '', '正在获取本机号码…')
+    this.setStatus('')
+    try {
+      const sdk = (window.NumberAuthSdk && typeof window.NumberAuthSdk.getVerifyToken === 'function')
+        ? window.NumberAuthSdk
+        : (window.Alibaba && window.Alibaba.NumberAuthSdk)
+      if (!sdk) {
+        this.setStatus('一键登录 SDK 未加载，请使用短信验证码或密码登录', true)
+        this.h5PhoneOneClickFailed = true
+        this.updateOneClickButtons(false)
+        this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
+        return
+      }
+      sdk.setLogLevel && sdk.setLogLevel('error')
+      const spToken = await new Promise((resolve, reject) => {
+        try {
+          const timeoutTimer = setTimeout(() => reject(new Error('运营商取号超时')), 15000)
+          const onResult = (result) => {
+            clearTimeout(timeoutTimer)
+            const token = (result && (result.spToken || result.token || result.data && (result.data.spToken || result.data.token))) || ''
+            if (!token) reject(new Error(result && (result.msg || result.message || '取号失败')))
+            else resolve(token)
+          }
+          const onFailed = (err) => {
+            clearTimeout(timeoutTimer)
+            reject(err)
+          }
+          const config = {
+            accessToken: this.h5PhoneAuthInfo.accessToken,
+            jwtToken: this.h5PhoneAuthInfo.jwtToken,
+            sceneType: 'h5',
+            timeout: 15000,
+          }
+          if (typeof sdk.getVerifyToken === 'function') {
+            sdk.getVerifyToken(config, onResult, onFailed)
+          } else if (typeof sdk.getLoginToken === 'function') {
+            sdk.getLoginToken(config, onResult, onFailed)
+          } else {
+            reject(new Error('未找到支持的取号方法'))
+          }
+        } catch (err) { reject(err) }
+      })
+      const loginResult = await this.app.api.h5PhoneLogin(spToken)
+      this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
+      if (!loginResult.ok) {
+        const message = loginError(loginResult.error)
+        if (/已注册|用户存在|phone_otp|phone_login/.test(message) || false) {
+          this.setStatus(`一键登录：${message}，请使用密码登录或短信验证码`, true)
+        } else {
+          this.setStatus(`一键登录失败：${message}，请使用短信验证码或密码登录`, true)
+        }
+        this.h5PhoneOneClickFailed = true
+        this.updateOneClickButtons(false)
+        return
+      }
+      this.setStatus('本机号码认证成功')
+      await this.app.api.refreshUserProfile().catch(() => {})
+      await this.app.bootstrap()
+    } catch (err) {
+      this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
+      const message = err && (err.message || String(err))
+      this.setStatus(`本机号码认证失败：${message || '未知错误'}。请使用短信验证码或密码登录`, true)
+      this.h5PhoneOneClickFailed = true
+      this.updateOneClickButtons(false)
     }
   }
 

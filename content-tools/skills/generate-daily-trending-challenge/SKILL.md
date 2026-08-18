@@ -38,7 +38,8 @@ description: Search current domestic trends, select a safe and visually expressi
 
 ### 3. 设计高难度关卡
 
-默认设计 8 个答案，难度为 `hard`。用户明确要求专家难度时改为 10 个。
+默认设计 8 个答案，难度为 `hard`。用户明确要求专家难度时设计 10–12 个，
+并以用户指定数量为准。
 
 开始设计前，扫描最近 30 个 `build/daily-challenges/*/*/level.json` 和
 `prompt.md`，列出近期主题、场景构图和答案物品。新关卡不得重复近期主题的
