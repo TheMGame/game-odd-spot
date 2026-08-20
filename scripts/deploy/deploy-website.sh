@@ -5,13 +5,12 @@ if [[ ${EUID} -ne 0 ]]; then
   echo "run as root" >&2
   exit 1
 fi
-if [[ $# -ne 2 ]]; then
-  echo "usage: $0 <oddspot-site-version.tar.gz> <oddspot-site-version.tar.gz.sha256>" >&2
+if [[ $# -ne 1 ]]; then
+  echo "usage: $0 <oddspot-site-version.tar.gz>" >&2
   exit 2
 fi
 
 archive="$(readlink -f "$1")"
-checksum="$(readlink -f "$2")"
 install_root=/opt/oddspot/www/oddspot-site
 releases="$install_root/releases"
 install -d -o root -g www-data -m 0755 "$releases"
@@ -21,8 +20,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cd "$(dirname "$archive")"
-sha256sum --check "$checksum"
 tar --extract --gzip --file "$archive" --directory "$stage" --strip-components=1 --no-same-owner
 test -f "$stage/index.html"
 test -f "$stage/VERSION"

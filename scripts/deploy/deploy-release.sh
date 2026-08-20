@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-  echo "usage: $0 <release.tar.gz> <release.sha256>" >&2
+if [[ $# -ne 1 ]]; then
+  echo "usage: $0 <release.tar.gz>" >&2
   exit 2
 fi
 
 archive="$(readlink -f "$1")"
-checksum="$(readlink -f "$2")"
 install_root=/opt/oddspot
 stage="$(mktemp -d "$install_root/.deploy.XXXXXX")"
 trap 'rm -rf -- "$stage"' EXIT
 
-cd "$(dirname "$archive")"
-echo "verifying $archive"
-sha256sum --check "$checksum"
 echo "extracting files to temporary directory"
 tar --extract --gzip --file "$archive" --directory "$stage" --strip-components=1 --no-same-owner
 test -f "$stage/bin/oddspot-api"

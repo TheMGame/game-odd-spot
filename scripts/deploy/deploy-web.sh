@@ -43,12 +43,12 @@ fi
 
 version="$(tr -d '\r\n' < "$stage/VERSION")"
 if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$ ]]; then
-  echo "invalid Web game version: $version" >&2
+  echo "invalid web game version: $version" >&2
   exit 1
 fi
 release="$releases/$version"
 if [[ -e "$release" ]]; then
-  echo "Web game release already exists: $release" >&2
+  echo "web game release already exists: $release" >&2
   exit 1
 fi
 
@@ -77,9 +77,9 @@ if ! curl --fail --silent --show-error --insecure --max-time 20 \
     echo "health check FAILED, no previous target to roll back to; clearing current symlink"
     rm -f -- "$install_root/current"
   fi
-  echo "Web game health check failed; current was rolled back" >&2
+  echo "web game health check failed; current was rolled back" >&2
   exit 1
 fi
 
 echo "[6/6] done"
-echo "Web game $version ($pkg_flavor) deployed to $release"
+echo "web game $version ($pkg_flavor) deployed to $release"

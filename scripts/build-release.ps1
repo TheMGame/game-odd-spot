@@ -36,9 +36,7 @@ Copy-Item -Path (Join-Path $root 'docs\ai_spot_difference_solution\deploy\*') -D
 Set-Content -LiteralPath (Join-Path $stage 'VERSION') -Value $Version -Encoding ascii
 
 if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
+$archiveName = Split-Path -Leaf $archive
 Push-Location (Split-Path -Parent $stage)
-try { tar -czf $archive (Split-Path -Leaf $stage) } finally { Pop-Location }
-$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-$line = "$hash  $(Split-Path -Leaf $archive)"
-Set-Content -LiteralPath "$archive.sha256" -Value $line -Encoding ascii
+try { tar -czf $archiveName (Split-Path -Leaf $stage) } finally { Pop-Location }
 Write-Output $archive

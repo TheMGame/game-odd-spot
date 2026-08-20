@@ -68,13 +68,12 @@ try {
             if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
             Compress-Archive -LiteralPath $stage -DestinationPath $archive
         } else {
-            $archive = Join-Path $buildRoot "$packageName.tar.gz"
+            $archiveName = "$packageName.tar.gz"
+            $archive = Join-Path $buildRoot $archiveName
             if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
             Push-Location $buildRoot
-            try { tar -czf $archive $packageName } finally { Pop-Location }
+            try { tar -czf $archiveName $packageName } finally { Pop-Location }
         }
-        $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-        Set-Content -LiteralPath "$archive.sha256" -Value "$hash  $(Split-Path -Leaf $archive)" -Encoding ascii
         Write-Output $archive
     }
 } finally {

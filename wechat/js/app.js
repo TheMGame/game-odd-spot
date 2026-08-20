@@ -760,7 +760,7 @@ function validateLevel(level) {
   if (!level.assets || Number(level.assets.width) < 1 || Number(level.assets.width) > 8192 || Number(level.assets.height) < 1 || Number(level.assets.height) > 8192) return { ok: false, error: 'LEVEL_ASSETS_INVALID' }
   const required = ['image']
   for (const key of required) if (!level.assets[key] || !level.assets[key].asset_id || !String(level.assets[key].url || '').startsWith('https://')) return { ok: false, error: `LEVEL_ASSET_INVALID_${key.toUpperCase()}` }
-  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle)}
+  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle, false, false)}
   if (!Array.isArray(level.differences) || level.differences.length < 3 || level.differences.length > 12) return { ok: false, error: 'LEVEL_DIFFERENCES_INVALID' }
   const ids = new Set()
   for (const difference of level.differences) {

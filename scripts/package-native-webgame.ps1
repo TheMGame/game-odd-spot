@@ -72,14 +72,11 @@ $archive = Join-Path $packageRoot $archiveName
 if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
 Push-Location $buildRoot
 try {
-    tar -czf $archive 'webgame'
+    tar -czf (Join-Path 'packages' $archiveName) 'webgame'
     if ($LASTEXITCODE -ne 0) { throw 'Could not create native Web game archive' }
 } finally {
     Pop-Location
 }
-$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-[IO.File]::WriteAllText("$archive.sha256", "$hash  $archiveName`n", [Text.Encoding]::ASCII)
 
 Write-Output "Native Web output: $resolvedOutput"
 Write-Output "Package: $archive"
-Write-Output "SHA-256: $hash"

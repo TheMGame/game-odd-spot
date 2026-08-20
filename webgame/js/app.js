@@ -14,6 +14,7 @@ const { LoginView } = require('./ui/login')
 
 class OddSpotApp {
   constructor() {
+    this.config = config
     this.canvas = document.getElementById('game-canvas')
     this.renderer = new Renderer(this.canvas)
     this.session = new SessionStore()
@@ -448,7 +449,6 @@ class OddSpotApp {
     r.text(labelBase, innerStart, cy, statsSize, '#9cb5b1', 'left', 'normal')
     r.text(numText, innerStart + statsLabelW, cy, statsSize, COLORS.gold, 'left', 'bold')
     r.button('daily', { x: dailyX, y: rowY, w: dailyW, h: rowH }, dailyLabel, { fill: '#3f7565', border: '#8bb09f', size: Math.min(28, Math.round(dailyW * 0.13)) })
-    r.iconButton('settings', 946, 34 + top, 96, 'settings')
     const anim = this._homeBunnyAnim
     if (top > 40 && anim.loaded) {
       const marginX = 18
@@ -497,11 +497,11 @@ class OddSpotApp {
     }
     cs.restore(); this.maxScroll = Math.max(0, y + this.scroll.home - clip.y - clip.h)
     r.text(this.status, 540, h - 60, 20, '#a8c2bd', 'center')
+    r.iconButton('settings', 946, 34 + top, 96, 'settings')
   }
   renderLevels() {
     const r = this.renderer, h = r.height, top = r.safeTop, series = this.seriesById(this.selectedSeriesId)
     const c = r.ctx
-    r.iconButton('home', 28, 34 + top, 96, 'back'); r.iconButton('settings', 956, 34 + top, 96, 'settings')
     const anim = this._homeBunnyAnim
     if (top > 40 && anim.loaded) {
       const marginX = 18
@@ -545,12 +545,14 @@ class OddSpotApp {
       y += 268
     })
     cs.restore(); this.maxScroll = Math.max(0, y + this.scroll.levels - clip.y - clip.h)
+    r.iconButton('home', 28, 34 + top, 96, 'back')
+    r.iconButton('settings', 956, 34 + top, 96, 'settings')
   }
   isLevelCompleted(level) { return Boolean(level.completed) || this.progress.isCompleted(String(level.id), Number(level.version || 1)) }
 
   renderSettings() {
     const r = this.renderer, h = r.height, top = r.safeTop
-    r.iconButton('home', 28, 26 + top, 80, 'back'); r.text(this.i18n.t('settings'), 540, 56 + top, 44, COLORS.gold, 'center', 'bold'); r.text(this.i18n.t('settingsSubtitle'), 540, 104 + top, 21, COLORS.muted, 'center')
+    r.text(this.i18n.t('settings'), 540, 56 + top, 44, COLORS.gold, 'center', 'bold'); r.text(this.i18n.t('settingsSubtitle'), 540, 104 + top, 21, COLORS.muted, 'center')
     const clip = { x: 36, y: 145 + top, w: 1008, h: h - 165 - top }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); let y = clip.y - this.scroll.settings
     const section = (title) => { r.text(title, 36, y + 24, 24, '#d7aa57'); y += 54 }
     section(this.i18n.t('account')); r.rect(36, y, 1008, 205, COLORS.card, 20, COLORS.cardBorder, 1); r.text(this.session.data.username || this.i18n.t('signedIn'), 66, y + 55, 32, COLORS.paper, 'left', 'bold'); r.wrappedText(this.i18n.t('accountDesc'), 66, y + 112, 940, 22, COLORS.muted, 32, 3); y += 235
@@ -567,15 +569,17 @@ class OddSpotApp {
     r.text(`${this.i18n.t('app')} · 版本 ${config.APP_VERSION}`, 540, y, 18, '#94aeaa', 'center'); y += 55
     if (this.status) r.text(this.status, 540, y, 20, '#d8b470', 'center')
     c.restore(); this.maxScroll = Math.max(0, y + this.scroll.settings - clip.y - clip.h)
+    r.iconButton('home', 28, 26 + top, 80, 'back')
   }
 
   renderGame() {
     const r = this.renderer, h = r.height, top = r.safeTop, game = this.game
-    r.iconButton('levels', 14, 12 + top, 96, 'back')
     r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52 + top, 42, COLORS.gold, 'center', 'bold', 660)
     const total = game && game.level ? (game.level.mode==='image_puzzle'?(game.puzzle?.initialMisplaced||0):(game.level.differences||[]).length) : 0, found = game ? (game.level?.mode==='image_puzzle'?Math.max(0,total-countMisplaced(game.puzzle?.order||[])):Object.keys(game.found).length) : 0
-    r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center'); r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)
     r.progress(18, 125 + top, 1044, 16, found, total || 1)
+    r.iconButton('levels', 14, 12 + top, 96, 'back')
+    r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)
+    r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center')
     if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
     r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 29, '#caaa66', 'center', 'normal', 940)
     let panelHeight = 0, reasonLines = 0
@@ -681,7 +685,21 @@ class OddSpotApp {
   }
   puzzleCellAt(point){if(!this.game?.puzzle)return-1;const item=this.game.imageRects.find(x=>x?.draw&&inside(point,x.draw));if(!item)return-1;return cellFromNormalizedPoint((point.x-item.draw.x)/item.draw.w,(point.y-item.draw.y)/item.draw.h,this.game.puzzle.rows,this.game.puzzle.cols)}
   onWheel(event) {
-    if (this.scene !== 'game' || !this.game || this.game.loading || this.modal) return
+    const privacyActive = this.modal === 'privacy'
+    if (privacyActive) {
+      event.preventDefault()
+      this.scroll.privacy = clamp((this.scroll.privacy || 0) + event.deltaY * 0.6, 0, this.privacyMaxScroll || 0)
+      return
+    }
+    const scrollableScenes = ['home', 'levels', 'settings']
+    if (this.modal) return
+    if (scrollableScenes.includes(this.scene)) {
+      event.preventDefault()
+      const max = this.maxScroll || 0
+      this.setCurrentScroll(clamp(this.currentScroll() + event.deltaY * 0.6, 0, max))
+      return
+    }
+    if (this.scene !== 'game' || !this.game || this.game.loading) return
     const point = this.renderer.logicalTouch(event)
     const image = this.game.imageRects.find((item) => item && inside(point, item.panel))
     if (!image) return
@@ -747,7 +765,7 @@ function validateLevel(level) {
   if (!level.assets || Number(level.assets.width) < 1 || Number(level.assets.width) > 8192 || Number(level.assets.height) < 1 || Number(level.assets.height) > 8192) return { ok: false, error: 'LEVEL_ASSETS_INVALID' }
   const required = ['image']
   for (const key of required) if (!level.assets[key] || !level.assets[key].asset_id || !String(level.assets[key].url || '').startsWith('https://')) return { ok: false, error: `LEVEL_ASSET_INVALID_${key.toUpperCase()}` }
-  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle)}
+  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle, false, false)}
   if (!Array.isArray(level.differences) || level.differences.length < 3 || level.differences.length > 12) return { ok: false, error: 'LEVEL_DIFFERENCES_INVALID' }
   const ids = new Set()
   for (const difference of level.differences) {

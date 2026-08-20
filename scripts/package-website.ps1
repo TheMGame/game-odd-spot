@@ -35,14 +35,12 @@ Set-Content -LiteralPath (Join-Path $stage 'VERSION') -Value $Version -Encoding 
 if (Test-Path -LiteralPath $archive) {
     Remove-Item -LiteralPath $archive -Force
 }
+$archiveName = Split-Path -Leaf $archive
 Push-Location $packageRoot
 try {
-    tar -czf $archive $stageName
+    tar -czf $archiveName $stageName
     if ($LASTEXITCODE -ne 0) { throw 'Website archive creation failed' }
 } finally {
     Pop-Location
 }
-$hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-Set-Content -LiteralPath "$archive.sha256" -Value "$hash  $stageName.tar.gz" -Encoding ascii
 Write-Output $archive
-Write-Output "$archive.sha256"

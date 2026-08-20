@@ -27,7 +27,13 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		_handle_touch_drag(event as InputEventScreenDrag)
 	elif event is InputEventMouseButton:
-		_handle_mouse_button(event as InputEventMouseButton)
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			_handle_wheel(mb.position, _wheel_step(true))
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			_handle_wheel(mb.position, _wheel_step(false))
+		else:
+			_handle_mouse_button(mb)
 	elif event is InputEventMouseMotion:
 		_handle_mouse_motion(event as InputEventMouseMotion)
 
@@ -100,6 +106,27 @@ func _finish_drag() -> void:
 		_scroll.propagate_notification(Control.NOTIFICATION_SCROLL_END)
 		get_viewport().set_input_as_handled()
 	_reset_drag()
+
+
+func _wheel_step(up: bool) -> int:
+	var bar := _scroll.get_v_scroll_bar()
+	var step := 48
+	if bar != null:
+		var page_size := max(1.0, float(bar.page))
+		step = max(24, int(page_size / 8.0))
+	return -step if up else step
+
+
+func _handle_wheel(position: Vector2, delta: int) -> void:
+	if not _scroll.get_global_rect().has_point(position):
+		return
+	var bar := _scroll.get_v_scroll_bar()
+	if bar == null or bar.max_value <= bar.page:
+		return
+	_scroll.propagate_notification(Control.NOTIFICATION_SCROLL_BEGIN)
+	_scroll.scroll_vertical += delta
+	_scroll.propagate_notification(Control.NOTIFICATION_SCROLL_END)
+	get_viewport().set_input_as_handled()
 
 
 func _reset_drag() -> void:

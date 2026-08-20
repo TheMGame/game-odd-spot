@@ -43,13 +43,12 @@ for os in "${targets[@]}"; do
 
   if [[ "$os" == "windows" ]]; then
     archive="$build_root/$package_name.zip"
-    rm -f -- "$archive" "$archive.sha256"
+    rm -f -- "$archive"
     (cd "$build_root" && zip -qr "$archive" "$package_name")
   else
     archive="$build_root/$package_name.tar.gz"
-    rm -f -- "$archive" "$archive.sha256"
+    rm -f -- "$archive"
     tar -C "$build_root" -czf "$archive" "$package_name"
   fi
-  (cd "$build_root" && sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256")
   printf '%s\n' "$archive"
 done

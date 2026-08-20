@@ -10,11 +10,12 @@ class LoginView {
     this.userStatusNode = document.getElementById('user-status')
     this.ticket = ''
     this.registerAvatarURL = ''
-    this.currentMode = 'email'
+    this.currentMode = 'phone'
     this.h5PhoneOneClickReady = false
     this.h5PhoneOneClickFailed = false
     this.bind()
     this.initAvatarUploaders()
+    this.setMode(this.currentMode)
   }
 
   bind() {
@@ -235,6 +236,13 @@ class LoginView {
             jwtToken: this.h5PhoneAuthInfo.jwtToken,
             sceneType: 'h5',
             timeout: 15000,
+          }
+          const sceneId = String((this.app && this.app.config ? this.app.config.PHONE_H5_SCENE_ID : '') || '').trim()
+          if (sceneId) {
+            config.sceneId = sceneId
+            config.scene = sceneId
+            config.schemeCode = sceneId
+            config.planCode = sceneId
           }
           if (typeof sdk.getVerifyToken === 'function') {
             sdk.getVerifyToken(config, onResult, onFailed)
