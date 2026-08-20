@@ -168,18 +168,13 @@ class LoginView {
       return
     }
     try {
-      const pageURL = (window.location.href || '').split('#')[0]
-      const tokenResult = await this.app.api.getPhoneH5AuthToken(pageURL)
-      if (!tokenResult.ok || !tokenResult.data || !tokenResult.data.access_token || !tokenResult.data.jwt_token) {
+      const info = await this.fetchH5AuthInfo()
+      if (!info) {
         this.h5PhoneOneClickFailed = true
         this.updateOneClickButtons(false)
         return
       }
-      this.h5PhoneAuthInfo = {
-        accessToken: tokenResult.data.access_token,
-        jwtToken: tokenResult.data.jwt_token,
-        pageURL,
-      }
+      this.h5PhoneAuthInfo = info
       this.h5PhoneOneClickReady = true
       this.updateOneClickButtons(true)
     } catch (err) {
@@ -188,13 +183,22 @@ class LoginView {
     }
   }
 
+  // 向服务端换取 H5 鉴权 token。access_token 有效期仅 10 分钟，所以每次取号前都要重新拉一份，不能长期缓存。
+  // userRequest 返回 { ok, data: <完整响应体> }，token 在响应体的 data 字段下：data.data.{access_token,jwt_token}
+  async fetchH5AuthInfo() {
+    const pageURL = (window.location.href || '').split('#')[0]
+    const tokenResult = await this.app.api.getPhoneH5AuthToken(pageURL)
+    const payload = tokenResult.ok && tokenResult.data ? (tokenResult.data.data || {}) : {}
+    if (!payload.access_token || !payload.jwt_token) return null
+    return { accessToken: payload.access_token, jwtToken: payload.jwt_token, pageURL }
+  }
+
   h5OneClickEnvironmentAvailable() {
     if (!window.location || !/^https:$/i.test(window.location.protocol)) return false
     const ua = String(navigator && navigator.userAgent || '').toLowerCase()
     if (/iphone|ipad|ipod|android|harmony|hongmeng/.test(ua) === false) return false
-    if (typeof window.NumberAuthSdk !== 'undefined' && typeof window.NumberAuthSdk.getVerifyToken === 'function') return true
-    if (typeof window.Alibaba !== 'undefined' && typeof window.Alibaba.NumberAuthSdk !== 'undefined') return true
-    return false
+    // 阿里云号码认证 H5 网页端 SDK 通过 UMD 将构造函数挂载到 window.PhoneNumberServer
+    return typeof window.PhoneNumberServer === 'function'
   }
 
   async runH5OneClick(isRegistrationContext) {
@@ -203,65 +207,36 @@ class LoginView {
       this.setStatus('当前环境不支持一键登录，请使用短信验证码或密码登录', true)
       return
     }
+    if (typeof window.PhoneNumberServer !== 'function') {
+      this.setStatus('一键登录 SDK 未加载，请使用短信验证码或密码登录', true)
+      this.h5PhoneOneClickFailed = true
+      this.updateOneClickButtons(false)
+      return
+    }
+    const buttonId = isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login'
     this.app.audio.click()
-    this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', true, '', '正在获取本机号码…')
+    this.setBusy(buttonId, true, '', '正在获取本机号码…')
     this.setStatus('')
     try {
-      const sdk = (window.NumberAuthSdk && typeof window.NumberAuthSdk.getVerifyToken === 'function')
-        ? window.NumberAuthSdk
-        : (window.Alibaba && window.Alibaba.NumberAuthSdk)
-      if (!sdk) {
-        this.setStatus('一键登录 SDK 未加载，请使用短信验证码或密码登录', true)
+      // 每次点击都重新取一份新鲜 token（access_token 仅 10 分钟有效），避免用过期 token 取号失败（600011）
+      const fresh = await this.fetchH5AuthInfo()
+      if (!fresh) {
+        this.setBusy(buttonId, false, '', '')
+        this.setStatus('一键登录初始化失败，请使用短信验证码或密码登录', true)
         this.h5PhoneOneClickFailed = true
         this.updateOneClickButtons(false)
-        this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
         return
       }
-      sdk.setLogLevel && sdk.setLogLevel('error')
-      const spToken = await new Promise((resolve, reject) => {
-        try {
-          const timeoutTimer = setTimeout(() => reject(new Error('运营商取号超时')), 15000)
-          const onResult = (result) => {
-            clearTimeout(timeoutTimer)
-            const token = (result && (result.spToken || result.token || result.data && (result.data.spToken || result.data.token))) || ''
-            if (!token) reject(new Error(result && (result.msg || result.message || '取号失败')))
-            else resolve(token)
-          }
-          const onFailed = (err) => {
-            clearTimeout(timeoutTimer)
-            reject(err)
-          }
-          const config = {
-            accessToken: this.h5PhoneAuthInfo.accessToken,
-            jwtToken: this.h5PhoneAuthInfo.jwtToken,
-            sceneType: 'h5',
-            timeout: 15000,
-          }
-          const sceneId = String((this.app && this.app.config ? this.app.config.PHONE_H5_SCENE_ID : '') || '').trim()
-          if (sceneId) {
-            config.sceneId = sceneId
-            config.scene = sceneId
-            config.schemeCode = sceneId
-            config.planCode = sceneId
-          }
-          if (typeof sdk.getVerifyToken === 'function') {
-            sdk.getVerifyToken(config, onResult, onFailed)
-          } else if (typeof sdk.getLoginToken === 'function') {
-            sdk.getLoginToken(config, onResult, onFailed)
-          } else {
-            reject(new Error('未找到支持的取号方法'))
-          }
-        } catch (err) { reject(err) }
-      })
+      this.h5PhoneAuthInfo = fresh
+      const phoneNumberServer = new window.PhoneNumberServer()
+      // 打开 SDK 日志，便于在 Safari Web 检查器里看到运营商取号的真实流程与错误码
+      if (typeof phoneNumberServer.setLoggerEnable === 'function') phoneNumberServer.setLoggerEnable(true)
+      const spToken = await this.acquireSpToken(phoneNumberServer)
       const loginResult = await this.app.api.h5PhoneLogin(spToken)
-      this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
+      this.setBusy(buttonId, false, '', '')
       if (!loginResult.ok) {
         const message = loginError(loginResult.error)
-        if (/已注册|用户存在|phone_otp|phone_login/.test(message) || false) {
-          this.setStatus(`一键登录：${message}，请使用密码登录或短信验证码`, true)
-        } else {
-          this.setStatus(`一键登录失败：${message}，请使用短信验证码或密码登录`, true)
-        }
+        this.setStatus(`一键登录失败：${message}，请使用短信验证码或密码登录`, true)
         this.h5PhoneOneClickFailed = true
         this.updateOneClickButtons(false)
         return
@@ -270,12 +245,65 @@ class LoginView {
       await this.app.api.refreshUserProfile().catch(() => {})
       await this.app.bootstrap()
     } catch (err) {
-      this.setBusy(isRegistrationContext ? 'phone-oneclick-register' : 'phone-oneclick-login', false, '', '')
+      this.setBusy(buttonId, false, '', '')
       const message = err && (err.message || String(err))
       this.setStatus(`本机号码认证失败：${message || '未知错误'}。请使用短信验证码或密码登录`, true)
       this.h5PhoneOneClickFailed = true
       this.updateOneClickButtons(false)
     }
+  }
+
+  // 阿里云号码认证 H5 两步流程：先 checkLoginAvailable 鉴权，再 getLoginToken 拉起授权页取号。
+  // 成功回调返回 { code: '600000', vender, spToken }，其中 spToken 交由服务端 GetPhoneWithToken 取真实号码。
+  acquireSpToken(phoneNumberServer) {
+    const { accessToken, jwtToken } = this.h5PhoneAuthInfo
+    // #game-shell 无 z-index 不成层叠上下文，导致 #login-panel(z-index:5) 会盖住运营商授权页。
+    // 取号期间临时隐藏游戏登录卡片，让授权页独占屏幕可交互，结束后恢复。
+    const panel = this.root
+    return new Promise((resolve, reject) => {
+      let settled = false
+      let timer = null
+      const finish = (fn, arg) => { if (settled) return; settled = true; if (timer) clearTimeout(timer); if (panel) panel.hidden = false; fn(arg) }
+      const arm = (ms, msg) => { if (timer) clearTimeout(timer); timer = setTimeout(() => finish(reject, new Error(msg)), ms) }
+      // 附带 SDK 返回的 code，并把完整结果打到 console（600011/600012 的真实原因在运营商子码里）
+      const messageOf = (res, fallback) => {
+        try { console.warn('[oddspot h5]', JSON.stringify(res)) } catch (_) { console.warn('[oddspot h5]', res) }
+        const base = (res && (res.msg || res.message)) ? String(res.msg || res.message) : fallback
+        const code = res && (res.code !== undefined && res.code !== null) ? `（${res.code}）` : ''
+        const carrierObj = res && (res.carrier || res.carrierFailedResultData)
+        const carrier = carrierObj ? `[运营商:${typeof carrierObj === 'string' ? carrierObj : JSON.stringify(carrierObj)}]` : ''
+        const vender = res && res.vender ? `[${res.vender}]` : ''
+        return base + code + vender + carrier
+      }
+      // 阶段一：鉴权，给 15s；这一步是纯网络，超时说明运营商网关不通（多为未走蜂窝数据）
+      arm(15000, '运营商鉴权超时（请关闭 WiFi、仅用蜂窝数据后重试）')
+      phoneNumberServer.checkLoginAvailable({
+        accessToken,
+        jwtToken,
+        timeout: 15,
+        success: (authRes) => {
+          if (settled) return
+          if (!authRes || String(authRes.code) !== '600000') {
+            finish(reject, new Error(messageOf(authRes, '鉴权失败')))
+            return
+          }
+          // 阶段二：授权页展示 + 用户点击 + 取号；放宽到 90s，避免把用户阅读/点击时间算成超时
+          arm(90000, '取号超时（未收到运营商回调）')
+          if (panel) panel.hidden = true // 让运营商授权页独占屏幕，避免被登录卡片遮挡
+          phoneNumberServer.getLoginToken({
+            authPageOption: { privacyAlertIsNeedShow: true, isShowPreviewPrivacy: true },
+            timeout: 15,
+            success: (tokenRes) => {
+              const token = tokenRes && (tokenRes.spToken || tokenRes.token)
+              if (token) finish(resolve, token)
+              else finish(reject, new Error(messageOf(tokenRes, '取号失败')))
+            },
+            error: (errRes) => finish(reject, new Error(messageOf(errRes, '取号失败'))),
+          })
+        },
+        error: (errRes) => finish(reject, new Error(messageOf(errRes, '鉴权失败'))),
+      })
+    })
   }
 
   show() { this.root.hidden = false; this.setMode(this.currentMode); this.showLogin() }

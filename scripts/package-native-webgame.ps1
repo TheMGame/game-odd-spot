@@ -19,16 +19,23 @@ if ($Version -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$') {
     throw "Invalid package version: $Version"
 }
 
-Push-Location $source
-try {
-    if (-not (Test-Path -LiteralPath (Join-Path $source 'node_modules\.bin\esbuild.cmd'))) {
-        npm ci
-        if ($LASTEXITCODE -ne 0) { throw 'Could not install native Web build dependencies' }
+$existingBundle = Join-Path $bundleRoot 'app.bundle.js'
+$existingBundleMap = Join-Path $bundleRoot 'app.bundle.js.map'
+if ((Test-Path -LiteralPath $existingBundle) -and ((Get-Item -LiteralPath $existingBundle).Length -gt 0) -and
+    (Test-Path -LiteralPath $existingBundleMap) -and ((Get-Item -LiteralPath $existingBundleMap).Length -gt 0)) {
+    Write-Output "Using existing bundle at $bundleRoot; skipping npm build."
+} else {
+    Push-Location $source
+    try {
+        if (-not (Test-Path -LiteralPath (Join-Path $source 'node_modules\.bin\esbuild.cmd'))) {
+            npm ci
+            if ($LASTEXITCODE -ne 0) { throw 'Could not install native Web build dependencies' }
+        }
+        npm run check
+        if ($LASTEXITCODE -ne 0) { throw 'Native Web game checks failed' }
+    } finally {
+        Pop-Location
     }
-    npm run check
-    if ($LASTEXITCODE -ne 0) { throw 'Native Web game checks failed' }
-} finally {
-    Pop-Location
 }
 
 $resolvedBuildRoot = [IO.Path]::GetFullPath($buildRoot)
@@ -48,7 +55,9 @@ foreach ($file in @('index.html', 'styles.css', 'service-worker.js')) {
 }
 foreach ($file in @('app.bundle.js', 'app.bundle.js.map')) {
     $path = Join-Path $bundleRoot $file
-    if (-not (Test-Path -LiteralPath $path)) { throw "Native Web bundle is missing: $file" }
+    if (-not (Test-Path -LiteralPath $path) -or (Get-Item -LiteralPath $path).Length -eq 0) {
+        throw "Native Web bundle is missing or empty: $file (run 'npm run build' in webgame/)"
+    }
     Copy-Item -LiteralPath $path -Destination (Join-Path $resolvedOutput $file)
 }
 Copy-Item -LiteralPath (Join-Path $source 'assets') -Destination (Join-Path $resolvedOutput 'assets') -Recurse

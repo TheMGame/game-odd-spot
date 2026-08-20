@@ -5,7 +5,7 @@
   "scripts": {
     "build": "esbuild game.js --bundle --platform=browser --target=es2020 --minify --sourcemap --outfile=../build/.webgame-bundle/app.bundle.js",
     "check": "npm run build && node tests/run-tests.js",
-    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/package-native-webgame.ps1"
+    "package": "node scripts/run-package.js"
   },
   "devDependencies": {
     "esbuild": "^0.25.8"

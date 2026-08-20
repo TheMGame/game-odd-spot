@@ -27,6 +27,33 @@ JavaScript bundle 的中间产物生成在 `build/.webgame-bundle/`，不会写�
 
 Web 版本没有微信登录、微信授权、微信分包或任何 `wx.*` 依赖。
 
+## 手机号一键登录（阿里云号码认证 H5）
+
+手机号 Tab 除短信验证码外，还支持阿里云「号码认证服务（PNVS）」的 H5 一键登录/一键注册。运营商直接返回本机号码，无需输入手机号和验证码。
+
+### 前端接入
+
+- 网页端 SDK 在 `index.html` 通过 `<script>` 引入，SDK 以 UMD 方式把构造函数挂到全局 `window.PhoneNumberServer`。
+- 一键登录按钮是否显示由 `js/ui/login.js` 的 `h5OneClickEnvironmentAvailable()` 把关，需同时满足：**HTTPS**、**移动端 UA**、**`window.PhoneNumberServer` 已加载**，且服务端 `/api/v1/user/phone/h5/auth-token` 成功返回 `access_token` + `jwt_token`。任一不满足则按钮隐藏，仅保留密码 / 短信登录。
+- 取号流程（`runH5OneClick` → `acquireSpToken`）为阿里云官方两步：
+  1. `new PhoneNumberServer().checkLoginAvailable({ accessToken, jwtToken, success, error })` 鉴权，成功返回 `code === '600000'`；
+  2. `getLoginToken({ authPageOption, success, error })` 拉起运营商授权页并取号，成功返回 `{ code, vender, spToken }`；
+  3. `spToken` 交给 `api.h5PhoneLogin()`，由服务端调用阿里云 `GetPhoneWithToken` 换取真实号码。
+
+> SDK 地址如需更换（例如换版本或换托管域名），只改 `index.html` 里的 `<script src>` 即可，全局对象名与调用方式保持不变。
+
+### 服务端依赖
+
+- `POST /api/v1/user/phone/h5/auth-token`：对应阿里云 `GetAuthToken`，返回 `access_token`（业务鉴权，有效期约 10 分钟）与 `jwt_token`（API 鉴权，有效期约 1 小时）。
+- `POST /api/v1/user/phone/h5/login`：接收前端 `sp_token`，服务端用它调用阿里云 `GetPhoneWithToken` 取号并完成登录/注册。
+
+### 上线前必做（控制台 + 真机）
+
+1. **授权域名白名单**：承载该 H5 的页面域名必须加入阿里云号码认证控制台的授权域名白名单，否则 `checkLoginAvailable` 鉴权失败。
+2. **蜂窝网络取号**：纯 WiFi 下运营商无法取号（会要求用户补全手机号中间 4 位）。真机联调请使用数据流量，或临时关闭 WiFi。
+3. **必须 HTTPS + 移动端**：桌面浏览器 / localhost / HTTP 下按钮不显示，属预期行为。
+4. **合规**：授权页由 SDK 提供，登录/注册按钮文案须分别包含「登录」「注册」，不得绕过或模拟授权，阿里云会审查授权页。
+
 ## 本地运行
 
 首次安装和检查：

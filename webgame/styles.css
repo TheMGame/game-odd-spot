@@ -13,6 +13,9 @@ button { -webkit-tap-highlight-color: transparent; }
 
 #game-shell {
   position: relative;
+  /* 形成独立层叠上下文，把内部 #login-panel(z-index:5) 关在其中，
+     使挂到 document.body 的运营商授权页(高 z-index)能正常盖在最上层 */
+  isolation: isolate;
   width: min(100vw, 600px);
   height: 100dvh;
   min-height: 520px;
