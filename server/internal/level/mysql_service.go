@@ -15,7 +15,9 @@ func NewMySQLService(db *sql.DB) *MySQLService { return &MySQLService{db: db} }
 
 func (s *MySQLService) Home(ctx context.Context, userID string) ([]Summary, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT lv.level_id, lv.version, lv.difficulty,
-      (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=lv.level_id AND d.level_version=lv.version)
+      CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
+      THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+      ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=lv.level_id AND d.level_version=lv.version) END
       FROM level_versions lv
       LEFT JOIN users u ON u.id=?
       WHERE lv.status='published'
@@ -65,7 +67,11 @@ func (s *MySQLService) Start(ctx context.Context, userID, levelID string, reques
 		}
 		var owner, state string
 		var version, total int
-		err = tx.QueryRowContext(ctx, `SELECT a.user_id,a.state,a.level_version,(SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) FROM level_attempts a WHERE a.id=?`, request.AttemptID).Scan(&owner, &state, &version, &total)
+		err = tx.QueryRowContext(ctx, `SELECT a.user_id,a.state,a.level_version,
+		  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
+		  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+		  ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) END
+		  FROM level_attempts a JOIN level_versions lv ON lv.level_id=a.level_id AND lv.version=a.level_version WHERE a.id=?`, request.AttemptID).Scan(&owner, &state, &version, &total)
 		if err != nil {
 			return AttemptResult{}, err
 		}
@@ -84,6 +90,13 @@ func (s *MySQLService) Progress(ctx context.Context, userID, levelID string, req
 		}
 		if attemptLevel != levelID || state != "in_progress" {
 			return AttemptResult{}, ErrInvalidState
+		}
+		mode, _, _, err := levelPuzzleConfig(ctx, tx, attemptLevel, version)
+		if err != nil {
+			return AttemptResult{}, err
+		}
+		if mode == "image_puzzle" && len(request.Found) > 0 {
+			return AttemptResult{}, ErrInvalidDiff
 		}
 		if err := insertFound(ctx, tx, request.AttemptID, attemptLevel, version, request.Found); err != nil {
 			return AttemptResult{}, err
@@ -108,18 +121,33 @@ func (s *MySQLService) Complete(ctx context.Context, userID, levelID string, req
 		if state == "completed" {
 			return attemptResult(ctx, tx, request.AttemptID)
 		}
-		found := make([]FoundDifference, 0, len(request.DifferenceIDs))
-		for _, id := range request.DifferenceIDs {
-			found = append(found, FoundDifference{DifferenceID: id, FoundAtMS: request.DurationMS})
-		}
-		if err := insertFound(ctx, tx, request.AttemptID, attemptLevel, version, found); err != nil {
+		mode, rows, cols, err := levelPuzzleConfig(ctx, tx, attemptLevel, version)
+		if err != nil {
 			return AttemptResult{}, err
 		}
-		var expected, actual int
-		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_differences WHERE level_id=? AND level_version=?`, attemptLevel, version).Scan(&expected)
-		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempt_differences WHERE attempt_id=?`, request.AttemptID).Scan(&actual)
-		if actual != expected {
-			return AttemptResult{}, ErrIncomplete
+		if mode == "image_puzzle" {
+			if len(request.PuzzleOrder) != rows*cols {
+				return AttemptResult{}, ErrIncomplete
+			}
+			for i, piece := range request.PuzzleOrder {
+				if piece != i {
+					return AttemptResult{}, ErrIncomplete
+				}
+			}
+		} else {
+			found := make([]FoundDifference, 0, len(request.DifferenceIDs))
+			for _, id := range request.DifferenceIDs {
+				found = append(found, FoundDifference{DifferenceID: id, FoundAtMS: request.DurationMS})
+			}
+			if err := insertFound(ctx, tx, request.AttemptID, attemptLevel, version, found); err != nil {
+				return AttemptResult{}, err
+			}
+			var expected, actual int
+			_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_differences WHERE level_id=? AND level_version=?`, attemptLevel, version).Scan(&expected)
+			_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempt_differences WHERE attempt_id=?`, request.AttemptID).Scan(&actual)
+			if actual != expected {
+				return AttemptResult{}, ErrIncomplete
+			}
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE level_attempts SET state='completed',hints_used=?,duration_ms=?,completed_at=UTC_TIMESTAMP(3) WHERE id=?`, request.HintsUsed, request.DurationMS, request.AttemptID)
 		if err != nil {
@@ -210,6 +238,37 @@ func insertFound(ctx context.Context, tx *sql.Tx, attemptID, levelID string, ver
 func attemptResult(ctx context.Context, tx *sql.Tx, attemptID string) (AttemptResult, error) {
 	var r AttemptResult
 	r.AttemptID = attemptID
-	err := tx.QueryRowContext(ctx, `SELECT a.state,a.hints_used,a.duration_ms,(SELECT COUNT(*) FROM attempt_differences f WHERE f.attempt_id=a.id),(SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) FROM level_attempts a WHERE a.id=?`, attemptID).Scan(&r.State, &r.HintsUsed, &r.DurationMS, &r.FoundCount, &r.TotalCount)
+	err := tx.QueryRowContext(ctx, `SELECT a.state,a.hints_used,a.duration_ms,
+	  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle' AND a.state='completed'
+	    THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+	    ELSE (SELECT COUNT(*) FROM attempt_differences f WHERE f.attempt_id=a.id) END,
+	  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
+	    THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+	    ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) END
+	  FROM level_attempts a JOIN level_versions lv ON lv.level_id=a.level_id AND lv.version=a.level_version WHERE a.id=?`, attemptID).Scan(&r.State, &r.HintsUsed, &r.DurationMS, &r.FoundCount, &r.TotalCount)
 	return r, err
+}
+
+func levelPuzzleConfig(ctx context.Context, tx *sql.Tx, levelID string, version int) (string, int, int, error) {
+	var raw []byte
+	if err := tx.QueryRowContext(ctx, `SELECT runtime_json FROM level_versions WHERE level_id=? AND version=?`, levelID, version).Scan(&raw); err != nil {
+		return "", 0, 0, err
+	}
+	var runtime struct {
+		Mode   string `json:"mode"`
+		Puzzle *struct {
+			Rows int `json:"rows"`
+			Cols int `json:"cols"`
+		} `json:"puzzle"`
+	}
+	if err := json.Unmarshal(raw, &runtime); err != nil {
+		return "", 0, 0, err
+	}
+	if runtime.Mode == "image_puzzle" {
+		if runtime.Puzzle == nil || runtime.Puzzle.Rows < 2 || runtime.Puzzle.Cols < 2 {
+			return "", 0, 0, ErrInvalidState
+		}
+		return runtime.Mode, runtime.Puzzle.Rows, runtime.Puzzle.Cols, nil
+	}
+	return runtime.Mode, 0, 0, nil
 }

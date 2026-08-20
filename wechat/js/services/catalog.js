@@ -2,15 +2,15 @@ const config = require('../config')
 
 class CatalogRepository {
   constructor(api, preferences) { this.api = api; this.preferences = preferences; this.loading = null }
-  key() { return `oddspot.catalog.${this.preferences.data.locale}` }
+  key() { return `oddspot.catalog.v2.${this.preferences.data.locale}` }
   cached() { return wx.getStorageSync(this.key()) || null }
   clear() { wx.removeStorageSync(this.key()) }
   async get(force = false) {
     const cache = this.cached()
     const now = Math.floor(Date.now() / 1000)
     if (!force && cache && cache.catalog) {
-      if (now - Number(cache.loaded_at || 0) >= config.CATALOG_TTL_SECONDS && !this.loading) this.refresh()
-      return { ok: true, data: cache.catalog, source: 'cache' }
+      if (now - Number(cache.loaded_at || 0) < config.CATALOG_TTL_SECONDS) return { ok: true, data: cache.catalog, source: 'cache' }
+      return this.refresh()
     }
     return this.refresh()
   }

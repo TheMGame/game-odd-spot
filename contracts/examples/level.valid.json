@@ -2,15 +2,14 @@
   "schema_version": 1,
   "level_id": "global_demo_001",
   "level_version": 1,
-  "mode": "spot_difference",
+  "mode": "find_anachronism",
   "assets": {
-    "base": {"asset_id":"base_demo_001","url":"https://cdn.example.com/assets/base_demo_001.webp","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":120000,"content_type":"image/webp"},
-    "target": {"asset_id":"target_demo_001","url":"https://cdn.example.com/assets/target_demo_001.webp","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bytes":121000,"content_type":"image/webp"},
+    "image": {"asset_id":"image_demo_001","url":"https://cdn.example.com/assets/image_demo_001.webp","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":120000,"content_type":"image/webp"},
     "width": 1536,
     "height": 1024
   },
   "differences": [
-    {"id":"d1","shape":"circle","x":0.2,"y":0.3,"radius":0.03,"difficulty":1,"operation":"remove"},
+    {"id":"d1","shape":"circle","x":0.2,"y":0.3,"radius":0.03,"difficulty":1,"operation":"anachronism"},
     {"id":"d2","shape":"circle","x":0.5,"y":0.4,"radius":0.025,"difficulty":2,"operation":"color"},
     {"id":"d3","shape":"circle","x":0.7,"y":0.6,"radius":0.02,"difficulty":3,"operation":"replace"},
     {"id":"d4","shape":"polygon","points":[{"x":0.3,"y":0.7},{"x":0.35,"y":0.68},{"x":0.34,"y":0.75}],"difficulty":3,"operation":"shape"},

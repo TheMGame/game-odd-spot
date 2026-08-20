@@ -214,10 +214,12 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [attempt_id, difference_ids, duration_ms]
+              required: [attempt_id, duration_ms]
               properties:
                 attempt_id: {type: string, format: uuid}
                 difference_ids: {type: array, uniqueItems: true, items: {type: string}}
+                puzzle_order: {type: array, maxItems: 48, items: {type: integer, minimum: 0}}
+                puzzle_moves: {type: integer, minimum: 0}
                 duration_ms: {type: integer, minimum: 500}
                 hints_used: {type: integer, minimum: 0, maximum: 12}
       responses:
@@ -324,12 +326,14 @@ components:
   schemas:
     LevelSummary:
       type: object
-      required: [level_id, level_version, difficulty, difference_count]
+      required: [level_id, level_version, mode, difficulty, content_count]
       properties:
         level_id: {type: string}
         level_version: {type: integer}
+        mode: {enum: [find_anachronism, image_puzzle]}
         difficulty: {type: integer, minimum: 1, maximum: 5}
         difference_count: {type: integer, minimum: 3, maximum: 12}
+        content_count: {type: integer, minimum: 0, maximum: 24}
     AttemptResult:
       type: object
       required: [attempt_id, state, found_count, total_count, hints_used, duration_ms, rewarded_hints]

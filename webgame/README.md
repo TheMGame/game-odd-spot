@@ -7,7 +7,16 @@
 - Godot 客户端同款邮箱密码登录。
 - 邮箱验证码登录/注册、资料完善、Session 恢复与退出登录。
 - 系列首页、每日挑战、选关、完成状态与顺序解锁。
-- `find_anachronism` 与 `spot_difference` 两种模式。
+- `find_anachronism` 与 `image_puzzle` 两种模式；拼图直接显示错位棋盘。
+
+正式打包：
+
+```powershell
+.\scripts\package-native-webgame.ps1 -Version 0.2.0
+```
+
+运行目录输出到 `build/webgame/`，发布压缩包和校验文件输出到 `build/packages/`。`build/web/` 保留给 Godot Web 导出，不要混用。
+JavaScript bundle 的中间产物生成在 `build/.webgame-bundle/`，不会写回源码目录。
 - 圆形/多边形命中、提示、解释、通关、重玩和下一关。
 - 手机双指缩放、拖动；桌面鼠标拖动和滚轮缩放。
 - 每账号每天 3 次免费提示。

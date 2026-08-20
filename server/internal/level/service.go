@@ -45,6 +45,8 @@ type ProgressRequest struct {
 type CompleteRequest struct {
 	AttemptID      string   `json:"attempt_id"`
 	DifferenceIDs  []string `json:"difference_ids"`
+	PuzzleOrder    []int    `json:"puzzle_order,omitempty"`
+	PuzzleMoves    int      `json:"puzzle_moves,omitempty"`
 	HintsUsed      int      `json:"hints_used"`
 	DurationMS     int64    `json:"duration_ms"`
 	IdempotencyKey string   `json:"-"`
@@ -95,7 +97,7 @@ func (s *MemoryService) Get(_ context.Context, id string) (json.RawMessage, erro
 	if id != "global_demo_001" {
 		return nil, ErrNotFound
 	}
-	return json.RawMessage(`{"schema_version":1,"level_id":"global_demo_001","level_version":1,"mode":"spot_difference","assets":{"base":{"asset_id":"base_demo_001","url":"https://cdn.example.com/base.webp","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":1,"content_type":"image/webp"},"target":{"asset_id":"target_demo_001","url":"https://cdn.example.com/target.webp","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","bytes":1,"content_type":"image/webp"},"width":1536,"height":1024},"differences":[{"id":"d1"},{"id":"d2"},{"id":"d3"},{"id":"d4"},{"id":"d5"}]}`), nil
+	return json.RawMessage(`{"schema_version":1,"level_id":"global_demo_001","level_version":1,"mode":"find_anachronism","assets":{"image":{"asset_id":"image_demo_001","url":"https://cdn.example.com/image.webp","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":1,"content_type":"image/webp"},"width":1536,"height":1024},"differences":[{"id":"d1"},{"id":"d2"},{"id":"d3"},{"id":"d4"},{"id":"d5"}]}`), nil
 }
 
 func (s *MemoryService) Start(_ context.Context, userID, levelID string, request StartRequest) (AttemptResult, error) {

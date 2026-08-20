@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "level_id": "puzzle_demo_001",
+  "level_version": 1,
+  "mode": "image_puzzle",
+  "title": "老上海街景",
+  "instruction": "交换错位区域，还原完整画面",
+  "assets": {"image":{"asset_id":"image_puzzle_001","url":"https://cdn.example.com/puzzle.webp","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","bytes":120000,"content_type":"image/webp"},"width":1024,"height":1536},
+  "puzzle": {"rows":5,"cols":4,"operations":[{"type":"swap","cells":[0,11]},{"type":"swap","cells":[1,14]},{"type":"swap","cells":[2,17]},{"type":"swap","cells":[3,8]},{"type":"swap","cells":[4,19]},{"type":"swap","cells":[5,12]},{"type":"swap","cells":[6,15]},{"type":"swap","cells":[7,10]},{"type":"swap","cells":[9,16]},{"type":"swap","cells":[13,18]}]},
+  "tags": {"regions":[],"themes":[],"styles":[],"scenes":[],"risk":[]},
+  "difficulty": {"total":2,"object_size":2,"color_similarity":2,"visual_density":2,"edge_distance":2,"semantic_obviousness":2}
+}

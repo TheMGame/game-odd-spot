@@ -21,6 +21,7 @@ global.wx = {
 const { SessionStore, Preferences, ProgressStore } = require('../js/core/storage')
 const { pointInPolygon } = require('../js/core/utils')
 const { OddSpotApp, validateLevel } = require('../js/app')
+require('./puzzle.test')
 
 function validLevel() {
   const descriptor = { asset_id: 'a', url: 'https://oddspot.guaguatu.com/content/a.webp', sha256: 'a'.repeat(64) }
@@ -36,6 +37,8 @@ function validLevel() {
 }
 
 assert.deepStrictEqual(validateLevel(validLevel()), { ok: true })
+assert.deepStrictEqual(validateLevel({...validLevel(),mode:'image_puzzle',differences:undefined,puzzle:{rows:2,cols:3,operations:[{type:'swap',cells:[0,3]},{type:'swap',cells:[1,4]},{type:'swap',cells:[2,5]}]}}),{ok:true})
+assert.strictEqual(validateLevel({...validLevel(),mode:'spot_difference'}).ok,false)
 const invalid = validLevel(); invalid.differences[0].radius = .5
 assert.strictEqual(validateLevel(invalid).ok, false)
 assert.strictEqual(pointInPolygon({ x: .5, y: .5 }, [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]), true)

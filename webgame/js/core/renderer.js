@@ -121,6 +121,15 @@ class Renderer {
     const c = this.ctx; c.save(); c.beginPath(); c.rect(rect.x, rect.y, rect.w, rect.h); c.clip(); c.drawImage(image, draw.x, draw.y, draw.w, draw.h); c.restore()
     return draw
   }
+  puzzleImage(image, rect, rows, cols, order, selectedGroup, zoom = 1, offset = { x: 0, y: 0 }) {
+    if (!image || !image.width || !image.height) return null
+    const fit = Math.min(rect.w / image.width, rect.h / image.height), w = image.width * fit * zoom, h = image.height * fit * zoom
+    const draw = { x: rect.x + (rect.w - w) / 2 + offset.x, y: rect.y + (rect.h - h) / 2 + offset.y, w, h }, c = this.ctx
+    c.save(); c.beginPath(); c.rect(rect.x, rect.y, rect.w, rect.h); c.clip()
+    for (let cell = 0; cell < order.length; cell++) { const piece = order[cell], dc = cell % cols, dr = Math.floor(cell / cols), sc = piece % cols, sr = Math.floor(piece / cols), dw = w / cols, dh = h / rows; c.drawImage(image, sc * image.width / cols, sr * image.height / rows, image.width / cols, image.height / rows, draw.x + dc * dw, draw.y + dr * dh, dw, dh); c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 1.5; c.strokeRect(draw.x + dc * dw, draw.y + dr * dh, dw, dh) }
+    for(const selected of selectedGroup||[]){const col=selected%cols,row=Math.floor(selected/cols);c.strokeStyle=COLORS.gold;c.lineWidth=5;c.strokeRect(draw.x+col*w/cols+2,draw.y+row*h/rows+2,w/cols-4,h/rows-4)}
+    c.restore(); return draw
+  }
   progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, '#203d47', h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }
 }
 

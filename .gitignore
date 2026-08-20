@@ -17,6 +17,9 @@ diagnostics/wechat-empty-46-source/
 .summer/local/
 build
 dist/
+node_modules/
+webgame/app.bundle.js
+webgame/app.bundle.js.map
 server/bin/
 *.exe
 *.test

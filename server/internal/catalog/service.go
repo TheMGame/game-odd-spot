@@ -17,6 +17,8 @@ type Level struct {
 	Title           string `json:"title"`
 	Difficulty      int    `json:"difficulty"`
 	DifferenceCount int    `json:"difference_count"`
+	Mode            string `json:"mode"`
+	ContentCount    int    `json:"content_count"`
 	ThumbnailURL    string `json:"thumbnail_url"`
 	ImageURL        string `json:"image_url"`
 	SortOrder       int    `json:"sort_order"`
@@ -141,8 +143,10 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 		}
 		item.Levels = []Level{}
 		levelWhere := "AND sl.enabled=TRUE AND lv.status='published'"
+		versionWhere := "AND v2.status='published'"
 		if admin {
 			levelWhere = "AND sl.enabled=TRUE AND lv.status IN ('draft','pending_review','approved','staging','published','disabled')"
+			versionWhere = ""
 		}
 		levelOrder := "ORDER BY sl.sort_order ASC,sl.created_at DESC,sl.level_id"
 		if item.ID == "daily_task" {
@@ -161,6 +165,10 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			COALESCE(req.title,def.title,en.title,JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.title')),sl.level_id),
 			lv.difficulty,
 			COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0),
+			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode')),'find_anachronism'),
+			CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
+			  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+			  ELSE COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0) END,
 			COALESCE(
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.thumbnail.url')),
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),
@@ -178,7 +186,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			)
 			FROM content_series_levels sl
 			JOIN level_versions lv ON lv.level_id=sl.level_id
-			AND lv.version=(SELECT MAX(v2.version) FROM level_versions v2 WHERE v2.level_id=sl.level_id)
+			AND lv.version=(SELECT MAX(v2.version) FROM level_versions v2 WHERE v2.level_id=sl.level_id `+versionWhere+`)
 			LEFT JOIN content_level_i18n req ON req.level_id=sl.level_id AND req.locale=?
 			LEFT JOIN content_level_i18n def ON def.level_id=sl.level_id AND def.locale=?
 			LEFT JOIN content_level_i18n en ON en.level_id=sl.level_id AND en.locale='en-US'
@@ -188,7 +196,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 		}
 		for levelRows.Next() {
 			var level Level
-			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.ThumbnailURL, &level.ImageURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
+			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.Mode, &level.ContentCount, &level.ThumbnailURL, &level.ImageURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
 				levelRows.Close()
 				return nil, err
 			}
@@ -201,9 +209,10 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 }
 
 func (s *MySQLService) UpsertSeries(ctx context.Context, item Series) error {
-	if item.ID == "" || item.Title == "" || item.Mode == "" {
-		return errors.New("series id, title and mode are required")
+	if item.ID == "" || item.Title == "" {
+		return errors.New("series id and title are required")
 	}
+	item.Mode = "find_anachronism"
 	_, err := s.db.ExecContext(ctx, `INSERT INTO content_series(id,title,description,mode,cover_url,sort_order,enabled)
 		VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description),
 		mode=VALUES(mode),cover_url=VALUES(cover_url),sort_order=VALUES(sort_order),enabled=VALUES(enabled)`,
@@ -221,6 +230,13 @@ func (s *MySQLService) UpsertLevel(ctx context.Context, levelID string, input Up
 		return errors.New("runtime_json.level_version is required")
 	}
 	mode, _ := runtime["mode"].(string)
+	status := input.Status
+	if status == "" {
+		status = "draft"
+	}
+	if err := validateRuntimeLevel(runtime, status == "published"); err != nil {
+		return err
+	}
 	difficulty := 1
 	if d, ok := runtime["difficulty"].(map[string]any); ok {
 		if v, valid := number(d["total"]); valid {
@@ -228,10 +244,6 @@ func (s *MySQLService) UpsertLevel(ctx context.Context, levelID string, input Up
 		}
 	}
 	diffs, _ := runtime["differences"].([]any)
-	status := input.Status
-	if status == "" {
-		status = "draft"
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -250,18 +262,20 @@ func (s *MySQLService) UpsertLevel(ctx context.Context, levelID string, input Up
 	if _, err = tx.ExecContext(ctx, `DELETE FROM level_differences WHERE level_id=? AND level_version=?`, levelID, version); err != nil {
 		return err
 	}
-	for _, raw := range diffs {
-		diff, _ := raw.(map[string]any)
-		key, _ := diff["id"].(string)
-		diffDifficulty, _ := number(diff["difficulty"])
-		if key == "" {
-			return errors.New("each difference requires an id")
-		}
-		if diffDifficulty == 0 {
-			diffDifficulty = 1
-		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO level_differences(level_id,level_version,diff_key,difficulty) VALUES(?,?,?,?)`, levelID, version, key, diffDifficulty); err != nil {
-			return err
+	if mode == "find_anachronism" {
+		for _, raw := range diffs {
+			diff, _ := raw.(map[string]any)
+			key, _ := diff["id"].(string)
+			diffDifficulty, _ := number(diff["difficulty"])
+			if key == "" {
+				return errors.New("each difference requires an id")
+			}
+			if diffDifficulty == 0 {
+				diffDifficulty = 1
+			}
+			if _, err = tx.ExecContext(ctx, `INSERT INTO level_differences(level_id,level_version,diff_key,difficulty) VALUES(?,?,?,?)`, levelID, version, key, diffDifficulty); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO content_series_levels(series_id,level_id,sort_order,enabled)

@@ -5,6 +5,7 @@ const path = require('path')
 const { validateLevel } = require('../js/app')
 const { pointInPolygon } = require('../js/core/utils')
 const { validEmail } = require('../js/ui/login')
+require('./puzzle.test')
 
 const root = path.resolve(__dirname, '..')
 
@@ -22,6 +23,8 @@ const level = {
 }
 
 assert.deepStrictEqual(validateLevel(level), { ok: true })
+assert.deepStrictEqual(validateLevel({...level,mode:'image_puzzle',differences:undefined,puzzle:{rows:2,cols:3,operations:[{type:'swap',cells:[0,3]},{type:'swap',cells:[1,4]},{type:'swap',cells:[2,5]}]}}),{ok:true})
+assert.strictEqual(validateLevel({...level,mode:'spot_difference'}).ok,false)
 assert.strictEqual(pointInPolygon({ x: .75, y: .74 }, level.differences[2].points), true)
 assert.strictEqual(pointInPolygon({ x: .2, y: .8 }, level.differences[2].points), false)
 assert.strictEqual(validEmail('player@example.com'), true)
@@ -50,7 +53,7 @@ for (const file of jsFiles) {
   assert(!/loginWechat|wechatLogin/.test(source), `${path.relative(root, file)} still contains WeChat login logic`)
 }
 
-for (const required of ['index.html', 'styles.css', 'app.bundle.js', 'service-worker.js']) {
+for (const required of ['index.html', 'styles.css', 'service-worker.js']) {
   assert(fs.existsSync(path.join(root, required)), `${required} is missing`)
 }
 

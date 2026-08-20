@@ -255,6 +255,20 @@ func (a *api) listAssets(w http.ResponseWriter, r *http.Request) {
 			"name": entry.Name(), "url": a.deps.Config.PublicBaseURL + "/content/" + entry.Name(),
 			"bytes": info.Size(), "updated_at": info.ModTime().UTC(),
 		}
+		if data, readErr := os.ReadFile(filepath.Join(a.deps.Config.ContentDir, entry.Name())); readErr == nil {
+			sum := sha256.Sum256(data)
+			item["sha256"] = fmt.Sprintf("%x", sum)
+			item["asset_id"] = strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if ext == ".jpg" || ext == ".jpeg" {
+				item["content_type"] = "image/jpeg"
+			} else {
+				item["content_type"] = "image/png"
+			}
+			if config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data)); decodeErr == nil {
+				item["width"], item["height"] = config.Width, config.Height
+			}
+		}
 		stem := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 		thumbName := stem + "-thumb.jpg"
 		if thumbInfo, thumbErr := os.Stat(filepath.Join(a.deps.Config.ContentDir, thumbName)); thumbErr == nil {

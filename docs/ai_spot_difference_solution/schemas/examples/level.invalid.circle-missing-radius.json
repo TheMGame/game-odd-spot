@@ -1,1 +1,1 @@
-{"schema_version":1,"level_id":"invalid_demo_001","level_version":1,"mode":"spot_difference","assets":{},"differences":[{"id":"d1","shape":"circle","x":0.2,"y":0.3,"difficulty":1,"operation":"remove"}],"tags":{},"difficulty":{}}
+{"schema_version":1,"level_id":"invalid_demo_001","level_version":1,"mode":"find_anachronism","assets":{},"differences":[{"id":"d1","shape":"circle","x":0.2,"y":0.3,"difficulty":1,"operation":"anachronism"}],"tags":{},"difficulty":{}}
