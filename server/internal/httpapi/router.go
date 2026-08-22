@@ -104,6 +104,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/v1/levels", a.requireAdmin(http.HandlerFunc(a.adminLevels)))
 	mux.Handle("GET /admin/v1/catalog", a.requireAdmin(http.HandlerFunc(a.adminCatalog)))
 	mux.Handle("POST /admin/v1/series", a.requireAdmin(http.HandlerFunc(a.upsertSeries)))
+	mux.Handle("DELETE /admin/v1/series/{seriesId}/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.removeLevelFromSeries)))
 	mux.Handle("GET /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.adminGetLevel)))
 	mux.Handle("POST /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.upsertCatalogLevel)))
 	mux.Handle("POST /admin/v1/levels/{levelId}/status", a.requireAdmin(http.HandlerFunc(a.setCatalogLevelStatus)))
@@ -240,6 +241,18 @@ func (a *api) setCatalogLevelStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 	default:
 		writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"level_id": r.PathValue("levelId"), "status": input.Status}))
+	}
+}
+
+func (a *api) removeLevelFromSeries(w http.ResponseWriter, r *http.Request) {
+	err := a.deps.Catalog.RemoveLevelFromSeries(r.Context(), r.PathValue("seriesId"), r.PathValue("levelId"))
+	switch {
+	case errors.Is(err, catalog.ErrNotFound):
+		writeError(w, http.StatusNotFound, "LEVEL_NOT_FOUND", "level is not bound to this series")
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not remove level from series")
+	default:
+		writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"series_id": r.PathValue("seriesId"), "level_id": r.PathValue("levelId"), "removed": true}))
 	}
 }
 

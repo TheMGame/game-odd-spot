@@ -115,7 +115,7 @@ class OddSpotApp {
     if (this.canvas.requestAnimationFrame) this.canvas.requestAnimationFrame(this.frame)
     else requestAnimationFrame(this.frame)
   }
-  frame() { this.render(); this.scheduleFrame() }
+  frame() { this.checkTimeLimit(); this.render(); this.scheduleFrame() }
 
   async bootstrap() {
     this.scene = 'loading'; this.loadingProgress = .15; this.status = this.i18n.t('loading'); this.error = ''
@@ -231,6 +231,9 @@ class OddSpotApp {
   }
 
   elapsed() { return this.game ? this.game.elapsedBefore + Date.now() - this.game.startedAt : 0 }
+  puzzleTimeLimitMs(game) { const g = game || this.game; if (!g || !g.level || g.level.mode !== 'image_puzzle') return 0; const s = Math.floor(Number(g.level.puzzle && g.level.puzzle.time_limit_seconds || 0)); return s > 0 ? s * 1000 : 0 }
+  checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.puzzleTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
+  failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
     if (difference.shape === 'circle') return Math.hypot(point.x - Number(difference.x), point.y - Number(difference.y)) <= Number(difference.radius) + .012
     if (difference.shape === 'polygon') return pointInPolygon(point, difference.points || [])
@@ -242,7 +245,7 @@ class OddSpotApp {
   }
   restoreFound(difference) { this.game.found[String(difference.id)] = true; this.game.markers.push({ point: this.differenceCenter(difference), at: 0 }) }
   pressGameImage(point) {
-    if (!this.game || this.game.complete || this.game.loading) return
+    if (!this.game || this.game.complete || this.game.timedOut || this.game.loading) return
     if (this.game.level.mode === 'image_puzzle') { const p=this.game.puzzle,cell=cellFromNormalizedPoint(point.x,point.y,p.rows,p.cols); if(cell>=0)this.pressPuzzleCell(cell); return }
     for (const difference of this.game.level.differences) {
       const id = String(difference.id)
@@ -251,7 +254,7 @@ class OddSpotApp {
     this.status = this.i18n.t('noDifference')
     this.analytics.track('wrong_tap', { level_id: this.game.level.level_id, x: point.x, y: point.y })
   }
-  movePuzzle(source,target) { const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='这个块组无法放到该位置';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
+  movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='这个块组无法放到该位置';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
   markFound(difference) {
     const id = String(difference.id); this.game.found[id] = true; this.game.markers.push({ point: this.differenceCenter(difference), at: Date.now() }); this.audio.correct()
     this.game.foundInfo = { title: `已找到：${difference.label || difference.id || '时代错误'}`, era: `${this.i18n.t('clue')}：${difference.era || '暂无线索'}`, reason: `${this.i18n.t('clueReasoning')}：${String(difference.explanation || '').trim() || '这条素材尚缺少推理说明，请通过举报反馈。'}` }
@@ -276,7 +279,7 @@ class OddSpotApp {
     all[key] = { date: today, used: current.date === today ? Number(current.used || 0) + 1 : 1 }; write(KEYS.hints, all)
   }
   useHint() {
-    if (!this.game || this.game.loading || this.game.complete) return
+    if (!this.game || this.game.loading || this.game.complete || this.game.timedOut) return
     if (this.hintsRemaining() <= 0) { this.status = '今天的 3 次免费提示已经用完了'; this.modal = 'hintLimit'; return }
     if(this.game.level.mode==='image_puzzle'){const p=this.game.puzzle,hint=findHintMove(p.order,p.rows,p.cols);if(!hint){this.status='当前块组需要先移开才能使用提示';return}this.consumeHint();this.game.attempt.hints_used=Number(this.game.attempt.hints_used||0)+1;p.order=hint.order;p.moves++;this.analytics.track('puzzle_hint',{level_id:this.game.level.level_id,source:hint.source,target:hint.target});this.audio.correct();this.saveAttempt();if(isSolved(p.order))this.finishAfterFeedback();return}
     const difference = this.game.level.differences.find((item) => !this.game.found[String(item.id)])
@@ -581,7 +584,9 @@ class OddSpotApp {
     r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)
     r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center')
     if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
-    r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 29, '#caaa66', 'center', 'normal', 940)
+    const limitMs = this.puzzleTimeLimitMs(game)
+    if (limitMs > 0) { const remain = Math.max(0, limitMs - this.elapsed()); r.text(`⏱ ${formatElapsed(remain)}`, 540, 175 + top, 44, remain <= 10000 ? '#e2513a' : COLORS.gold, 'center', 'bold') }
+    else r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 29, '#caaa66', 'center', 'normal', 940)
     let panelHeight = 0, reasonLines = 0
     if (game.foundInfo) {
       const reason = String(game.foundInfo.reason || '').trim()
@@ -606,6 +611,7 @@ class OddSpotApp {
     r.text(this.status, 540, h - 35, 25, '#c2d3cf', 'center', 'normal', 980)
     this.clampGameView()
     if (game.complete) this.renderComplete()
+    else if (game.timedOut) this.renderTimeout()
   }
   renderGameImage(image, rect, game) {
     const r = this.renderer; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 14, '#d9aa4f', 3)
@@ -629,6 +635,14 @@ class OddSpotApp {
     r.text(this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete'), 540, rect.y + 225, 32, '#2e2921', 'center')
     const summary=this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`;r.text(`${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`, 540, rect.y + 295, 22, '#574d3d', 'center')
     r.iconButton('replay', 340, rect.y + 380, 88, 'replay'); r.iconButton('map', 496, rect.y + 380, 88, 'map'); r.iconButton('next', 648, rect.y + 376, 96, 'next', true)
+  }
+  renderTimeout() {
+    const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
+    const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
+    r.text(this.i18n.t('timeUp'), 540, rect.y + 135, 68, '#b33321', 'center', 'bold')
+    r.text(this.i18n.t('timeUpDesc'), 540, rect.y + 240, 30, '#2e2921', 'center', 'normal', 520)
+    r.text(`用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`, 540, rect.y + 305, 24, '#574d3d', 'center')
+    r.iconButton('replay', 396, rect.y + 405, 88, 'replay'); r.iconButton('map', 596, rect.y + 405, 88, 'map')
   }
 
   renderModal() {
@@ -655,7 +669,7 @@ class OddSpotApp {
     const points = Array.from(event.touches || []).map((touch) => this.renderer.logicalTouch(touch)); if (!points.length) return
     const point = points[0], hit = this.renderer.hit(point)
     this.touch = { start: point, last: point, moved: 0, hit, points, scrollStart: this.currentScroll(), gameViewStart: this.game ? Object.assign({}, this.game.view) : null, pinchDistance: points.length >= 2 ? distance(points[0], points[1]) : 0, pinchZoom: this.game ? this.game.view.zoom : 1 }
-    if(!this.modal&&this.scene==='game'&&this.game?.level?.mode==='image_puzzle'&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
+    if(!this.modal&&this.scene==='game'&&this.game?.level?.mode==='image_puzzle'&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
   }
   onTouchMove(event) {
     if (!this.touch) return
@@ -729,7 +743,7 @@ class OddSpotApp {
     this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
-    if (this.scene === 'game' && this.game && this.game.complete && !['replay', 'map', 'next'].includes(id)) return
+    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next'].includes(id)) return
     if (id) this.audio.click()
     if (id === 'retry') this.bootstrap()
     else if (id === 'identity' || id === 'settings') this.showSettings()

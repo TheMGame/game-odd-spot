@@ -53,6 +53,12 @@ func validateRuntimeLevel(runtime map[string]any, published bool) error {
 	if !rok || !cok || rows < 2 || rows > 8 || cols < 2 || cols > 8 || rows*cols > 48 {
 		return errors.New("invalid puzzle grid")
 	}
+	if raw, ok := puzzle["time_limit_seconds"]; ok && raw != nil {
+		limit, lok := integerNumber(raw)
+		if !lok || limit < 0 || limit > 3600 {
+			return errors.New("invalid puzzle time_limit_seconds")
+		}
+	}
 	// Pieces are shuffled into a random derangement on the client at play time,
 	// so admins only configure the grid. Legacy operations are still validated
 	// when present for backward compatibility, but are optional.

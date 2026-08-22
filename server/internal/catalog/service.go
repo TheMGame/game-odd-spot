@@ -60,6 +60,7 @@ type Service interface {
 	UpsertLevel(context.Context, string, UpsertLevel) error
 	SetLevelStatus(context.Context, string, string) error
 	DeleteLevel(context.Context, string) error
+	RemoveLevelFromSeries(context.Context, string, string) error
 }
 
 type MemoryService struct {
@@ -96,6 +97,9 @@ func (s *MemoryService) UpsertSeries(_ context.Context, item Series) error {
 func (s *MemoryService) UpsertLevel(context.Context, string, UpsertLevel) error { return nil }
 func (s *MemoryService) SetLevelStatus(context.Context, string, string) error   { return nil }
 func (s *MemoryService) DeleteLevel(context.Context, string) error              { return nil }
+func (s *MemoryService) RemoveLevelFromSeries(context.Context, string, string) error {
+	return nil
+}
 
 type MySQLService struct{ db *sql.DB }
 
@@ -355,6 +359,19 @@ func (s *MySQLService) DeleteLevel(ctx context.Context, levelID string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// RemoveLevelFromSeries unbinds a level from a single series without deleting
+// the level itself or its bindings to any other series.
+func (s *MySQLService) RemoveLevelFromSeries(ctx context.Context, seriesID, levelID string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM content_series_levels WHERE series_id=? AND level_id=?`, seriesID, levelID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func number(value any) (int, bool) {

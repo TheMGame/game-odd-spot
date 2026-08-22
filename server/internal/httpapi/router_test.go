@@ -236,6 +236,7 @@ func TestAdminLevelStatusAndDeleteRoutes(t *testing.T) {
 	for _, tc := range []struct{ method, path string }{
 		{http.MethodDelete, "/admin/v1/levels/lv_demo"},
 		{http.MethodPost, "/admin/v1/levels/lv_demo/status"},
+		{http.MethodDelete, "/admin/v1/series/s_demo/levels/lv_demo"},
 	} {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
@@ -257,6 +258,13 @@ func TestAdminLevelStatusAndDeleteRoutes(t *testing.T) {
 	handler.ServeHTTP(delRec, delReq)
 	if delRec.Code != http.StatusOK {
 		t.Fatalf("delete route code=%d body=%s", delRec.Code, delRec.Body.String())
+	}
+	removeReq := httptest.NewRequest(http.MethodDelete, "/admin/v1/series/s_demo/levels/lv_demo", nil)
+	removeReq.Header.Set("X-Admin-Token", "test-admin-token")
+	removeRec := httptest.NewRecorder()
+	handler.ServeHTTP(removeRec, removeReq)
+	if removeRec.Code != http.StatusOK {
+		t.Fatalf("remove-from-series route code=%d body=%s", removeRec.Code, removeRec.Body.String())
 	}
 }
 
