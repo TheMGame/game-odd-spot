@@ -40,10 +40,23 @@ class AudioManager {
   correct() { this.effect('correct') }
   complete() { this.effect('complete') }
   effect(name) { if (this.preferences.data.effects && this.players[name]) { this.players[name].stop(); this.players[name].play() } }
-  setMusic(enabled) { this.preferences.set('music', enabled); if (!this.players.music) return; if (enabled) this.players.music.play(); else this.players.music.pause() }
+  currentMusic() { return this.players.levelMusic || this.players.music }
+  setMusic(enabled) { this.preferences.set('music', enabled); if (enabled) { const track = this.currentMusic(); if (track) track.play() } else { if (this.players.music) this.players.music.pause(); if (this.players.levelMusic) this.players.levelMusic.pause() } }
   setEffects(enabled) { this.preferences.set('effects', enabled) }
-  pause() { if (this.players.music) this.players.music.pause() }
-  resume() { if (this.preferences.data.music && this.players.music) this.players.music.play() }
+  // Play a level's custom background music (looping). Falsy url reverts to the default track.
+  setLevelMusic(url, volume = 0.4) {
+    if (!url) { this.clearLevelMusic(); return }
+    if (this.levelMusicUrl !== url) { this.destroyLevelMusic(); this.players.levelMusic = this.create(url, true, volume); this.levelMusicUrl = url }
+    if (this.players.music) this.players.music.pause()
+    if (this.preferences.data.music) this.players.levelMusic.play()
+  }
+  clearLevelMusic() {
+    this.destroyLevelMusic()
+    if (this.preferences.data.music && this.players.music) this.players.music.play()
+  }
+  destroyLevelMusic() { if (this.players.levelMusic) { this.players.levelMusic.stop(); if (this.players.levelMusic.destroy) this.players.levelMusic.destroy(); this.players.levelMusic = null; this.levelMusicUrl = '' } }
+  pause() { if (this.players.music) this.players.music.pause(); if (this.players.levelMusic) this.players.levelMusic.pause() }
+  resume() { if (this.preferences.data.music) { const track = this.currentMusic(); if (track) track.play() } }
 }
 
 module.exports = { AudioManager }

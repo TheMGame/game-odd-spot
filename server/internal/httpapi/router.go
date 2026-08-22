@@ -307,13 +307,12 @@ func (a *api) listAssets(w http.ResponseWriter, r *http.Request) {
 			item["sha256"] = fmt.Sprintf("%x", sum)
 			item["asset_id"] = strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 			ext := strings.ToLower(filepath.Ext(entry.Name()))
-			if ext == ".jpg" || ext == ".jpeg" {
-				item["content_type"] = "image/jpeg"
-			} else {
-				item["content_type"] = "image/png"
-			}
-			if config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data)); decodeErr == nil {
-				item["width"], item["height"] = config.Width, config.Height
+			contentType, kind := contentTypeForExt(ext)
+			item["content_type"], item["kind"] = contentType, kind
+			if kind == "image" {
+				if config, _, decodeErr := image.DecodeConfig(bytes.NewReader(data)); decodeErr == nil {
+					item["width"], item["height"] = config.Width, config.Height
+				}
 			}
 		}
 		stem := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -327,6 +326,46 @@ func (a *api) listAssets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, newEnvelope(map[string]any{"items": items}))
 }
 
+// assetExtAndKind maps an upload Content-Type to a file extension and asset
+// kind ("image" or "audio"). It returns empty strings for unsupported types.
+func assetExtAndKind(contentType string) (string, string) {
+	switch contentType {
+	case "image/png":
+		return ".png", "image"
+	case "image/jpeg":
+		return ".jpg", "image"
+	case "audio/mpeg", "audio/mp3":
+		return ".mp3", "audio"
+	case "audio/wav", "audio/x-wav", "audio/wave":
+		return ".wav", "audio"
+	case "audio/ogg":
+		return ".ogg", "audio"
+	case "audio/mp4", "audio/aac", "audio/x-m4a", "audio/m4a":
+		return ".m4a", "audio"
+	}
+	return "", ""
+}
+
+// contentTypeForExt reports the MIME type and asset kind for a stored file's
+// extension; unknown extensions are treated as PNG images for compatibility.
+func contentTypeForExt(ext string) (string, string) {
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg", "image"
+	case ".png":
+		return "image/png", "image"
+	case ".mp3":
+		return "audio/mpeg", "audio"
+	case ".wav":
+		return "audio/wav", "audio"
+	case ".ogg":
+		return "audio/ogg", "audio"
+	case ".m4a":
+		return "audio/mp4", "audio"
+	}
+	return "image/png", "image"
+}
+
 func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 	assetID := strings.TrimSpace(r.PathValue("assetId"))
 	if assetID == "" || strings.ContainsAny(assetID, `/\\.`) {
@@ -334,11 +373,9 @@ func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contentType := r.Header.Get("Content-Type")
-	ext := ".png"
-	if contentType == "image/jpeg" {
-		ext = ".jpg"
-	} else if contentType != "image/png" {
-		writeError(w, 415, "UNSUPPORTED_MEDIA_TYPE", "only image/png and image/jpeg are supported")
+	ext, kind := assetExtAndKind(contentType)
+	if ext == "" {
+		writeError(w, 415, "UNSUPPORTED_MEDIA_TYPE", "only image/png, image/jpeg and audio (mp3/wav/ogg/m4a) are supported")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 15<<20))
@@ -367,6 +404,13 @@ func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if kind == "audio" {
+		writeJSON(w, 201, newEnvelope(map[string]any{
+			"asset_id": assetID, "url": a.deps.Config.PublicBaseURL + "/content/" + name,
+			"sha256": fmt.Sprintf("%x", sum), "bytes": len(body), "content_type": contentType, "kind": "audio",
+		}))
+		return
+	}
 	thumbnail, err := createThumbnail(body, filepath.Join(a.deps.Config.ContentDir, strings.TrimSuffix(name, ext)+"-thumb.jpg"))
 	if err != nil {
 		writeError(w, 400, "ASSET_DECODE_FAILED", "could not generate thumbnail")
@@ -375,7 +419,7 @@ func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 	thumbnailURL := a.deps.Config.PublicBaseURL + "/content/" + strings.TrimSuffix(name, ext) + "-thumb.jpg"
 	writeJSON(w, 201, newEnvelope(map[string]any{
 		"asset_id": assetID, "url": a.deps.Config.PublicBaseURL + "/content/" + name,
-		"sha256": fmt.Sprintf("%x", sum), "bytes": len(body), "content_type": contentType,
+		"sha256": fmt.Sprintf("%x", sum), "bytes": len(body), "content_type": contentType, "kind": "image",
 		"thumbnail": map[string]any{
 			"asset_id": assetID + "_thumb", "url": thumbnailURL, "sha256": thumbnail.sha256,
 			"bytes": thumbnail.bytes, "content_type": "image/jpeg", "width": thumbnail.width, "height": thumbnail.height,

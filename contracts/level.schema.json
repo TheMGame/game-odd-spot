@@ -18,6 +18,7 @@
       "required": ["width", "height"],
       "properties": {
         "image": {"$ref": "#/$defs/asset"},
+        "music": {"$ref": "#/$defs/asset"},
         "base": {"$ref": "#/$defs/asset"},
         "target": {"$ref": "#/$defs/asset"},
         "thumbnail": {"$ref": "#/$defs/asset"},

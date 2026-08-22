@@ -268,6 +268,39 @@ func TestAdminLevelStatusAndDeleteRoutes(t *testing.T) {
 	}
 }
 
+func TestUploadAudioAsset(t *testing.T) {
+	handler := newTestHandler(t.TempDir())
+	req := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/level_music_1", bytes.NewReader([]byte("ID3 fake audio bytes")))
+	req.Header.Set("X-Admin-Token", "test-admin-token")
+	req.Header.Set("Content-Type", "audio/mpeg")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("audio upload code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			Kind        string `json:"kind"`
+			ContentType string `json:"content_type"`
+			URL         string `json:"url"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Data.Kind != "audio" || env.Data.ContentType != "audio/mpeg" {
+		t.Fatalf("unexpected audio asset response: %+v", env.Data)
+	}
+	bad := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/x", bytes.NewReader([]byte("x")))
+	bad.Header.Set("X-Admin-Token", "test-admin-token")
+	bad.Header.Set("Content-Type", "application/zip")
+	badRec := httptest.NewRecorder()
+	handler.ServeHTTP(badRec, bad)
+	if badRec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("expected 415 for unsupported type, got %d", badRec.Code)
+	}
+}
+
 func TestVersionedConfig(t *testing.T) {
 	handler := newTestHandler()
 	created := createSession(t, handler)

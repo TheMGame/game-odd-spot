@@ -147,7 +147,7 @@ class OddSpotApp {
   }
 
   async showHome() {
-    this.scene = 'home'; this.status = '正在加载系列…'; this.scroll.home = 0; this.modal = ''; this.catalogData = null; this.covers = {}
+    this.audio.clearLevelMusic(); this.scene = 'home'; this.status = '正在加载系列…'; this.scroll.home = 0; this.modal = ''; this.catalogData = null; this.covers = {}
     this.analytics.track('home_impression')
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
@@ -184,7 +184,7 @@ class OddSpotApp {
   seriesById(id) { return this.enabledSeries().find((series) => String(series.id) === String(id)) }
 
   async showLevelSelect(seriesId) {
-    this.audio.click(); this.selectedSeriesId = seriesId; this.scene = 'levels'; this.scroll.levels = 0; this.modal = ''; this.analytics.track('series_click', { series_id: seriesId })
+    this.audio.click(); this.audio.clearLevelMusic(); this.selectedSeriesId = seriesId; this.scene = 'levels'; this.scroll.levels = 0; this.modal = ''; this.analytics.track('series_click', { series_id: seriesId })
     if (!this.catalogData) { const result = await this.catalog.get(); if (result.ok) this.catalogData = result.data.data || {} }
     this.loadLevelPreviews()
   }
@@ -212,6 +212,7 @@ class OddSpotApp {
     const validation = validateLevel(level)
     if (!validation.ok) { this.status = `关卡加载失败：${validation.error}`; return }
     this.game.level = level
+    this.audio.setLevelMusic(level.assets && level.assets.music ? level.assets.music.url : '')
     try {
       this.game.image = await this.assets.loadDescriptor(level.assets.image)
     } catch (error) { this.status = `图片加载失败：${error.message || error}`; return }
