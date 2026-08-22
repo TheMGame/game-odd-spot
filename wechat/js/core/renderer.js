@@ -132,7 +132,7 @@ class Renderer {
     const c = this.ctx; c.save(); c.beginPath(); c.rect(rect.x, rect.y, rect.w, rect.h); c.clip(); c.drawImage(image, draw.x, draw.y, draw.w, draw.h); c.restore()
     return draw
   }
-  puzzleImage(image, rect, rows, cols, order, selectedGroup, groups, zoom = 1, offset = { x: 0, y: 0 }) {
+  puzzleImage(image, rect, rows, cols, order, selectedGroup, groups, zoom = 1, offset = { x: 0, y: 0 }, drag = null) {
     if (!image || !image.width || !image.height) return null
     const fit = Math.min(rect.w / image.width, rect.h / image.height), w = image.width * fit * zoom, h = image.height * fit * zoom
     const draw = { x: rect.x + (rect.w - w) / 2 + offset.x, y: rect.y + (rect.h - h) / 2 + offset.y, w, h }, c = this.ctx, dw = w / cols, dh = h / rows
@@ -143,7 +143,18 @@ class Renderer {
     const strokeEdges = (predicate, color, lineWidth) => { c.strokeStyle = color; c.lineWidth = lineWidth; c.beginPath(); for (let cell = 0; cell < order.length; cell++) { const g = cellGroup[cell]; if (!predicate(g)) continue; const dc = cell % cols, dr = Math.floor(cell / cols), x = draw.x + dc * dw, y = draw.y + dr * dh; if (dr === 0 || cellGroup[cell - cols] !== g) { c.moveTo(x, y); c.lineTo(x + dw, y) } if (dc === cols - 1 || cellGroup[cell + 1] !== g) { c.moveTo(x + dw, y); c.lineTo(x + dw, y + dh) } if (dr === rows - 1 || cellGroup[cell + cols] !== g) { c.moveTo(x, y + dh); c.lineTo(x + dw, y + dh) } if (dc === 0 || cellGroup[cell - 1] !== g) { c.moveTo(x, y); c.lineTo(x, y + dh) } } c.stroke() }
     strokeEdges(g => groupSize[g] <= 1, 'rgba(255,255,255,.45)', 1.5)
     strokeEdges(g => groupSize[g] > 1, COLORS.gold, 5)
-    if(selectedGroup&&selectedGroup.length){const sel=new Set(selectedGroup);c.strokeStyle='rgba(255,255,255,.95)';c.lineWidth=5;c.beginPath();for(const cell of selectedGroup){const dc2=cell%cols,dr2=Math.floor(cell/cols),x=draw.x+dc2*dw,y=draw.y+dr2*dh;if(dr2===0||!sel.has(cell-cols)){c.moveTo(x,y);c.lineTo(x+dw,y)}if(dc2===cols-1||!sel.has(cell+1)){c.moveTo(x+dw,y);c.lineTo(x+dw,y+dh)}if(dr2===rows-1||!sel.has(cell+cols)){c.moveTo(x,y+dh);c.lineTo(x+dw,y+dh)}if(dc2===0||!sel.has(cell-1)){c.moveTo(x,y);c.lineTo(x,y+dh)}}c.stroke()}
+    const perimeter = (cells, ox, oy) => { const sel = new Set(cells); c.beginPath(); for (const cell of cells) { const dc2 = cell % cols, dr2 = Math.floor(cell / cols), x = draw.x + dc2 * dw + ox, y = draw.y + dr2 * dh + oy; if (dr2 === 0 || !sel.has(cell - cols)) { c.moveTo(x, y); c.lineTo(x + dw, y) } if (dc2 === cols - 1 || !sel.has(cell + 1)) { c.moveTo(x + dw, y); c.lineTo(x + dw, y + dh) } if (dr2 === rows - 1 || !sel.has(cell + cols)) { c.moveTo(x, y + dh); c.lineTo(x + dw, y + dh) } if (dc2 === 0 || !sel.has(cell - 1)) { c.moveTo(x, y); c.lineTo(x, y + dh) } } c.stroke() }
+    if (drag && selectedGroup && selectedGroup.length) {
+      c.fillStyle = 'rgba(16,42,53,.5)'
+      for (const cell of selectedGroup) { const dc2 = cell % cols, dr2 = Math.floor(cell / cols); c.fillRect(draw.x + dc2 * dw, draw.y + dr2 * dh, dw, dh) }
+      if (drag.target && drag.target.length) { c.strokeStyle = drag.valid ? 'rgba(120,220,140,.95)' : 'rgba(232,90,66,.95)'; c.lineWidth = 5; c.beginPath(); for (const t of drag.target) { if (t < 0) continue; const dc2 = t % cols, dr2 = Math.floor(t / cols); c.rect(draw.x + dc2 * dw + 3, draw.y + dr2 * dh + 3, dw - 6, dh - 6) } c.stroke() }
+      c.save(); c.globalAlpha = 0.95
+      for (const cell of selectedGroup) { const piece = order[cell], dc2 = cell % cols, dr2 = Math.floor(cell / cols), sc = piece % cols, sr = Math.floor(piece / cols); c.drawImage(image, sc * image.width / cols, sr * image.height / rows, image.width / cols, image.height / rows, draw.x + dc2 * dw + drag.dx, draw.y + dr2 * dh + drag.dy, dw, dh) }
+      c.restore()
+      c.strokeStyle = 'rgba(255,255,255,.98)'; c.lineWidth = 5; perimeter(selectedGroup, drag.dx, drag.dy)
+    } else if (selectedGroup && selectedGroup.length) {
+      c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = 5; perimeter(selectedGroup, 0, 0)
+    }
     c.restore(); return draw
   }
   progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, '#203d47', h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }

@@ -628,7 +628,7 @@ class OddSpotApp {
     const r = this.renderer; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 14, '#d9aa4f', 3)
     const inner = { x: rect.x + 4, y: rect.y + 4, w: rect.w - 8, h: rect.h - 8 }
     const selectedGroup=game.level.mode==='image_puzzle'&&game.puzzle.selectedCell>=0?groupForCell(game.puzzle.order,game.puzzle.rows,game.puzzle.cols,game.puzzle.selectedCell):[]
-    const draw = game.level.mode==='image_puzzle'?r.puzzleImage(image,inner,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,selectedGroup,puzzleGroups(game.puzzle.order,game.puzzle.rows,game.puzzle.cols),game.view.zoom,{x:game.view.x,y:game.view.y}):r.image(image, inner, 'contain', game.view.zoom, { x: game.view.x, y: game.view.y })
+    const draw = game.level.mode==='image_puzzle'?r.puzzleImage(image,inner,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,selectedGroup,puzzleGroups(game.puzzle.order,game.puzzle.rows,game.puzzle.cols),game.view.zoom,{x:game.view.x,y:game.view.y},game.puzzle.drag||null):r.image(image, inner, 'contain', game.view.zoom, { x: game.view.x, y: game.view.y })
     if (draw) {
       r.watermark(inner, this.getWatermarkConfig())
       for (const marker of game.markers) this.renderMarker(draw, marker)
@@ -720,13 +720,13 @@ class OddSpotApp {
     const points = Array.from(event.touches || []).map((touch) => this.renderer.logicalTouch(touch)); if (!points.length) return
     const point = points[0], hit = this.renderer.hit(point)
     this.touch = { start: point, last: point, moved: 0, hit, points, scrollStart: this.currentScroll(), gameViewStart: this.game ? Object.assign({}, this.game.view) : null, pinchDistance: points.length >= 2 ? distance(points[0], points[1]) : 0, pinchZoom: this.game ? this.game.view.zoom : 1 }
-    if(!this.modal&&this.scene==='game'&&this.game?.level?.mode==='image_puzzle'&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
+    if(!this.modal&&this.scene==='game'&&this.game?.level?.mode==='image_puzzle'&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.game.puzzle.drag=null;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
   }
   onTouchMove(event) {
     if (!this.touch) return
     const points = Array.from(event.touches || []).map((touch) => this.renderer.logicalTouch(touch)); if (!points.length) return
     const point = points[0], dy = point.y - this.touch.start.y, dx = point.x - this.touch.start.x; this.touch.moved = Math.max(this.touch.moved, Math.hypot(dx, dy)); this.touch.last = point; this.touch.points = points
-    if(this.touch.puzzleSource>=0)return
+    if(this.touch.puzzleSource>=0){const p=this.game.puzzle,src=this.touch.puzzleSource,group=groupForCell(p.order,p.rows,p.cols,src),target=this.puzzleCellAt(point),drag={dx:point.x-this.touch.start.x,dy:point.y-this.touch.start.y,target:null,valid:false};if(target>=0&&target!==src){const dr2=Math.floor(target/p.cols)-Math.floor(src/p.cols),dc2=target%p.cols-src%p.cols;drag.target=group.map(cell=>{const r=Math.floor(cell/p.cols)+dr2,cc=cell%p.cols+dc2;return(r>=0&&r<p.rows&&cc>=0&&cc<p.cols)?r*p.cols+cc:-1});drag.valid=!!movePuzzleGroup(p.order,p.rows,p.cols,src,target)}p.drag=drag;return}
     if (this.modal === 'privacy') { this.scroll.privacy = clamp(this.touch.scrollStart - dy, 0, this.privacyMaxScroll || 0); return }
     if (this.knowledgeScrollActive()) { this.scroll.knowledge = clamp(this.touch.scrollStart - dy, 0, this.knowledgeMaxScroll || 0); return }
     if (!this.modal && ['home', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
@@ -739,7 +739,7 @@ class OddSpotApp {
   onTouchEnd() {
     if (!this.touch) return
     const touch = this.touch; this.touch = null
-    if(touch.puzzleSource>=0&&this.game?.level?.mode==='image_puzzle'){const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
+    if(touch.puzzleSource>=0&&this.game?.level?.mode==='image_puzzle'){this.game.puzzle.drag=null;const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
     if (this.scene === 'game' && this.game) this.saveAttempt()
     if (touch.moved > 12) return
     if (this.modal && (!touch.hit || touch.hit.id !== 'modalClose')) return
