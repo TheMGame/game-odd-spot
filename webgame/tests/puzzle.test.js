@@ -15,3 +15,16 @@ assert.deepStrictEqual(p.puzzleGroups([3,4,2,0,1,5],2,3),[[0,1],[2,5],[3,4]])
 assert.deepStrictEqual(p.groupForCell([3,4,2,0,1,5],2,3,0),[0,1])
 assert.deepStrictEqual(p.movePuzzleGroup([3,4,2,0,1,5],2,3,0,3),[0,1,2,3,4,5])
 assert.strictEqual(p.movePuzzleGroup([3,4,2,0,1,5],2,3,0,1),null)
+
+// client-side random shuffle: every piece must be misplaced (derangement)
+for (const [rows, cols] of [[2,2],[3,3],[4,5],[2,3]]) {
+  for (let trial = 0; trial < 20; trial++) {
+    const order = p.shuffleDerangement(rows, cols)
+    assert.strictEqual(p.isPermutation(order, rows*cols), true)
+    assert.strictEqual(order.every((piece,i)=>piece!==i), true)
+  }
+}
+// operations are now optional (client shuffles at play time)
+assert.strictEqual(p.validatePuzzleConfig({rows:2,cols:3,operations:[]}, true).ok, true)
+assert.strictEqual(p.validatePuzzleConfig({rows:2,cols:3}, true).ok, true)
+assert.strictEqual(p.validatePuzzleConfig({rows:2,cols:3,operations:[]}, false).ok, false)

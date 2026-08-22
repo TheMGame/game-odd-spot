@@ -106,6 +106,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("POST /admin/v1/series", a.requireAdmin(http.HandlerFunc(a.upsertSeries)))
 	mux.Handle("GET /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.adminGetLevel)))
 	mux.Handle("POST /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.upsertCatalogLevel)))
+	mux.Handle("POST /admin/v1/levels/{levelId}/status", a.requireAdmin(http.HandlerFunc(a.setCatalogLevelStatus)))
+	mux.Handle("DELETE /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.deleteCatalogLevel)))
 	mux.Handle("GET /admin/v1/assets", a.requireAdmin(http.HandlerFunc(a.listAssets)))
 	mux.Handle("POST /admin/v1/assets/{assetId}", a.requireAdmin(http.HandlerFunc(a.uploadAsset)))
 	mux.Handle("POST /admin/v1/levels/{levelId}/versions/{version}/transition", a.requireAdmin(http.HandlerFunc(a.adminTransition)))
@@ -221,6 +223,38 @@ func (a *api) upsertCatalogLevel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, newEnvelope(map[string]any{"level_id": r.PathValue("levelId")}))
+}
+
+func (a *api) setCatalogLevelStatus(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Status string `json:"status"`
+	}
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	err := a.deps.Catalog.SetLevelStatus(r.Context(), r.PathValue("levelId"), input.Status)
+	switch {
+	case errors.Is(err, catalog.ErrNotFound):
+		writeError(w, http.StatusNotFound, "LEVEL_NOT_FOUND", "level not found")
+	case err != nil:
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+	default:
+		writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"level_id": r.PathValue("levelId"), "status": input.Status}))
+	}
+}
+
+func (a *api) deleteCatalogLevel(w http.ResponseWriter, r *http.Request) {
+	err := a.deps.Catalog.DeleteLevel(r.Context(), r.PathValue("levelId"))
+	switch {
+	case errors.Is(err, catalog.ErrNotFound):
+		writeError(w, http.StatusNotFound, "LEVEL_NOT_FOUND", "level not found")
+	case errors.Is(err, catalog.ErrLevelPublished):
+		writeError(w, http.StatusConflict, "LEVEL_PUBLISHED", "please disable the level before deleting")
+	case err != nil:
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not delete level")
+	default:
+		writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"level_id": r.PathValue("levelId"), "deleted": true}))
+	}
 }
 
 func (a *api) adminGetLevel(w http.ResponseWriter, r *http.Request) {

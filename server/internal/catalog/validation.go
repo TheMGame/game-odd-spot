@@ -53,9 +53,12 @@ func validateRuntimeLevel(runtime map[string]any, published bool) error {
 	if !rok || !cok || rows < 2 || rows > 8 || cols < 2 || cols > 8 || rows*cols > 48 {
 		return errors.New("invalid puzzle grid")
 	}
-	ops, ok := puzzle["operations"].([]any)
-	if !ok || len(ops) > 24 || (published && len(ops) == 0) {
-		return errors.New("puzzle operations must contain 1 to 24 swaps when published")
+	// Pieces are shuffled into a random derangement on the client at play time,
+	// so admins only configure the grid. Legacy operations are still validated
+	// when present for backward compatibility, but are optional.
+	ops, _ := puzzle["operations"].([]any)
+	if len(ops) > 24 {
+		return errors.New("puzzle operations must contain at most 24 swaps")
 	}
 	used := map[int]bool{}
 	for _, raw := range ops {
@@ -76,9 +79,6 @@ func validateRuntimeLevel(runtime map[string]any, published bool) error {
 			return fmt.Errorf("puzzle cell is used more than once")
 		}
 		used[a], used[b] = true, true
-	}
-	if published && len(used) != rows*cols {
-		return errors.New("every puzzle cell must be misplaced before publishing")
 	}
 	return nil
 }

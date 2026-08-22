@@ -10,6 +10,7 @@ import (
 )
 
 var ErrNotFound = errors.New("catalog item not found")
+var ErrLevelPublished = errors.New("level is published; disable it before deleting")
 
 type Level struct {
 	ID              string `json:"id"`
@@ -24,6 +25,7 @@ type Level struct {
 	SortOrder       int    `json:"sort_order"`
 	AvailableDate   string `json:"available_date"`
 	Completed       bool   `json:"completed"`
+	Status          string `json:"status"`
 }
 
 type Series struct {
@@ -56,6 +58,8 @@ type Service interface {
 	GetLevel(context.Context, string) (json.RawMessage, error)
 	UpsertSeries(context.Context, Series) error
 	UpsertLevel(context.Context, string, UpsertLevel) error
+	SetLevelStatus(context.Context, string, string) error
+	DeleteLevel(context.Context, string) error
 }
 
 type MemoryService struct {
@@ -90,6 +94,8 @@ func (s *MemoryService) UpsertSeries(_ context.Context, item Series) error {
 	return nil
 }
 func (s *MemoryService) UpsertLevel(context.Context, string, UpsertLevel) error { return nil }
+func (s *MemoryService) SetLevelStatus(context.Context, string, string) error   { return nil }
+func (s *MemoryService) DeleteLevel(context.Context, string) error              { return nil }
 
 type MySQLService struct{ db *sql.DB }
 
@@ -167,7 +173,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0),
 			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode')),'find_anachronism'),
 			CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
-			  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+			  THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
 			  ELSE COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0) END,
 			COALESCE(
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.thumbnail.url')),
@@ -183,7 +189,8 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			EXISTS(
 			  SELECT 1 FROM level_attempts a
 			  WHERE a.user_id=? AND a.level_id=sl.level_id AND a.state='completed'
-			)
+			),
+			lv.status
 			FROM content_series_levels sl
 			JOIN level_versions lv ON lv.level_id=sl.level_id
 			AND lv.version=(SELECT MAX(v2.version) FROM level_versions v2 WHERE v2.level_id=sl.level_id `+versionWhere+`)
@@ -196,7 +203,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 		}
 		for levelRows.Next() {
 			var level Level
-			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.Mode, &level.ContentCount, &level.ThumbnailURL, &level.ImageURL, &level.SortOrder, &level.AvailableDate, &level.Completed); err != nil {
+			if err := levelRows.Scan(&level.ID, &level.Version, &level.Title, &level.Difficulty, &level.DifferenceCount, &level.Mode, &level.ContentCount, &level.ThumbnailURL, &level.ImageURL, &level.SortOrder, &level.AvailableDate, &level.Completed, &level.Status); err != nil {
 				levelRows.Close()
 				return nil, err
 			}
@@ -281,6 +288,71 @@ func (s *MySQLService) UpsertLevel(ctx context.Context, levelID string, input Up
 	if _, err = tx.ExecContext(ctx, `INSERT INTO content_series_levels(series_id,level_id,sort_order,enabled)
 		VALUES(?,?,?,TRUE) ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order),enabled=TRUE`, input.SeriesID, levelID, input.SortOrder); err != nil {
 		return err
+	}
+	return tx.Commit()
+}
+
+// SetLevelStatus flips the latest version of a level between published and
+// disabled. Used by the admin console's 上架 / 下架 actions; it writes status
+// directly (mirroring how publishing already works) rather than going through
+// the review state machine.
+func (s *MySQLService) SetLevelStatus(ctx context.Context, levelID, status string) error {
+	if status != "published" && status != "disabled" {
+		return errors.New("unsupported status")
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE level_versions SET status=?,
+		published_at=CASE WHEN ?='published' THEN COALESCE(published_at,UTC_TIMESTAMP(3)) ELSE published_at END
+		WHERE level_id=? AND version=(SELECT v FROM (SELECT MAX(version) v FROM level_versions WHERE level_id=?) t)`,
+		status, status, levelID, levelID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// DeleteLevel hard-deletes a level and all of its versions along with the
+// related rows that have no ON DELETE CASCADE. It refuses to delete a level
+// that still has a published version — the caller must 下架 (disable) it first.
+func (s *MySQLService) DeleteLevel(ctx context.Context, levelID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM levels WHERE id=?`, levelID).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return ErrNotFound
+	}
+	var published int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_versions WHERE level_id=? AND status='published'`, levelID).Scan(&published); err != nil {
+		return err
+	}
+	if published > 0 {
+		return ErrLevelPublished
+	}
+	// Delete children first (FK order); content_level_i18n cascades from levels.
+	statements := []string{
+		`DELETE FROM attempt_differences WHERE attempt_id IN (SELECT id FROM level_attempts WHERE level_id=?)`,
+		`DELETE FROM level_attempts WHERE level_id=?`,
+		`DELETE FROM daily_challenges WHERE level_id=?`,
+		`DELETE FROM level_differences WHERE level_id=?`,
+		`DELETE FROM level_tags WHERE level_id=?`,
+		`DELETE FROM review_records WHERE level_id=?`,
+		`DELETE FROM content_reports WHERE level_id=?`,
+		`DELETE FROM content_series_levels WHERE level_id=?`,
+		`DELETE FROM level_versions WHERE level_id=?`,
+		`DELETE FROM levels WHERE id=?`,
+	}
+	for _, q := range statements {
+		if _, err := tx.ExecContext(ctx, q, levelID); err != nil {
+			return fmt.Errorf("delete level %s: %w", levelID, err)
+		}
 	}
 	return tx.Commit()
 }

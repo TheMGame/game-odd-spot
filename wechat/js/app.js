@@ -3,7 +3,7 @@ const { Renderer, COLORS } = require('./core/renderer')
 const { I18n } = require('./core/i18n')
 const { KEYS, read, write, SessionStore, Preferences, ProgressStore } = require('./core/storage')
 const { clamp, dateString, pointInPolygon, formatElapsed } = require('./core/utils')
-const { applyOperations, isSolved, countMisplaced, isPermutation, cellFromNormalizedPoint, puzzleGroups, groupForCell, movePuzzleGroup, findHintMove, validatePuzzleConfig } = require('./core/puzzle')
+const { shuffleDerangement, isSolved, countMisplaced, isPermutation, cellFromNormalizedPoint, puzzleGroups, groupForCell, movePuzzleGroup, findHintMove, validatePuzzleConfig } = require('./core/puzzle')
 const { ApiClient } = require('./services/api')
 const { AudioManager } = require('./services/audio')
 const { AssetManager } = require('./services/assets')
@@ -218,7 +218,7 @@ class OddSpotApp {
     const attempt = this.progress.getOrCreate(level.level_id, level.level_version)
     this.game.attempt = attempt; this.game.elapsedBefore = Number(attempt.elapsed_ms || 0); this.game.startedAt = Date.now()
     this.game.view = { zoom: Number(attempt.zoom || 1), x: Number(attempt.view_offset_x || 0), y: Number(attempt.view_offset_y || 0) }
-    if (level.mode === 'image_puzzle') { const initial = applyOperations(level.puzzle.rows, level.puzzle.cols, level.puzzle.operations); const restored = isPermutation(attempt.puzzle_order, initial.length) ? attempt.puzzle_order.slice() : initial; this.game.puzzle = { rows: level.puzzle.rows, cols: level.puzzle.cols, order: restored, selectedCell: -1, moves: Number(attempt.puzzle_moves || 0), initialMisplaced: countMisplaced(initial) } }
+    if (level.mode === 'image_puzzle') { const total = level.puzzle.rows * level.puzzle.cols; const resumed = isPermutation(attempt.puzzle_order, total); const order = resumed ? attempt.puzzle_order.slice() : shuffleDerangement(level.puzzle.rows, level.puzzle.cols); this.game.puzzle = { rows: level.puzzle.rows, cols: level.puzzle.cols, order, selectedCell: -1, moves: resumed ? Number(attempt.puzzle_moves || 0) : 0, initialMisplaced: total }; if (!resumed) { this.game.attempt.puzzle_order = order.slice(); this.game.attempt.puzzle_moves = 0; this.progress.save(level.level_id, this.game.attempt) } }
     for (const id of attempt.found || []) {
       const difference = (level.differences || []).find((item) => String(item.id) === String(id))
       if (difference) this.restoreFound(difference)
@@ -619,7 +619,7 @@ class OddSpotApp {
     const r = this.renderer; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.card, 14, '#d9aa4f', 3)
     const inner = { x: rect.x + 4, y: rect.y + 4, w: rect.w - 8, h: rect.h - 8 }
     const selectedGroup=game.level.mode==='image_puzzle'&&game.puzzle.selectedCell>=0?groupForCell(game.puzzle.order,game.puzzle.rows,game.puzzle.cols,game.puzzle.selectedCell):[]
-    const draw = game.level.mode==='image_puzzle'?r.puzzleImage(image,inner,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,selectedGroup,game.view.zoom,{x:game.view.x,y:game.view.y}):r.image(image, inner, 'contain', game.view.zoom, { x: game.view.x, y: game.view.y })
+    const draw = game.level.mode==='image_puzzle'?r.puzzleImage(image,inner,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,selectedGroup,puzzleGroups(game.puzzle.order,game.puzzle.rows,game.puzzle.cols),game.view.zoom,{x:game.view.x,y:game.view.y}):r.image(image, inner, 'contain', game.view.zoom, { x: game.view.x, y: game.view.y })
     if (draw) {
       r.watermark(inner, this.getWatermarkConfig())
       for (const marker of game.markers) this.renderMarker(draw, marker)
@@ -760,7 +760,7 @@ function validateLevel(level) {
   if (!level.assets || Number(level.assets.width) < 1 || Number(level.assets.width) > 8192 || Number(level.assets.height) < 1 || Number(level.assets.height) > 8192) return { ok: false, error: 'LEVEL_ASSETS_INVALID' }
   const required = ['image']
   for (const key of required) if (!level.assets[key] || !level.assets[key].asset_id || !String(level.assets[key].url || '').startsWith('https://')) return { ok: false, error: `LEVEL_ASSET_INVALID_${key.toUpperCase()}` }
-  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle, false, false)}
+  if(level.mode==='image_puzzle'){if(level.differences!=null||level.assets.base||level.assets.target)return{ok:false,error:'LEVEL_PUZZLE_EXCLUSIVE_INVALID'};return validatePuzzleConfig(level.puzzle, true, false)}
   if (!Array.isArray(level.differences) || level.differences.length < 3 || level.differences.length > 12) return { ok: false, error: 'LEVEL_DIFFERENCES_INVALID' }
   const ids = new Set()
   for (const difference of level.differences) {

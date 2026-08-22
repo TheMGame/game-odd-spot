@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"game-odd-spot/server/internal/analytics"
+	"game-odd-spot/server/internal/catalog"
 	"game-odd-spot/server/internal/config"
 	"game-odd-spot/server/internal/content"
 	"game-odd-spot/server/internal/generation"
@@ -230,6 +231,35 @@ func TestAdminRequiresTokenAndListsContent(t *testing.T) {
 	}
 }
 
+func TestAdminLevelStatusAndDeleteRoutes(t *testing.T) {
+	handler := newTestHandler()
+	for _, tc := range []struct{ method, path string }{
+		{http.MethodDelete, "/admin/v1/levels/lv_demo"},
+		{http.MethodPost, "/admin/v1/levels/lv_demo/status"},
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s expected 401, got %d", tc.method, tc.path, rec.Code)
+		}
+	}
+	statusReq := httptest.NewRequest(http.MethodPost, "/admin/v1/levels/lv_demo/status", bytes.NewReader([]byte(`{"status":"disabled"}`)))
+	statusReq.Header.Set("X-Admin-Token", "test-admin-token")
+	statusReq.Header.Set("Content-Type", "application/json")
+	statusRec := httptest.NewRecorder()
+	handler.ServeHTTP(statusRec, statusReq)
+	if statusRec.Code != http.StatusOK {
+		t.Fatalf("status route code=%d body=%s", statusRec.Code, statusRec.Body.String())
+	}
+	delReq := httptest.NewRequest(http.MethodDelete, "/admin/v1/levels/lv_demo", nil)
+	delReq.Header.Set("X-Admin-Token", "test-admin-token")
+	delRec := httptest.NewRecorder()
+	handler.ServeHTTP(delRec, delReq)
+	if delRec.Code != http.StatusOK {
+		t.Fatalf("delete route code=%d body=%s", delRec.Code, delRec.Body.String())
+	}
+}
+
 func TestVersionedConfig(t *testing.T) {
 	handler := newTestHandler()
 	created := createSession(t, handler)
@@ -331,6 +361,7 @@ func newTestHandler(contentDirs ...string) http.Handler {
 		},
 		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Sessions:   session.NewMemoryService(),
+		Catalog:    catalog.NewMemoryService(),
 		Levels:     level.NewMemoryService(),
 		Configs:    remoteconfig.NewMemoryService(),
 		Contents:   content.NewMemoryService(),

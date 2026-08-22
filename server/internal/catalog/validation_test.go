@@ -31,13 +31,19 @@ func TestValidatePuzzleRejectsDuplicateAndOutOfRangeCells(t *testing.T) {
 	}
 }
 
-func TestPuzzleDraftMayHaveNoOperations(t *testing.T) {
+func TestPuzzleMayHaveNoOperations(t *testing.T) {
+	// Pieces are shuffled into a random derangement on the client at play time,
+	// so operations are optional even for published puzzles.
 	runtime := puzzleRuntime()
 	runtime["puzzle"].(map[string]any)["operations"] = []any{}
 	if err := validateRuntimeLevel(runtime, false); err != nil {
 		t.Fatal(err)
 	}
-	if validateRuntimeLevel(runtime, true) == nil {
-		t.Fatal("published puzzle should require operations")
+	if err := validateRuntimeLevel(runtime, true); err != nil {
+		t.Fatalf("published puzzle should allow empty operations: %v", err)
+	}
+	delete(runtime["puzzle"].(map[string]any), "operations")
+	if err := validateRuntimeLevel(runtime, true); err != nil {
+		t.Fatalf("published puzzle should allow missing operations: %v", err)
 	}
 }

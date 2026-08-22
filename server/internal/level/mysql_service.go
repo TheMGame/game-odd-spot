@@ -16,7 +16,7 @@ func NewMySQLService(db *sql.DB) *MySQLService { return &MySQLService{db: db} }
 func (s *MySQLService) Home(ctx context.Context, userID string) ([]Summary, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT lv.level_id, lv.version, lv.difficulty,
       CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
-      THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+      THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
       ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=lv.level_id AND d.level_version=lv.version) END
       FROM level_versions lv
       LEFT JOIN users u ON u.id=?
@@ -69,7 +69,7 @@ func (s *MySQLService) Start(ctx context.Context, userID, levelID string, reques
 		var version, total int
 		err = tx.QueryRowContext(ctx, `SELECT a.user_id,a.state,a.level_version,
 		  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
-		  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+		  THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
 		  ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) END
 		  FROM level_attempts a JOIN level_versions lv ON lv.level_id=a.level_id AND lv.version=a.level_version WHERE a.id=?`, request.AttemptID).Scan(&owner, &state, &version, &total)
 		if err != nil {
@@ -240,10 +240,10 @@ func attemptResult(ctx context.Context, tx *sql.Tx, attemptID string) (AttemptRe
 	r.AttemptID = attemptID
 	err := tx.QueryRowContext(ctx, `SELECT a.state,a.hints_used,a.duration_ms,
 	  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle' AND a.state='completed'
-	    THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+	    THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
 	    ELSE (SELECT COUNT(*) FROM attempt_differences f WHERE f.attempt_id=a.id) END,
 	  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
-	    THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.puzzle.operations')),0)*2
+	    THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
 	    ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) END
 	  FROM level_attempts a JOIN level_versions lv ON lv.level_id=a.level_id AND lv.version=a.level_version WHERE a.id=?`, attemptID).Scan(&r.State, &r.HintsUsed, &r.DurationMS, &r.FoundCount, &r.TotalCount)
 	return r, err
