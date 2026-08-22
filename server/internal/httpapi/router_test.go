@@ -350,6 +350,54 @@ func TestDeleteAsset(t *testing.T) {
 	}
 }
 
+func TestRenameAsset(t *testing.T) {
+	handler := newTestHandler(t.TempDir())
+	up := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/asset_rn_1", bytes.NewReader([]byte("audio bytes")))
+	up.Header.Set("X-Admin-Token", "test-admin-token")
+	up.Header.Set("Content-Type", "audio/mpeg")
+	upRec := httptest.NewRecorder()
+	handler.ServeHTTP(upRec, up)
+	if upRec.Code != http.StatusCreated {
+		t.Fatalf("upload code=%d body=%s", upRec.Code, upRec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			URL string `json:"url"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(upRec.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Base(env.Data.URL)
+	rn := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/"+name+"/rename", bytes.NewReader([]byte(`{"name":"renamed_clip"}`)))
+	rn.Header.Set("X-Admin-Token", "test-admin-token")
+	rn.Header.Set("Content-Type", "application/json")
+	rnRec := httptest.NewRecorder()
+	handler.ServeHTTP(rnRec, rn)
+	if rnRec.Code != http.StatusOK {
+		t.Fatalf("rename code=%d body=%s", rnRec.Code, rnRec.Body.String())
+	}
+	var out struct {
+		Data struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rnRec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Data.Name != "renamed_clip.mp3" {
+		t.Fatalf("unexpected new name %q", out.Data.Name)
+	}
+	bad := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/renamed_clip.mp3/rename", bytes.NewReader([]byte(`{"name":"bad/name"}`)))
+	bad.Header.Set("X-Admin-Token", "test-admin-token")
+	bad.Header.Set("Content-Type", "application/json")
+	badRec := httptest.NewRecorder()
+	handler.ServeHTTP(badRec, bad)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid new name, got %d", badRec.Code)
+	}
+}
+
 func TestVersionedConfig(t *testing.T) {
 	handler := newTestHandler()
 	created := createSession(t, handler)

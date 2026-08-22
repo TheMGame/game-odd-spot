@@ -62,6 +62,7 @@ type Service interface {
 	DeleteLevel(context.Context, string) error
 	RemoveLevelFromSeries(context.Context, string, string) error
 	AssetInUse(context.Context, string) (bool, error)
+	RenameAssetReferences(context.Context, string, string, string, string) error
 }
 
 type MemoryService struct {
@@ -102,6 +103,9 @@ func (s *MemoryService) RemoveLevelFromSeries(context.Context, string, string) e
 	return nil
 }
 func (s *MemoryService) AssetInUse(context.Context, string) (bool, error) { return false, nil }
+func (s *MemoryService) RenameAssetReferences(context.Context, string, string, string, string) error {
+	return nil
+}
 
 type MySQLService struct{ db *sql.DB }
 
@@ -394,6 +398,28 @@ func (s *MySQLService) AssetInUse(ctx context.Context, needle string) (bool, err
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// RenameAssetReferences rewrites URLs pointing at a renamed asset (and its
+// thumbnail) across every level's runtime_json and every series cover URL, so a
+// referenced asset can be renamed without breaking references.
+func (s *MySQLService) RenameAssetReferences(ctx context.Context, oldOriginal, newOriginal, oldThumb, newThumb string) error {
+	oldO, newO := "/content/"+oldOriginal, "/content/"+newOriginal
+	oldT, newT := "/content/"+oldThumb, "/content/"+newThumb
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE level_versions SET runtime_json = CAST(REPLACE(REPLACE(CAST(runtime_json AS CHAR), ?, ?), ?, ?) AS JSON) WHERE INSTR(CAST(runtime_json AS CHAR), ?) > 0 OR INSTR(CAST(runtime_json AS CHAR), ?) > 0`,
+		oldO, newO, oldT, newT, oldO, oldT); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE content_series SET cover_url = REPLACE(REPLACE(cover_url, ?, ?), ?, ?) WHERE INSTR(cover_url, ?) > 0 OR INSTR(cover_url, ?) > 0`,
+		oldO, newO, oldT, newT, oldO, oldT); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func number(value any) (int, bool) {

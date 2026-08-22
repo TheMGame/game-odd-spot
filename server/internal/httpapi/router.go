@@ -113,6 +113,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/v1/assets", a.requireAdmin(http.HandlerFunc(a.listAssets)))
 	mux.Handle("POST /admin/v1/assets/{assetId}", a.requireAdmin(http.HandlerFunc(a.uploadAsset)))
 	mux.Handle("DELETE /admin/v1/assets/{assetId}", a.requireAdmin(http.HandlerFunc(a.deleteAsset)))
+	mux.Handle("POST /admin/v1/assets/{assetId}/rename", a.requireAdmin(http.HandlerFunc(a.renameAsset)))
 	mux.Handle("POST /admin/v1/levels/{levelId}/versions/{version}/transition", a.requireAdmin(http.HandlerFunc(a.adminTransition)))
 	mux.Handle("POST /v1/events/batch", a.requireAuth(http.HandlerFunc(a.ingestEvents)))
 	mux.Handle("POST /v1/rewards/ad", a.requireAuth(http.HandlerFunc(a.claimAdReward)))
@@ -366,6 +367,74 @@ func contentTypeForExt(ext string) (string, string) {
 		return "audio/mp4", "audio"
 	}
 	return "image/png", "image"
+}
+
+func validAssetBaseName(s string) bool {
+	if s == "" || len(s) > 96 {
+		return false
+	}
+	for _, r := range s {
+		if !(r == '-' || r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
+func (a *api) renameAsset(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.PathValue("assetId"))
+	if name == "" || name != filepath.Base(name) || strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		writeError(w, 400, "VALIDATION_FAILED", "invalid asset name")
+		return
+	}
+	var input struct {
+		Name string `json:"name"`
+	}
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	ext := filepath.Ext(name)
+	newBase := strings.TrimSuffix(strings.TrimSpace(input.Name), filepath.Ext(strings.TrimSpace(input.Name)))
+	if !validAssetBaseName(newBase) {
+		writeError(w, 400, "VALIDATION_FAILED", "new name may only contain letters, digits, - and _")
+		return
+	}
+	newName := newBase + ext
+	src := filepath.Join(a.deps.Config.ContentDir, name)
+	if info, err := os.Stat(src); errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
+		writeError(w, 404, "ASSET_NOT_FOUND", "asset not found")
+		return
+	}
+	if newName == name {
+		writeJSON(w, 200, newEnvelope(map[string]any{"name": name, "url": a.deps.Config.PublicBaseURL + "/content/" + name}))
+		return
+	}
+	if _, err := os.Stat(filepath.Join(a.deps.Config.ContentDir, newName)); err == nil {
+		writeError(w, 409, "ASSET_NAME_TAKEN", "an asset with that name already exists")
+		return
+	}
+	dst := filepath.Join(a.deps.Config.ContentDir, newName)
+	if err := os.Rename(src, dst); err != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not rename asset")
+		return
+	}
+	oldStem, newStem := strings.TrimSuffix(name, ext), newBase
+	oldThumbPath := filepath.Join(a.deps.Config.ContentDir, oldStem+"-thumb.jpg")
+	newThumbPath := filepath.Join(a.deps.Config.ContentDir, newStem+"-thumb.jpg")
+	thumbRenamed := false
+	if _, err := os.Stat(oldThumbPath); err == nil {
+		thumbRenamed = os.Rename(oldThumbPath, newThumbPath) == nil
+	}
+	// Rewrite every reference (level runtime JSON + series covers) so referenced assets can be renamed safely.
+	if err := a.deps.Catalog.RenameAssetReferences(r.Context(), name, newName, oldStem+"-thumb.jpg", newStem+"-thumb.jpg"); err != nil {
+		_ = os.Rename(dst, src)
+		if thumbRenamed {
+			_ = os.Rename(newThumbPath, oldThumbPath)
+		}
+		writeError(w, 500, "INTERNAL_ERROR", "could not update asset references")
+		return
+	}
+	writeJSON(w, 200, newEnvelope(map[string]any{"name": newName, "url": a.deps.Config.PublicBaseURL + "/content/" + newName}))
 }
 
 func (a *api) deleteAsset(w http.ResponseWriter, r *http.Request) {

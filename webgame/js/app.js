@@ -231,10 +231,10 @@ class OddSpotApp {
     this.analytics.track('level_start', { level_id: level.level_id, level_version: level.level_version })
   }
 
-  elapsed() { return this.game ? this.game.elapsedBefore + Date.now() - this.game.startedAt : 0 }
+  elapsed() { if (this.game && this.game.frozenElapsed != null) return this.game.frozenElapsed; return this.game ? this.game.elapsedBefore + Date.now() - this.game.startedAt : 0 }
   puzzleTimeLimitMs(game) { const g = game || this.game; if (!g || !g.level || g.level.mode !== 'image_puzzle') return 0; const s = Math.floor(Number(g.level.puzzle && g.level.puzzle.time_limit_seconds || 0)); return s > 0 ? s * 1000 : 0 }
   checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.puzzleTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
-  failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
+  failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
     if (difference.shape === 'circle') return Math.hypot(point.x - Number(difference.x), point.y - Number(difference.y)) <= Number(difference.radius) + .012
     if (difference.shape === 'polygon') return pointInPolygon(point, difference.points || [])
@@ -291,6 +291,7 @@ class OddSpotApp {
   }
   finishAfterFeedback() {
     if (this.game.finishing) return
+    this.game.frozenElapsed = this.elapsed()
     this.game.finishing = true
     setTimeout(() => this.audio.complete(), 180)
     setTimeout(() => this.finishLevel(), 1800)
@@ -300,7 +301,7 @@ class OddSpotApp {
     const level = this.game.level, elapsed = this.elapsed()
     const body={attempt_id:this.game.attempt.attempt_id,hints_used:Number(this.game.attempt.hints_used||0),duration_ms:elapsed};if(level.mode==='image_puzzle'){body.puzzle_order=this.game.puzzle.order.slice();body.puzzle_moves=this.game.puzzle.moves}else body.difference_ids=Object.keys(this.game.found);const result = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/complete`, body)
     if (result.state === 'rejected') { this.status = `完成提交被服务器拒绝：${result.error}`; this.game.attempt.state = 'rejected'; this.progress.save(level.level_id, this.game.attempt); return }
-    this.game.complete = true; this.scroll.knowledge = 0; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
+    this.game.complete = true; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
     this.analytics.track('level_complete', { level_id: level.level_id, duration_ms: elapsed, hints_used: this.game.attempt.hints_used, sync_state: result.state }); this.analytics.flush()
     this.prefetchNext()
   }
@@ -613,7 +614,7 @@ class OddSpotApp {
     }
     r.text(this.status, 540, h - 35, 25, '#c2d3cf', 'center', 'normal', 980)
     this.clampGameView()
-    if (game.complete) this.renderComplete()
+    if (game.complete) { if (game.knowledgeIntro && !game.knowledgeIntro.done) this.renderKnowledgeIntro(); else this.renderComplete() }
     else if (game.timedOut) this.renderTimeout()
   }
   renderGameImage(image, rect, game) {
@@ -647,15 +648,36 @@ class OddSpotApp {
     }
     const top = r.safeTop, rect = { x: 70, y: Math.max(40 + top, h / 2 - 440), w: 940, h: Math.min(h - 80 - top, 900) }
     r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
-    r.text(this.i18n.t('complete'), 540, rect.y + 64, 52, '#b33321', 'center', 'bold')
-    r.text(stat, 540, rect.y + 116, 22, '#574d3d', 'center')
-    r.text(this.i18n.t('backgroundKnowledge'), 540, rect.y + 166, 28, '#8a5a2b', 'center', 'bold')
-    const clip = { x: rect.x + 46, y: rect.y + 198, w: rect.w - 92, h: rect.h - 198 - 128 }, c = r.ctx
+    r.text(this.i18n.t('complete'), 540, rect.y + 70, 56, '#b33321', 'center', 'bold')
+    r.text(stat, 540, rect.y + 124, 22, '#574d3d', 'center')
+    const clip = { x: rect.x + 46, y: rect.y + 164, w: rect.w - 92, h: rect.h - 164 - 124 }, c = r.ctx
     c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
-    const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 12 - (this.scroll.knowledge || 0), clip.w, 26, '#3a3226', 40, 400)
+    const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 16 - (this.scroll.knowledge || 0), clip.w, 34, '#2b2418', 50, 400)
     c.restore(); this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 30)
     const by = rect.y + rect.h - 104
     r.iconButton('replay', 340, by, 88, 'replay'); r.iconButton('map', 496, by, 88, 'map'); r.iconButton('next', 648, by, 96, 'next', true)
+  }
+  renderKnowledgeIntro() {
+    const r = this.renderer, h = r.height, ctx = r.ctx, intro = this.game.knowledgeIntro
+    const knowledge = String(this.game.level.background_knowledge || '').trim()
+    r.rect(0, 0, 1080, h, 'rgba(6,14,20,.72)')
+    const size = 42, lineHeight = 62, maxWidth = 900
+    const lines = r.wrap(knowledge, maxWidth, size)
+    const bandTop = 150 + r.safeTop, bandBottom = h - 120, bandH = bandBottom - bandTop
+    const scroll = (Date.now() - intro.startedAt) / 1000 * 60
+    if (scroll >= lines.length * lineHeight + bandH) intro.done = true
+    ctx.save(); ctx.beginPath(); ctx.rect(0, bandTop, 1080, bandH); ctx.clip()
+    ctx.textAlign = 'center'; ctx.font = `bold ${size}px sans-serif`; ctx.shadowColor = 'rgba(230,185,92,.95)'; ctx.shadowBlur = 16
+    for (let i = 0; i < lines.length; i++) {
+      const y = bandBottom + i * lineHeight - scroll
+      if (y < bandTop - lineHeight || y > bandBottom + lineHeight) continue
+      const edge = 130; let alpha = 1
+      if (y - bandTop < edge) alpha = Math.max(0, (y - bandTop) / edge)
+      if (bandBottom - y < edge) alpha = Math.min(alpha, Math.max(0, (bandBottom - y) / edge))
+      ctx.globalAlpha = alpha; ctx.fillStyle = '#f6ecd4'; ctx.fillText(lines[i], 540, y)
+    }
+    ctx.restore(); ctx.shadowBlur = 0; ctx.globalAlpha = 1
+    r.text(this.i18n.t('tapToContinue'), 540, h - 56, 24, 'rgba(243,232,207,.8)', 'center')
   }
   renderTimeout() {
     const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
@@ -685,11 +707,10 @@ class OddSpotApp {
       r.button('modalClose', { x: 200, y: rect.y + rect.h - 95, w: 680, h: 70 }, this.i18n.t('privacyClose'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 26 })
     } else if (this.modal === 'knowledge') {
       const top = r.safeTop; const rect = { x: 60, y: 90 + top, w: 960, h: h - 180 - top }; r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
-      r.text(this.i18n.t('backgroundKnowledge'), 540, rect.y + 62, 38, '#b33321', 'center', 'bold')
       const knowledge = String(this.game && this.game.level && this.game.level.background_knowledge || '').trim()
-      const clip = { x: rect.x + 48, y: rect.y + 112, w: rect.w - 96, h: rect.h - 224 }, c = r.ctx
+      const clip = { x: rect.x + 48, y: rect.y + 60, w: rect.w - 96, h: rect.h - 172 }, c = r.ctx
       c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
-      const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 14 - (this.scroll.knowledge || 0), clip.w, 27, '#3a3226', 42, 400); c.restore()
+      const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 20 - (this.scroll.knowledge || 0), clip.w, 36, '#2b2418', 54, 400); c.restore()
       this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 40)
       r.button('modalClose', { x: 230, y: rect.y + rect.h - 90, w: 620, h: 70 }, this.i18n.t('close'), { fill: '#ad3f30', border: COLORS.gold, size: 28 })
     }
@@ -718,6 +739,7 @@ class OddSpotApp {
   onTouchEnd() {
     if (!this.touch) return
     const touch = this.touch; this.touch = null
+    if (this.game && this.game.complete && this.game.knowledgeIntro && !this.game.knowledgeIntro.done) { this.game.knowledgeIntro.done = true; return }
     if(touch.puzzleSource>=0&&this.game?.level?.mode==='image_puzzle'){this.game.puzzle.drag=null;const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
     if (this.scene === 'game' && this.game) this.saveAttempt()
     if (touch.moved > 12) return
@@ -761,7 +783,7 @@ class OddSpotApp {
     this.clampGameView()
     this.saveAttempt()
   }
-  knowledgeScrollActive() { return this.modal === 'knowledge' || (!this.modal && this.scene === 'game' && !!this.game && this.game.complete && !!String(this.game.level && this.game.level.background_knowledge || '').trim()) }
+  knowledgeScrollActive() { return this.modal === 'knowledge' || (!this.modal && this.scene === 'game' && !!this.game && this.game.complete && (!this.game.knowledgeIntro || this.game.knowledgeIntro.done) && !!String(this.game.level && this.game.level.background_knowledge || '').trim()) }
   currentScroll() { if (this.modal === 'privacy') return this.scroll.privacy; if (this.knowledgeScrollActive()) return this.scroll.knowledge || 0; return this.scroll[this.scene] || 0 }
   setCurrentScroll(value) { if (this.scroll[this.scene] != null) this.scroll[this.scene] = value }
   clampGameView() {
