@@ -35,3 +35,5 @@ __pycache__/
 # Generated daily challenge content is local operational data, not source code
 content-tools/daily-challenges/
 scripts/import-daily-task-*.ps1
+
+.DS_Store
