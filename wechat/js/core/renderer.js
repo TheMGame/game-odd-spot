@@ -121,6 +121,7 @@ class Renderer {
     else if (kind === 'settings') { c.arc(x, y, size * .42, 0, Math.PI * 2); c.stroke(); this.circle(x, y, size * .14, color) }
     else if (kind === 'replay') { c.arc(x, y, size * .42, -Math.PI * .65, Math.PI * 1.18); c.stroke(); c.beginPath(); c.moveTo(x - size * .49, y - size * .18); c.lineTo(x - size * .48, y + size * .23); c.lineTo(x - size * .12, y + size * .06); c.fill() }
     else if (kind === 'map') { c.strokeRect(x - size * .42, y - size * .35, size * .84, size * .7); this.line(x - size * .14, y - size * .35, x - size * .14, y + size * .35, color, 3); this.line(x + size * .14, y - size * .35, x + size * .14, y + size * .35, color, 3) }
+    else if (kind === 'book') { c.strokeRect(x - size * .34, y - size * .42, size * .68, size * .84); this.line(x - size * .16, y - size * .18, x + size * .16, y - size * .18, color, 3); this.line(x - size * .16, y, x + size * .16, y, color, 3); this.line(x - size * .16, y + size * .18, x + size * .04, y + size * .18, color, 3) }
     else { this.text('!', x, y + 1, size, color, 'center', 'bold') }
   }
   image(image, rect, mode = 'cover', zoom = 1, offset = { x: 0, y: 0 }) {
@@ -142,7 +143,7 @@ class Renderer {
     const strokeEdges = (predicate, color, lineWidth) => { c.strokeStyle = color; c.lineWidth = lineWidth; c.beginPath(); for (let cell = 0; cell < order.length; cell++) { const g = cellGroup[cell]; if (!predicate(g)) continue; const dc = cell % cols, dr = Math.floor(cell / cols), x = draw.x + dc * dw, y = draw.y + dr * dh; if (dr === 0 || cellGroup[cell - cols] !== g) { c.moveTo(x, y); c.lineTo(x + dw, y) } if (dc === cols - 1 || cellGroup[cell + 1] !== g) { c.moveTo(x + dw, y); c.lineTo(x + dw, y + dh) } if (dr === rows - 1 || cellGroup[cell + cols] !== g) { c.moveTo(x, y + dh); c.lineTo(x + dw, y + dh) } if (dc === 0 || cellGroup[cell - 1] !== g) { c.moveTo(x, y); c.lineTo(x, y + dh) } } c.stroke() }
     strokeEdges(g => groupSize[g] <= 1, 'rgba(255,255,255,.45)', 1.5)
     strokeEdges(g => groupSize[g] > 1, COLORS.gold, 5)
-    for(const selected of selectedGroup||[]){const col=selected%cols,row=Math.floor(selected/cols);c.strokeStyle='rgba(255,255,255,.95)';c.lineWidth=3;c.strokeRect(draw.x+col*dw+2,draw.y+row*dh+2,dw-4,dh-4)}
+    if(selectedGroup&&selectedGroup.length){const sel=new Set(selectedGroup);c.strokeStyle='rgba(255,255,255,.95)';c.lineWidth=5;c.beginPath();for(const cell of selectedGroup){const dc2=cell%cols,dr2=Math.floor(cell/cols),x=draw.x+dc2*dw,y=draw.y+dr2*dh;if(dr2===0||!sel.has(cell-cols)){c.moveTo(x,y);c.lineTo(x+dw,y)}if(dc2===cols-1||!sel.has(cell+1)){c.moveTo(x+dw,y);c.lineTo(x+dw,y+dh)}if(dr2===rows-1||!sel.has(cell+cols)){c.moveTo(x,y+dh);c.lineTo(x+dw,y+dh)}if(dc2===0||!sel.has(cell-1)){c.moveTo(x,y);c.lineTo(x,y+dh)}}c.stroke()}
     c.restore(); return draw
   }
   progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, '#203d47', h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }

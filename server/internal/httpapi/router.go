@@ -111,6 +111,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("DELETE /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.deleteCatalogLevel)))
 	mux.Handle("GET /admin/v1/assets", a.requireAdmin(http.HandlerFunc(a.listAssets)))
 	mux.Handle("POST /admin/v1/assets/{assetId}", a.requireAdmin(http.HandlerFunc(a.uploadAsset)))
+	mux.Handle("DELETE /admin/v1/assets/{assetId}", a.requireAdmin(http.HandlerFunc(a.deleteAsset)))
 	mux.Handle("POST /admin/v1/levels/{levelId}/versions/{version}/transition", a.requireAdmin(http.HandlerFunc(a.adminTransition)))
 	mux.Handle("POST /v1/events/batch", a.requireAuth(http.HandlerFunc(a.ingestEvents)))
 	mux.Handle("POST /v1/rewards/ad", a.requireAuth(http.HandlerFunc(a.claimAdReward)))
@@ -364,6 +365,34 @@ func contentTypeForExt(ext string) (string, string) {
 		return "audio/mp4", "audio"
 	}
 	return "image/png", "image"
+}
+
+func (a *api) deleteAsset(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.PathValue("assetId"))
+	if name == "" || name != filepath.Base(name) || strings.Contains(name, "..") || strings.ContainsAny(name, `/\`) {
+		writeError(w, 400, "VALIDATION_FAILED", "invalid asset name")
+		return
+	}
+	path := filepath.Join(a.deps.Config.ContentDir, name)
+	if info, err := os.Stat(path); errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
+		writeError(w, 404, "ASSET_NOT_FOUND", "asset not found")
+		return
+	}
+	inUse, err := a.deps.Catalog.AssetInUse(r.Context(), "/content/"+name)
+	if err != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not check asset references")
+		return
+	}
+	if inUse {
+		writeError(w, 409, "ASSET_IN_USE", "asset is referenced by a level or series and cannot be deleted")
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not delete asset")
+		return
+	}
+	_ = os.Remove(filepath.Join(a.deps.Config.ContentDir, strings.TrimSuffix(name, filepath.Ext(name))+"-thumb.jpg"))
+	writeJSON(w, 200, newEnvelope(map[string]any{"name": name, "deleted": true}))
 }
 
 func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {

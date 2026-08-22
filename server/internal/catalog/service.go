@@ -61,6 +61,7 @@ type Service interface {
 	SetLevelStatus(context.Context, string, string) error
 	DeleteLevel(context.Context, string) error
 	RemoveLevelFromSeries(context.Context, string, string) error
+	AssetInUse(context.Context, string) (bool, error)
 }
 
 type MemoryService struct {
@@ -100,6 +101,7 @@ func (s *MemoryService) DeleteLevel(context.Context, string) error              
 func (s *MemoryService) RemoveLevelFromSeries(context.Context, string, string) error {
 	return nil
 }
+func (s *MemoryService) AssetInUse(context.Context, string) (bool, error) { return false, nil }
 
 type MySQLService struct{ db *sql.DB }
 
@@ -372,6 +374,26 @@ func (s *MySQLService) RemoveLevelFromSeries(ctx context.Context, seriesID, leve
 		return ErrNotFound
 	}
 	return nil
+}
+
+// AssetInUse reports whether the given substring (e.g. "/content/<file>") appears
+// in any level's runtime_json or any series cover URL — i.e. whether the asset is
+// referenced anywhere and therefore must not be deleted.
+func (s *MySQLService) AssetInUse(ctx context.Context, needle string) (bool, error) {
+	if needle == "" {
+		return false, nil
+	}
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_versions WHERE LOCATE(?, CAST(runtime_json AS CHAR)) > 0`, needle).Scan(&count); err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM content_series WHERE LOCATE(?, cover_url) > 0`, needle).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func number(value any) (int, bool) {

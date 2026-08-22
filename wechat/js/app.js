@@ -34,7 +34,7 @@ class OddSpotApp {
     this.covers = {}
     this.selectedSeriesId = ''
     this.selectedLevelId = ''
-    this.scroll = { home: 0, levels: 0, settings: 0, privacy: 0 }
+    this.scroll = { home: 0, levels: 0, settings: 0, privacy: 0, knowledge: 0 }
     this.modal = ''
     this.touch = null
     this.game = null
@@ -255,7 +255,7 @@ class OddSpotApp {
     this.status = this.i18n.t('noDifference')
     this.analytics.track('wrong_tap', { level_id: this.game.level.level_id, x: point.x, y: point.y })
   }
-  movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='这个块组无法放到该位置';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
+  movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='无法向该方向移动：已到边界，或会拆散已拼好的组合';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
   markFound(difference) {
     const id = String(difference.id); this.game.found[id] = true; this.game.markers.push({ point: this.differenceCenter(difference), at: Date.now() }); this.audio.correct()
     this.game.foundInfo = { title: `已找到：${difference.label || difference.id || '时代错误'}`, era: `${this.i18n.t('clue')}：${difference.era || '暂无线索'}`, reason: `${this.i18n.t('clueReasoning')}：${String(difference.explanation || '').trim() || '这条素材尚缺少推理说明，请通过举报反馈。'}` }
@@ -300,7 +300,7 @@ class OddSpotApp {
     const level = this.game.level, elapsed = this.elapsed()
     const body={attempt_id:this.game.attempt.attempt_id,hints_used:Number(this.game.attempt.hints_used||0),duration_ms:elapsed};if(level.mode==='image_puzzle'){body.puzzle_order=this.game.puzzle.order.slice();body.puzzle_moves=this.game.puzzle.moves}else body.difference_ids=Object.keys(this.game.found);const result = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/complete`, body)
     if (result.state === 'rejected') { this.status = `完成提交被服务器拒绝：${result.error}`; this.game.attempt.state = 'rejected'; this.progress.save(level.level_id, this.game.attempt); return }
-    this.game.complete = true; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
+    this.game.complete = true; this.scroll.knowledge = 0; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
     this.analytics.track('level_complete', { level_id: level.level_id, duration_ms: elapsed, hints_used: this.game.attempt.hints_used, sync_state: result.state }); this.analytics.flush()
     this.prefetchNext()
   }
@@ -591,6 +591,7 @@ class OddSpotApp {
     r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52 + top, 42, COLORS.gold, 'center', 'bold', 660)
     const total = game && game.level ? (game.level.mode==='image_puzzle'?(game.puzzle?.initialMisplaced||0):(game.level.differences||[]).length) : 0, found = game ? (game.level?.mode==='image_puzzle'?Math.max(0,total-countMisplaced(game.puzzle?.order||[])):Object.keys(game.found).length) : 0
     r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center'); r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)
+    if (game && game.level && String(game.level.background_knowledge || '').trim()) r.iconButton('knowledge', 846, 12 + top, 96, 'book')
     r.progress(18, 125 + top, 1044, 16, found, total || 1)
     if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
     const limitMs = this.puzzleTimeLimitMs(game)
@@ -652,11 +653,29 @@ class OddSpotApp {
   }
   renderComplete() {
     const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
-    const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
-    r.text(this.i18n.t('complete'), 540, rect.y + 115, 72, '#b33321', 'center', 'bold')
-    r.text(this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete'), 540, rect.y + 225, 32, '#2e2921', 'center')
-    const summary=this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`;r.text(`${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`, 540, rect.y + 295, 22, '#574d3d', 'center')
-    r.iconButton('replay', 340, rect.y + 380, 88, 'replay'); r.iconButton('map', 496, rect.y + 380, 88, 'map'); r.iconButton('next', 648, rect.y + 376, 96, 'next', true)
+    const knowledge = String(this.game.level.background_knowledge || '').trim()
+    const summary = this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`
+    const statusText = this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete')
+    const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
+    if (!knowledge) {
+      const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
+      r.text(this.i18n.t('complete'), 540, rect.y + 115, 72, '#b33321', 'center', 'bold')
+      r.text(statusText, 540, rect.y + 225, 32, '#2e2921', 'center')
+      r.text(stat, 540, rect.y + 295, 22, '#574d3d', 'center')
+      r.iconButton('replay', 340, rect.y + 380, 88, 'replay'); r.iconButton('map', 496, rect.y + 380, 88, 'map'); r.iconButton('next', 648, rect.y + 376, 96, 'next', true)
+      return
+    }
+    const top = r.safeTop, rect = { x: 70, y: Math.max(40 + top, h / 2 - 440), w: 940, h: Math.min(h - 80 - top, 900) }
+    r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
+    r.text(this.i18n.t('complete'), 540, rect.y + 64, 52, '#b33321', 'center', 'bold')
+    r.text(stat, 540, rect.y + 116, 22, '#574d3d', 'center')
+    r.text(this.i18n.t('backgroundKnowledge'), 540, rect.y + 166, 28, '#8a5a2b', 'center', 'bold')
+    const clip = { x: rect.x + 46, y: rect.y + 198, w: rect.w - 92, h: rect.h - 198 - 128 }, c = r.ctx
+    c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
+    const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 12 - (this.scroll.knowledge || 0), clip.w, 26, '#3a3226', 40, 400)
+    c.restore(); this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 30)
+    const by = rect.y + rect.h - 104
+    r.iconButton('replay', 340, by, 88, 'replay'); r.iconButton('map', 496, by, 88, 'map'); r.iconButton('next', 648, by, 96, 'next', true)
   }
   renderTimeout() {
     const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
@@ -684,6 +703,15 @@ class OddSpotApp {
       r.text(this.i18n.t('privacyPolicy'), 540, rect.y + 58, 38, COLORS.gold, 'center', 'bold')
       const clip = { x: 76, y: rect.y + 105, w: 928, h: rect.h - 220 }, c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip(); const textHeight = r.wrappedText(this.i18n.t('privacy'), clip.x, clip.y + 20 - this.scroll.privacy, clip.w, 23, COLORS.muted, 35, 200); c.restore(); this.privacyMaxScroll = Math.max(0, textHeight - clip.h + 40)
       r.button('modalClose', { x: 200, y: rect.y + rect.h - 95, w: 680, h: 70 }, this.i18n.t('privacyClose'), { fill: COLORS.cinnabar, border: COLORS.gold, size: 26 })
+    } else if (this.modal === 'knowledge') {
+      const top = r.safeTop; const rect = { x: 60, y: 90 + top, w: 960, h: h - 180 - top }; r.rect(rect.x, rect.y, rect.w, rect.h, '#eadbbd', 24, '#d0a04c', 4)
+      r.text(this.i18n.t('backgroundKnowledge'), 540, rect.y + 62, 38, '#b33321', 'center', 'bold')
+      const knowledge = String(this.game && this.game.level && this.game.level.background_knowledge || '').trim()
+      const clip = { x: rect.x + 48, y: rect.y + 112, w: rect.w - 96, h: rect.h - 224 }, c = r.ctx
+      c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
+      const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 14 - (this.scroll.knowledge || 0), clip.w, 27, '#3a3226', 42, 400); c.restore()
+      this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 40)
+      r.button('modalClose', { x: 230, y: rect.y + rect.h - 90, w: 620, h: 70 }, this.i18n.t('close'), { fill: '#ad3f30', border: COLORS.gold, size: 28 })
     }
   }
 
@@ -699,6 +727,7 @@ class OddSpotApp {
     const point = points[0], dy = point.y - this.touch.start.y, dx = point.x - this.touch.start.x; this.touch.moved = Math.max(this.touch.moved, Math.hypot(dx, dy)); this.touch.last = point; this.touch.points = points
     if(this.touch.puzzleSource>=0)return
     if (this.modal === 'privacy') { this.scroll.privacy = clamp(this.touch.scrollStart - dy, 0, this.privacyMaxScroll || 0); return }
+    if (this.knowledgeScrollActive()) { this.scroll.knowledge = clamp(this.touch.scrollStart - dy, 0, this.knowledgeMaxScroll || 0); return }
     if (!this.modal && ['home', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
     if (!this.modal && this.scene === 'game' && this.game && this.game.imageRects.some((item) => item && inside(point, item.panel))) {
       if (points.length >= 2 && this.touch.pinchDistance > 1) {
@@ -720,7 +749,8 @@ class OddSpotApp {
     }
   }
   puzzleCellAt(point){if(!this.game?.puzzle)return-1;const item=this.game.imageRects.find(x=>x?.draw&&inside(point,x.draw));if(!item)return-1;return cellFromNormalizedPoint((point.x-item.draw.x)/item.draw.w,(point.y-item.draw.y)/item.draw.h,this.game.puzzle.rows,this.game.puzzle.cols)}
-  currentScroll() { return this.modal === 'privacy' ? this.scroll.privacy : this.scroll[this.scene] || 0 }
+  knowledgeScrollActive() { return this.modal === 'knowledge' || (!this.modal && this.scene === 'game' && !!this.game && this.game.complete && !!String(this.game.level && this.game.level.background_knowledge || '').trim()) }
+  currentScroll() { if (this.modal === 'privacy') return this.scroll.privacy; if (this.knowledgeScrollActive()) return this.scroll.knowledge || 0; return this.scroll[this.scene] || 0 }
   setCurrentScroll(value) { if (this.scroll[this.scene] != null) this.scroll[this.scene] = value }
   clampGameView() {
     if (!this.game) return
@@ -750,6 +780,7 @@ class OddSpotApp {
     else if (id.startsWith('level:')) this.loadGame(id.slice(6))
     else if (id.startsWith('locked:')) this.modal = 'locked'
     else if (id === 'hint') this.useHint()
+    else if (id === 'knowledge') { this.scroll.knowledge = 0; this.modal = 'knowledge' }
     else if (id === 'replay') this.replay()
     else if (id === 'map') this.showLevelSelect(this.selectedSeriesId)
     else if (id === 'next') this.nextLevel()

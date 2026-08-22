@@ -13,8 +13,14 @@ assert.strictEqual(p.validatePuzzleConfig({rows:2,cols:3,operations:[{type:'swap
 assert.strictEqual(p.validatePuzzleConfig({rows:2,cols:3,operations:[{type:'swap',cells:[0,3]},{type:'swap',cells:[1,4]},{type:'swap',cells:[2,5]}]}, false, true).ok,true)
 assert.deepStrictEqual(p.puzzleGroups([3,4,2,0,1,5],2,3),[[0,1],[2,5],[3,4]])
 assert.deepStrictEqual(p.groupForCell([3,4,2,0,1,5],2,3,0),[0,1])
+// two assembled blocks may swap wholesale (neither is split) — here it solves the board
 assert.deepStrictEqual(p.movePuzzleGroup([3,4,2,0,1,5],2,3,0,3),[0,1,2,3,4,5])
+// an assembled block slides one cell over loose (singleton) tiles, which backfill the vacated cells
+assert.deepStrictEqual(p.movePuzzleGroup([5,2,3,0,1,4],2,3,3,0),[0,1,3,5,2,4])
+// a move that would break an existing assembled block (here [2,5]) is rejected
 assert.strictEqual(p.movePuzzleGroup([3,4,2,0,1,5],2,3,0,1),null)
+// a group cannot slide past the grid boundary
+assert.strictEqual(p.movePuzzleGroup([3,4,2,0,1,5],2,3,0,2),null)
 
 // client-side random shuffle: every piece must be misplaced (derangement)
 for (const [rows, cols] of [[2,2],[3,3],[4,5],[2,3]]) {

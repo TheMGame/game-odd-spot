@@ -301,6 +301,48 @@ func TestUploadAudioAsset(t *testing.T) {
 	}
 }
 
+func TestDeleteAsset(t *testing.T) {
+	handler := newTestHandler(t.TempDir())
+	up := httptest.NewRequest(http.MethodPost, "/admin/v1/assets/asset_del_1", bytes.NewReader([]byte("audio bytes")))
+	up.Header.Set("X-Admin-Token", "test-admin-token")
+	up.Header.Set("Content-Type", "audio/mpeg")
+	upRec := httptest.NewRecorder()
+	handler.ServeHTTP(upRec, up)
+	if upRec.Code != http.StatusCreated {
+		t.Fatalf("upload code=%d body=%s", upRec.Code, upRec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			URL string `json:"url"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(upRec.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Base(env.Data.URL)
+	del := httptest.NewRequest(http.MethodDelete, "/admin/v1/assets/"+name, nil)
+	del.Header.Set("X-Admin-Token", "test-admin-token")
+	delRec := httptest.NewRecorder()
+	handler.ServeHTTP(delRec, del)
+	if delRec.Code != http.StatusOK {
+		t.Fatalf("delete code=%d body=%s", delRec.Code, delRec.Body.String())
+	}
+	again := httptest.NewRequest(http.MethodDelete, "/admin/v1/assets/"+name, nil)
+	again.Header.Set("X-Admin-Token", "test-admin-token")
+	againRec := httptest.NewRecorder()
+	handler.ServeHTTP(againRec, again)
+	if againRec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 on re-delete, got %d", againRec.Code)
+	}
+	bad := httptest.NewRequest(http.MethodDelete, "/admin/v1/assets/..%2Fsecret", nil)
+	bad.Header.Set("X-Admin-Token", "test-admin-token")
+	badRec := httptest.NewRecorder()
+	handler.ServeHTTP(badRec, bad)
+	if badRec.Code == http.StatusOK {
+		t.Fatalf("path traversal delete should not succeed, got %d", badRec.Code)
+	}
+}
+
 func TestVersionedConfig(t *testing.T) {
 	handler := newTestHandler()
 	created := createSession(t, handler)

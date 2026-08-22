@@ -12,6 +12,7 @@
     "mode": {"enum": ["find_anachronism", "image_puzzle"]},
     "title": {"type": "string", "minLength": 1, "maxLength": 100},
     "instruction": {"type": "string", "minLength": 1, "maxLength": 160},
+    "background_knowledge": {"type": "string", "maxLength": 8000},
     "assets": {
       "type": "object",
       "additionalProperties": false,
