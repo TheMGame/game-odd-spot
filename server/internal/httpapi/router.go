@@ -100,6 +100,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("POST /v1/levels/{levelId}/start", a.requireAuth(http.HandlerFunc(a.startLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/progress", a.requireAuth(http.HandlerFunc(a.progressLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/complete", a.requireAuth(http.HandlerFunc(a.completeLevel)))
+	mux.Handle("POST /v1/levels/{levelId}/reset", a.requireAuth(http.HandlerFunc(a.resetLevel)))
 	mux.Handle("GET /v1/config/{version}", a.requireAuth(http.HandlerFunc(a.getConfig)))
 	mux.Handle("GET /admin/v1/levels", a.requireAdmin(http.HandlerFunc(a.adminLevels)))
 	mux.Handle("GET /admin/v1/catalog", a.requireAdmin(http.HandlerFunc(a.adminCatalog)))
@@ -562,6 +563,14 @@ func normalizeAssetURL(value, publicBaseURL string) string {
 		return value
 	}
 	return strings.TrimRight(publicBaseURL, "/") + value[index:]
+}
+
+func (a *api) resetLevel(w http.ResponseWriter, r *http.Request) {
+	if err := a.deps.Levels.Reset(r.Context(), authenticatedUser(r), r.PathValue("levelId")); err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not reset level progress")
+		return
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"level_id": r.PathValue("levelId"), "reset": true}))
 }
 
 func (a *api) startLevel(w http.ResponseWriter, r *http.Request) {

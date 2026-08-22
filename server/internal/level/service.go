@@ -68,6 +68,7 @@ type Service interface {
 	Start(context.Context, string, string, StartRequest) (AttemptResult, error)
 	Progress(context.Context, string, string, ProgressRequest) (AttemptResult, error)
 	Complete(context.Context, string, string, CompleteRequest) (AttemptResult, error)
+	Reset(context.Context, string, string) error
 }
 
 type memoryAttempt struct {
@@ -172,6 +173,17 @@ func (s *MemoryService) Complete(_ context.Context, userID, _ string, request Co
 	result := AttemptResult{AttemptID: request.AttemptID, State: a.state, FoundCount: 5, TotalCount: 5, HintsUsed: a.hints, DurationMS: a.duration, Reward: 1}
 	s.idempotency[key] = result
 	return result, nil
+}
+
+func (s *MemoryService) Reset(_ context.Context, userID, _ string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, attempt := range s.attempts {
+		if attempt.userID == userID {
+			delete(s.attempts, id)
+		}
+	}
+	return nil
 }
 
 func validDiff(id string) bool {

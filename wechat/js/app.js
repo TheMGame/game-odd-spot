@@ -306,7 +306,7 @@ class OddSpotApp {
   }
   nextLevelId() { const series = this.seriesById(this.selectedSeriesId); if (!series) return ''; const levels = series.levels || []; const index = levels.findIndex((item) => String(item.id) === String(this.selectedLevelId)); return index >= 0 && index + 1 < levels.length ? String(levels[index + 1].id) : '' }
   prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then((result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) this.assets.loadDescriptor(level.assets.image).catch(() => {}) }) }
-  replay() { if (!this.game) return; const id = this.game.level.level_id; this.progress.clear(id); this.loadGame(id) }
+  async replay() { if (!this.game) return; const id = this.game.level.level_id; this.progress.clear(id); try { await this.sync.submit(`/v1/levels/${encodeURIComponent(id)}/reset`, {}) } catch (_) {} this.loadGame(id) }
   nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id); else this.showLevelSelect(this.selectedSeriesId) }
 
   showSettings() { this.audio.click(); this.scene = 'settings'; this.scroll.settings = 0; this.modal = ''; this.loadLocales() }
@@ -588,6 +588,7 @@ class OddSpotApp {
   renderGame() {
     const r = this.renderer, h = r.height, top = r.safeTop, game = this.game
     r.iconButton('levels', 14, 12 + top, 96, 'back')
+    r.iconButton('replay', 124, 12 + top, 96, 'replay')
     r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52 + top, 42, COLORS.gold, 'center', 'bold', 660)
     const total = game && game.level ? (game.level.mode==='image_puzzle'?(game.puzzle?.initialMisplaced||0):(game.level.differences||[]).length) : 0, found = game ? (game.level?.mode==='image_puzzle'?Math.max(0,total-countMisplaced(game.puzzle?.order||[])):Object.keys(game.found).length) : 0
     r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center'); r.iconButton('hint', 956, 12 + top, 96, 'hint', true, found === total && total > 0)

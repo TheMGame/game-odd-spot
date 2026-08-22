@@ -164,6 +164,23 @@ func (s *MySQLService) Complete(ctx context.Context, userID, levelID string, req
 	})
 }
 
+// Reset clears a user's attempts for a level so a replay starts from a clean
+// slate. Scoped to the calling user and level; other users are unaffected.
+func (s *MySQLService) Reset(ctx context.Context, userID, levelID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM attempt_differences WHERE attempt_id IN (SELECT id FROM level_attempts WHERE user_id=? AND level_id=?)`, userID, levelID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM level_attempts WHERE user_id=? AND level_id=?`, userID, levelID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *MySQLService) mutate(ctx context.Context, userID, route, key string, request any, operation func(*sql.Tx) (AttemptResult, error)) (AttemptResult, error) {
 	raw, _ := json.Marshal(request)
 	hash := sha256.Sum256(raw)

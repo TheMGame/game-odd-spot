@@ -213,6 +213,13 @@ func TestLevelFlow(t *testing.T) {
 	if decoded.Data.State != "completed" || decoded.Data.Reward != 1 {
 		t.Fatalf("complete result=%+v", decoded.Data)
 	}
+
+	reset := authorizedRequest(http.MethodPost, "/v1/levels/global_demo_001/reset", []byte(`{}`), sessionData.AccessToken, "019f8b77-1111-7000-8000-111111111115")
+	resetResponse := httptest.NewRecorder()
+	handler.ServeHTTP(resetResponse, reset)
+	if resetResponse.Code != http.StatusOK {
+		t.Fatalf("reset status=%d body=%s", resetResponse.Code, resetResponse.Body.String())
+	}
 }
 
 func TestAdminRequiresTokenAndListsContent(t *testing.T) {
