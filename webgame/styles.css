@@ -1,13 +1,24 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --color-bg: #f4f1ea;
+  --color-surface: #fffdf8;
+  --color-surface-secondary: #eee9df;
+  --color-navy: #182331;
+  --color-navy-soft: #263445;
+  --color-gold: #c7a86b;
+  --color-gold-dark: #a88952;
+  --color-text: #20242a;
+  --color-text-secondary: #72777f;
+  --color-border: #e5ded1;
+  --color-danger: #b76555;
   font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  background: #071820;
+  background: #e9e5dd;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
-body { background: radial-gradient(circle at 50% 12%, #1b4654 0, #071820 66%); }
+body { background: #e9e5dd; }
 button, input { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
 
@@ -16,13 +27,13 @@ button { -webkit-tap-highlight-color: transparent; }
   /* 形成独立层叠上下文，把内部 #login-panel(z-index:5) 关在其中，
      使挂到 document.body 的运营商授权页(高 z-index)能正常盖在最上层 */
   isolation: isolate;
-  width: min(100vw, 600px);
+  width: min(100vw, 560px);
   height: 100dvh;
   min-height: 520px;
   margin: 0 auto;
   overflow: hidden;
-  background: #102a35;
-  box-shadow: 0 0 80px rgba(0, 0, 0, .48);
+  background: var(--color-bg);
+  box-shadow: 0 10px 48px rgba(24, 35, 49, .12);
 }
 
 #game-canvas {
@@ -59,37 +70,37 @@ button { -webkit-tap-highlight-color: transparent; }
   width: 100%;
   max-width: 420px;
   padding: 24px;
-  border: 1px solid #5b7d87;
-  border-radius: 18px;
-  background: rgba(23, 58, 70, .98);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .35);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  background: rgba(255, 253, 248, .98);
+  box-shadow: 0 12px 40px rgba(24, 35, 49, .12);
 }
 
-.login-card h1 { margin: 0 0 8px; color: #f3e8cf; font-size: 28px; }
-.login-card > p { margin: 0 0 18px; color: #b8c9c5; font-size: 14px; line-height: 1.6; }
+.login-card h1 { margin: 0 0 8px; color: var(--color-text); font-size: 28px; }
+.login-card > p { margin: 0 0 18px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.6; }
 .form-stack { display: grid; gap: 12px; }
-.form-stack label { display: grid; gap: 6px; color: #d7c9aa; font-size: 13px; }
+.form-stack label { display: grid; gap: 6px; color: var(--color-text-secondary); font-size: 13px; }
 .form-stack input {
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
-  border: 1px solid #6c8990;
-  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   outline: none;
-  color: #f8efd9;
-  background: #0f2a35;
+  color: var(--color-text);
+  background: var(--color-surface);
 }
-.form-stack input:focus { border-color: #e6b95c; box-shadow: 0 0 0 3px rgba(230, 185, 92, .16); }
-.form-stack button { min-height: 46px; padding: 10px 14px; border-radius: 11px; cursor: pointer; }
+.form-stack input:focus { border-color: var(--color-gold); box-shadow: 0 0 0 3px rgba(199, 168, 107, .16); }
+.form-stack button { min-height: 46px; padding: 10px 14px; border-radius: 14px; cursor: pointer; }
 .form-stack button:disabled { cursor: wait; opacity: .62; }
-.primary { border: 2px solid #e6b95c; color: #fff4de; background: #c84e38; font-weight: 700; }
-.primary:hover { background: #dc624b; }
-.secondary { border: 1px solid #74949a; color: #e3eee9; background: #255462; }
-.text-button { border: 0; color: #d9b762; background: transparent; }
+.primary { border: 1px solid var(--color-navy); color: #fff; background: var(--color-navy); font-weight: 700; }
+.primary:hover { background: var(--color-navy-soft); }
+.secondary { border: 1px solid #d9d3c8; color: var(--color-text); background: var(--color-surface); }
+.text-button { border: 0; color: var(--color-gold-dark); background: transparent; }
 .code-row { display: grid; grid-template-columns: 1fr 138px; gap: 10px; align-items: end; }
-.login-status { min-height: 22px; margin: 12px 0 0 !important; color: #e6b95c !important; text-align: center; }
-.login-status.error { color: #ff9b87 !important; }
-.agreement { margin: 8px 0 0 !important; color: #8fa7a3 !important; font-size: 11px !important; text-align: center; }
+.login-status { min-height: 22px; margin: 12px 0 0 !important; color: var(--color-gold-dark) !important; text-align: center; }
+.login-status.error { color: var(--color-danger) !important; }
+.agreement { margin: 8px 0 0 !important; color: #9a9da2 !important; font-size: 11px !important; text-align: center; }
 
 /* Tab 切换 */
 .login-tabs {
@@ -99,8 +110,8 @@ button { -webkit-tap-highlight-color: transparent; }
   margin: 0 0 18px;
   padding: 4px;
   border-radius: 12px;
-  background: #0d2832;
-  border: 1px solid #4e7178;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
 }
 .tab-btn {
   min-height: 40px;
@@ -108,16 +119,16 @@ button { -webkit-tap-highlight-color: transparent; }
   border: 0;
   border-radius: 9px;
   cursor: pointer;
-  color: #a7bdb8;
+  color: var(--color-text-secondary);
   background: transparent;
   font-weight: 600;
   font-size: 14px;
   transition: all .18s ease;
 }
 .tab-btn.active {
-  color: #1b4654;
-  background: linear-gradient(180deg, #f3d37b, #e6b95c);
-  box-shadow: 0 3px 10px rgba(230, 185, 92, .25);
+  color: #fff;
+  background: var(--color-navy);
+  box-shadow: 0 3px 10px rgba(24, 35, 49, .12);
 }
 
 /* 头像上传 */
@@ -132,19 +143,19 @@ button { -webkit-tap-highlight-color: transparent; }
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  border: 2px dashed #74949a;
-  background: #0f2a35;
+  border: 2px dashed var(--color-border);
+  background: var(--color-surface-secondary);
   display: grid;
   place-items: center;
   overflow: hidden;
-  color: #8fa7a3;
+  color: var(--color-text-secondary);
   transition: border-color .18s ease;
 }
-.avatar-preview:hover { border-color: #e6b95c; }
+.avatar-preview:hover { border-color: var(--color-gold); }
 .avatar-preview-lg { width: 96px; height: 96px; }
 .avatar-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
-.avatar-placeholder { font-size: 26px; font-weight: 700; color: #74949a; }
-.avatar-hint { margin: 0; color: #8fa7a3; font-size: 12px; }
+.avatar-placeholder { font-size: 26px; font-weight: 700; color: var(--color-text-secondary); }
+.avatar-hint { margin: 0; color: var(--color-text-secondary); font-size: 12px; }
 
 /* 用户设置面板使用与登录面板一致的可滚动布局 */
 #user-panel.login-panel {

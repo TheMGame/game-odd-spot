@@ -1,4 +1,4 @@
-const CACHE = 'oddspot-webgame-v0.2.2'
+const CACHE = 'oddspot-webgame-v0.2.6'
 const SHELL = [
   './', './index.html', './styles.css', './app.bundle.js',
   './assets/branding/guagua-rabbit-logo.png', './assets/branding/default-avatar.png',

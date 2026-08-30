@@ -1,8 +1,11 @@
 const { clamp } = require('./utils')
 
 const COLORS = {
-  background: '#102a35', card: '#173a46', cardBorder: '#5b7d87', gold: '#e6b95c', paper: '#f3e8cf',
-  cinnabar: '#c84e38', jade: '#72a58f', muted: '#b8c9c5', ink: '#0b1b29', darkRed: '#87352c',
+  background: '#F4F1EA', surface: '#FFFDF8', surfaceSecondary: '#EEE9DF',
+  card: '#FFFDF8', cardBorder: '#E5DED1', gold: '#C7A86B', goldDark: '#A88952',
+  paper: '#20242A', navy: '#182331', navySoft: '#263445', header: '#304153', text: '#20242A',
+  muted: '#72777F', subtle: '#9A9DA2', ink: '#182331', cinnabar: '#B76555',
+  jade: '#70806C', darkRed: '#263445', danger: '#B76555',
 }
 
 class Renderer {
@@ -59,6 +62,12 @@ class Renderer {
     const c = this.ctx; c.beginPath(); roundedPath(c, x, y, w, h, radius); c.fillStyle = fill; c.fill()
     if (stroke && lineWidth) { c.strokeStyle = stroke; c.lineWidth = lineWidth; c.stroke() }
   }
+  gradientRect(x, y, w, h, stops, radius = 0) {
+    const c = this.ctx, gradient = c.createLinearGradient(0, y, 0, y + h)
+    if (!gradient || typeof gradient.addColorStop !== 'function') { this.rect(x, y, w, h, stops[stops.length - 1][1], radius); return }
+    for (const [offset, color] of stops) gradient.addColorStop(offset, color)
+    c.beginPath(); roundedPath(c, x, y, w, h, radius); c.fillStyle = gradient; c.fill()
+  }
   line(x1, y1, x2, y2, color, width = 2) { const c = this.ctx; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.strokeStyle = color; c.lineWidth = width; c.stroke() }
   circle(x, y, radius, fill, stroke = '', lineWidth = 0) { const c = this.ctx; c.beginPath(); c.arc(x, y, radius, 0, Math.PI * 2); c.fillStyle = fill; c.fill(); if (stroke && lineWidth) { c.strokeStyle = stroke; c.lineWidth = lineWidth; c.stroke() } }
   text(value, x, y, size = 28, color = COLORS.paper, align = 'left', weight = 'normal', maxWidth) {
@@ -82,26 +91,31 @@ class Renderer {
     return output
   }
   button(id, rect, label, options = {}) {
-    const fill = options.fill || '#1b4350'; const border = options.border || COLORS.cardBorder
+    const fill = options.fill || COLORS.navy; const border = options.border || COLORS.navy
     this.rect(rect.x, rect.y, rect.w, rect.h, fill, options.radius || 16, border, options.lineWidth || 2)
-    this.text(label, rect.x + rect.w / 2, rect.y + rect.h / 2, options.size || 28, options.color || COLORS.paper, 'center', options.weight || 'normal', rect.w - 24)
+    this.text(label, rect.x + rect.w / 2, rect.y + rect.h / 2, options.size || 28, options.color || '#FFFFFF', 'center', options.weight || 'normal', rect.w - 24)
     if (!options.disabled) this.register(id, rect, options.data)
   }
   toggle(id, x, y, label, enabled) {
-    this.text(label, x, y + 35, 34, COLORS.paper)
+    this.text(label, x, y + 35, 34, COLORS.text)
     const rx = 790, rect = { x: rx, y, w: 210, h: 70 }
-    this.rect(rect.x, rect.y, rect.w, rect.h, enabled ? '#3f7565' : '#263f48', 35, enabled ? COLORS.gold : COLORS.cardBorder, 2)
-    this.circle(enabled ? rect.x + rect.w - 36 : rect.x + 36, rect.y + 35, 27, enabled ? COLORS.gold : '#8ca09e')
+    this.rect(rect.x, rect.y, rect.w, rect.h, enabled ? COLORS.navy : COLORS.surfaceSecondary, 35, enabled ? COLORS.navy : COLORS.cardBorder, 2)
+    this.circle(enabled ? rect.x + rect.w - 36 : rect.x + 36, rect.y + 35, 27, enabled ? COLORS.gold : COLORS.subtle)
     this.register(id, rect)
   }
   iconButton(id, x, y, size, kind, glow = false, disabled = false) {
     const radius = size * 0.38, cx = x + size / 2, cy = y + size / 2
-    if (glow) this.circle(cx, cy, radius + 9, 'rgba(230,185,92,.16)', COLORS.gold, 2)
-    this.circle(cx, cy + 3, radius + 2, 'rgba(11,27,41,.34)')
-    this.circle(cx, cy, radius, disabled ? '#5b4a47' : COLORS.gold)
-    this.circle(cx, cy, radius - 4, disabled ? '#493938' : COLORS.darkRed, disabled ? 'rgba(243,232,207,.35)' : '#f0cd83', 2)
-    this.drawIcon(kind, cx, cy, radius * 0.78, disabled ? 'rgba(243,232,207,.35)' : COLORS.paper)
+    if (glow) this.circle(cx, cy, radius + 7, 'rgba(199,168,107,.12)', COLORS.gold, 2)
+    this.circle(cx, cy, radius, disabled ? COLORS.surfaceSecondary : COLORS.surface, COLORS.cardBorder, 2)
+    this.circle(cx, cy, radius - 4, disabled ? COLORS.surfaceSecondary : COLORS.navy, disabled ? COLORS.cardBorder : COLORS.navy, 1)
+    this.drawIcon(kind, cx, cy, radius * 0.78, disabled ? 'rgba(114,119,127,.35)' : '#FFFFFF')
     if (!disabled) this.register(id, { x, y, w: size, h: size })
+  }
+  headerIconButton(id, x, y, size, kind) {
+    const radius = size * .35, cx = x + size / 2, cy = y + size / 2
+    this.circle(cx, cy, radius, 'rgba(255,253,248,.10)', 'rgba(255,253,248,.72)', 3)
+    this.drawIcon(kind, cx, cy, radius * .72, '#FFFDF8')
+    this.register(id, { x, y, w: size, h: size })
   }
   drawIcon(kind, x, y, size, color) {
     const c = this.ctx; c.strokeStyle = color; c.fillStyle = color; c.lineWidth = 5; c.beginPath()
@@ -147,7 +161,7 @@ class Renderer {
     }
     c.restore(); return draw
   }
-  progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, '#203d47', h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }
+  progress(x, y, w, h, value, maximum) { this.rect(x, y, w, h, COLORS.surfaceSecondary, h / 2); this.rect(x, y, w * clamp(value / Math.max(maximum, 1), 0, 1), h, COLORS.gold, h / 2) }
 }
 
 function roundedPath(c, x, y, w, h, radius) {
