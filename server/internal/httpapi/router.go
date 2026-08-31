@@ -105,6 +105,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/v1/levels", a.requireAdmin(http.HandlerFunc(a.adminLevels)))
 	mux.Handle("GET /admin/v1/catalog", a.requireAdmin(http.HandlerFunc(a.adminCatalog)))
 	mux.Handle("POST /admin/v1/museum", a.requireAdmin(http.HandlerFunc(a.upsertMuseum)))
+	mux.Handle("POST /admin/v1/home", a.requireAdmin(http.HandlerFunc(a.upsertHome)))
 	mux.Handle("POST /admin/v1/series", a.requireAdmin(http.HandlerFunc(a.upsertSeries)))
 	mux.Handle("DELETE /admin/v1/series/{seriesId}/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.removeLevelFromSeries)))
 	mux.Handle("GET /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.adminGetLevel)))
@@ -199,7 +200,13 @@ func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeMuseumAssetURLs(&museum, a.deps.Config.PublicBaseURL)
-	writeJSON(w, 200, newEnvelope(map[string]any{"locale": locale, "series": items, "museum": museum}))
+	home, homeErr := a.deps.Catalog.Home(r.Context())
+	if homeErr != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not load home config")
+		return
+	}
+	normalizeHomeAssetURLs(&home, a.deps.Config.PublicBaseURL)
+	writeJSON(w, 200, newEnvelope(map[string]any{"locale": locale, "series": items, "museum": museum, "home": home}))
 }
 
 func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +224,20 @@ func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeMuseumAssetURLs(&museum, a.deps.Config.PublicBaseURL)
-	writeJSON(w, 200, newEnvelope(map[string]any{"series": items, "museum": museum}))
+	home, homeErr := a.deps.Catalog.Home(r.Context())
+	if homeErr != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not load home config")
+		return
+	}
+	normalizeHomeAssetURLs(&home, a.deps.Config.PublicBaseURL)
+	writeJSON(w, 200, newEnvelope(map[string]any{"series": items, "museum": museum, "home": home}))
+}
+
+func normalizeHomeAssetURLs(value *catalog.HomeConfig, base string) {
+	value.LogoURL = normalizeAssetURL(value.LogoURL, base)
+	value.HeaderURL = normalizeAssetURL(value.HeaderURL, base)
+	value.HeroFallbackURL = normalizeAssetURL(value.HeroFallbackURL, base)
+	value.CollectionPlaceholderURL = normalizeAssetURL(value.CollectionPlaceholderURL, base)
 }
 
 func (a *api) upsertMuseum(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +246,18 @@ func (a *api) upsertMuseum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.deps.Catalog.UpsertMuseum(r.Context(), input); err != nil {
+		writeError(w, 400, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	writeJSON(w, 200, newEnvelope(input))
+}
+
+func (a *api) upsertHome(w http.ResponseWriter, r *http.Request) {
+	var input catalog.HomeConfig
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	if err := a.deps.Catalog.UpsertHome(r.Context(), input); err != nil {
 		writeError(w, 400, "VALIDATION_FAILED", err.Error())
 		return
 	}

@@ -58,6 +58,28 @@ type MuseumConfig struct {
 	Items    []MuseumItem `json:"items"`
 }
 
+type HomeConfig struct {
+	BrandTitle               string `json:"brand_title"`
+	BrandSubtitle            string `json:"brand_subtitle"`
+	DetectiveTitle           string `json:"detective_title"`
+	HeroSeriesID             string `json:"hero_series_id"`
+	HeroBadge                string `json:"hero_badge"`
+	HeroLabel                string `json:"hero_label"`
+	HeroButton               string `json:"hero_button"`
+	DailyTitle               string `json:"daily_title"`
+	DailyDescription         string `json:"daily_description"`
+	DailyReward              string `json:"daily_reward"`
+	DailyTarget              int    `json:"daily_target"`
+	WorldsTitle              string `json:"worlds_title"`
+	WorldsLinkText           string `json:"worlds_link_text"`
+	MuseumTitle              string `json:"museum_title"`
+	MuseumLinkText           string `json:"museum_link_text"`
+	LogoURL                  string `json:"logo_url"`
+	HeaderURL                string `json:"header_url"`
+	HeroFallbackURL          string `json:"hero_fallback_url"`
+	CollectionPlaceholderURL string `json:"collection_placeholder_url"`
+}
+
 type UpsertLevel struct {
 	SeriesID  string          `json:"series_id"`
 	SortOrder int             `json:"sort_order"`
@@ -76,6 +98,8 @@ type Service interface {
 	Admin(context.Context) ([]Series, error)
 	Museum(context.Context, PublicQuery, bool) (MuseumConfig, error)
 	UpsertMuseum(context.Context, MuseumConfig) error
+	Home(context.Context) (HomeConfig, error)
+	UpsertHome(context.Context, HomeConfig) error
 	GetLevel(context.Context, string) (json.RawMessage, error)
 	UpsertSeries(context.Context, Series) error
 	UpsertLevel(context.Context, string, UpsertLevel) error
@@ -90,6 +114,7 @@ type MemoryService struct {
 	mu     sync.RWMutex
 	series map[string]Series
 	museum MuseumConfig
+	home   HomeConfig
 }
 
 func NewMemoryService() *MemoryService { return &MemoryService{series: map[string]Series{}} }
@@ -107,6 +132,17 @@ func (s *MemoryService) UpsertMuseum(_ context.Context, value MuseumConfig) erro
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.museum = value
+	return nil
+}
+func (s *MemoryService) Home(_ context.Context) (HomeConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.home, nil
+}
+func (s *MemoryService) UpsertHome(_ context.Context, value HomeConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.home = value
 	return nil
 }
 func (s *MemoryService) GetLevel(context.Context, string) (json.RawMessage, error) {
@@ -203,6 +239,31 @@ func (s *MySQLService) UpsertMuseum(ctx context.Context, value MuseumConfig) err
 		return err
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO museum_configs(id,config_json) VALUES(1,?) ON DUPLICATE KEY UPDATE config_json=VALUES(config_json)`, raw)
+	return err
+}
+func (s *MySQLService) Home(ctx context.Context) (HomeConfig, error) {
+	var raw []byte
+	var value HomeConfig
+	if err := s.db.QueryRowContext(ctx, `SELECT config_json FROM home_configs WHERE id=1`).Scan(&raw); err != nil {
+		return value, err
+	}
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return value, err
+	}
+	return value, nil
+}
+func (s *MySQLService) UpsertHome(ctx context.Context, value HomeConfig) error {
+	if value.BrandTitle == "" || value.WorldsTitle == "" {
+		return errors.New("home brand title and worlds title are required")
+	}
+	if value.DailyTarget < 1 {
+		value.DailyTarget = 1
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO home_configs(id,config_json) VALUES(1,?) ON DUPLICATE KEY UPDATE config_json=VALUES(config_json)`, raw)
 	return err
 }
 func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage, error) {

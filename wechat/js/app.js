@@ -12,18 +12,6 @@ const { Analytics } = require('./services/analytics')
 const { CatalogRepository } = require('./services/catalog')
 const { renderHome: renderLobby, renderMuseum } = require('./ui/home')
 
-const HOME_ART = {
-  logo: 'assets/home/branding/logo.png', header: 'assets/home/branding/header_texture.png',
-  hero: 'assets/home/fallback/case_hero.png', collection: 'assets/home/fallback/collection.png', scroll: 'assets/home/collections/scroll_luoshen.png',
-  daily_mystery: 'assets/home/worlds/daily_mystery.png', ancient_china: 'assets/home/worlds/ancient_china.png',
-  world_journey: 'assets/home/worlds/world_journey.png', fantasy_world: 'assets/home/worlds/fantasy_world.png', brainstorm: 'assets/home/worlds/brainstorm.png',
-}
-const HOME_WORLDS = [
-  ['ancient_china', '神韵华章', '千载风华', 80], ['daily_mystery', '日常奇案', '城市谜踪', 80],
-  ['world_journey', '环球奇遇', '发现世界的错位', 64], ['fantasy_world', '幻境奇闻', '奇幻世界的秘密', 40],
-  ['brainstorm', '脑洞异闻录', '有点不对劲…', 36],
-]
-
 class OddSpotApp {
   constructor() {
     this.canvas = wx.createCanvas()
@@ -66,7 +54,6 @@ class OddSpotApp {
     this.bindEvents()
     this.audio.start()
     this.assets.bundled('assets/branding/guagua-rabbit-logo.png').then((image) => { this.logo = image }).catch(() => {})
-    this.loadHomeArt()
     this.assets.bundled('assets/branding/default-avatar.png').then((image) => { this.avatar = image }).catch(() => {})
     this.loadHomeBunny()
     this.analytics.track('app_open')
@@ -75,7 +62,8 @@ class OddSpotApp {
   }
 
   loadHomeArt() {
-    for (const [key, path] of Object.entries(HOME_ART)) this.assets.bundled(path).then((image) => { this.homeArt[key] = image }).catch(() => {})
+    const home = this.catalogData && this.catalogData.home || {}, urls = { logo: home.logo_url, header: home.header_url, hero: home.hero_fallback_url, collection: home.collection_placeholder_url }
+    for (const [key, url] of Object.entries(urls)) if (url) this.assets.loadUrl(url, `home_${key}`).then((image) => { this.homeArt[key] = image }).catch(() => {})
   }
 
   async loadHomeBunny() {
@@ -171,6 +159,7 @@ class OddSpotApp {
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
+    this.loadHomeArt()
     {
       let completed = 0, total = 0
       for (const series of this.enabledSeries()) {

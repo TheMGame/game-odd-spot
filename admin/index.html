@@ -26,6 +26,13 @@
     .cover-asset:hover{border-color:#4648d4}
     .cover-asset img{display:block;width:100%;aspect-ratio:5/3;object-fit:cover;border-radius:3px}
     .cover-asset span{display:block;padding:3px 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;color:#68717d}
+    .museum-image-field{display:grid;grid-template-columns:112px minmax(0,1fr);align-items:center;gap:12px}
+    .museum-image-field select{width:100%}
+    .museum-image-preview{width:112px;height:112px;display:grid;place-items:center;overflow:hidden;border:1px solid #e2e8f0;border-radius:7px;background:#f4f5f7;color:#68717d;font-size:11px;text-align:center}
+    .museum-image-preview img{width:100%;height:100%;object-fit:contain}
+    .museum-image-preview span{display:none;padding:8px}
+    .museum-image-preview.empty-preview span,.museum-image-preview.load-error span{display:block}
+    .museum-image-preview.load-error{background:#feeceb;color:#b42318}
   </style>
 </head>
 <body>
@@ -45,6 +52,7 @@
       <button data-view="series" class="nav-item"><span>▤</span>内容系列</button>
       <button data-view="levels" class="nav-item"><span>◫</span>关卡管理</button>
       <button data-view="library" class="nav-item"><span>▧</span>素材库</button>
+      <button data-view="home" class="nav-item"><span>⌂</span>首页配置</button>
       <button data-view="museum" class="nav-item"><span>♜</span>博物馆</button>
       <button data-view="review" class="nav-item"><span>✓</span>审核中心</button>
       <button data-view="feedback" class="nav-item"><span>◇</span>问题反馈</button>
@@ -59,6 +67,6 @@
   </section>
 </div>
 <div id="modal-root"></div><div id="toast"></div>
-<script src="/admin/app.js?v=4"></script>
+<script src="/admin/app.js?v=6"></script>
 </body>
 </html>
