@@ -39,6 +39,25 @@ type Series struct {
 	Levels      []Level `json:"levels"`
 }
 
+type MuseumItem struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Group       string `json:"group"`
+	ImageURL    string `json:"image_url"`
+	SortOrder   int    `json:"sort_order"`
+	Enabled     bool   `json:"enabled"`
+	UnlockType  string `json:"unlock_type"`
+	UnlockValue string `json:"unlock_value"`
+	Unlocked    bool   `json:"unlocked"`
+}
+
+type MuseumConfig struct {
+	Title    string       `json:"title"`
+	Subtitle string       `json:"subtitle"`
+	Items    []MuseumItem `json:"items"`
+}
+
 type UpsertLevel struct {
 	SeriesID  string          `json:"series_id"`
 	SortOrder int             `json:"sort_order"`
@@ -55,6 +74,8 @@ type PublicQuery struct {
 type Service interface {
 	Public(context.Context, PublicQuery) ([]Series, error)
 	Admin(context.Context) ([]Series, error)
+	Museum(context.Context, PublicQuery, bool) (MuseumConfig, error)
+	UpsertMuseum(context.Context, MuseumConfig) error
 	GetLevel(context.Context, string) (json.RawMessage, error)
 	UpsertSeries(context.Context, Series) error
 	UpsertLevel(context.Context, string, UpsertLevel) error
@@ -68,6 +89,7 @@ type Service interface {
 type MemoryService struct {
 	mu     sync.RWMutex
 	series map[string]Series
+	museum MuseumConfig
 }
 
 func NewMemoryService() *MemoryService { return &MemoryService{series: map[string]Series{}} }
@@ -76,6 +98,17 @@ func (s *MemoryService) Public(_ context.Context, _ PublicQuery) ([]Series, erro
 	return s.list(false), nil
 }
 func (s *MemoryService) Admin(_ context.Context) ([]Series, error) { return s.list(true), nil }
+func (s *MemoryService) Museum(_ context.Context, _ PublicQuery, _ bool) (MuseumConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.museum, nil
+}
+func (s *MemoryService) UpsertMuseum(_ context.Context, value MuseumConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.museum = value
+	return nil
+}
 func (s *MemoryService) GetLevel(context.Context, string) (json.RawMessage, error) {
 	return nil, ErrNotFound
 }
@@ -115,6 +148,62 @@ func (s *MySQLService) Public(ctx context.Context, query PublicQuery) ([]Series,
 }
 func (s *MySQLService) Admin(ctx context.Context) ([]Series, error) {
 	return s.list(ctx, true, PublicQuery{})
+}
+func (s *MySQLService) Museum(ctx context.Context, query PublicQuery, admin bool) (MuseumConfig, error) {
+	var raw []byte
+	var value MuseumConfig
+	if err := s.db.QueryRowContext(ctx, `SELECT config_json FROM museum_configs WHERE id=1`).Scan(&raw); err != nil {
+		return value, err
+	}
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return value, err
+	}
+	filtered := make([]MuseumItem, 0, len(value.Items))
+	for _, item := range value.Items {
+		if item.ID == "" || (!admin && !item.Enabled) {
+			continue
+		}
+		item.Unlocked = admin || item.UnlockType == "" || item.UnlockType == "always"
+		if !item.Unlocked && query.UserID != "" && item.UnlockType == "level_complete" {
+			var count int
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_attempts WHERE user_id=? AND level_id=? AND state='completed'`, query.UserID, item.UnlockValue).Scan(&count)
+			item.Unlocked = count > 0
+		}
+		if !item.Unlocked && query.UserID != "" && item.UnlockType == "series_complete" {
+			var total, completed int
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM content_series_levels WHERE series_id=? AND enabled=TRUE`, item.UnlockValue).Scan(&total)
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT sl.level_id) FROM content_series_levels sl JOIN level_attempts a ON a.level_id=sl.level_id AND a.user_id=? AND a.state='completed' WHERE sl.series_id=? AND sl.enabled=TRUE`, query.UserID, item.UnlockValue).Scan(&completed)
+			item.Unlocked = total > 0 && completed >= total
+		}
+		filtered = append(filtered, item)
+	}
+	value.Items = filtered
+	return value, nil
+}
+func (s *MySQLService) UpsertMuseum(ctx context.Context, value MuseumConfig) error {
+	if value.Title == "" {
+		return errors.New("museum title is required")
+	}
+	seen := map[string]bool{}
+	for index := range value.Items {
+		item := &value.Items[index]
+		if item.ID == "" || item.Name == "" || seen[item.ID] {
+			return errors.New("each museum item requires a unique id and name")
+		}
+		if item.UnlockType == "" {
+			item.UnlockType = "always"
+		}
+		if item.UnlockType != "always" && item.UnlockType != "level_complete" && item.UnlockType != "series_complete" {
+			return errors.New("unsupported museum unlock type")
+		}
+		seen[item.ID] = true
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO museum_configs(id,config_json) VALUES(1,?) ON DUPLICATE KEY UPDATE config_json=VALUES(config_json)`, raw)
+	return err
 }
 func (s *MySQLService) GetLevel(ctx context.Context, id string) (json.RawMessage, error) {
 	var raw []byte
@@ -397,6 +486,9 @@ func (s *MySQLService) AssetInUse(ctx context.Context, needle string) (bool, err
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM content_series WHERE LOCATE(?, cover_url) > 0`, needle).Scan(&count); err != nil {
 		return false, err
 	}
+	if count == 0 {
+		_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM museum_configs WHERE LOCATE(?, CAST(config_json AS CHAR)) > 0`, needle).Scan(&count)
+	}
 	return count > 0, nil
 }
 
@@ -417,6 +509,9 @@ func (s *MySQLService) RenameAssetReferences(ctx context.Context, oldOriginal, n
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE content_series SET cover_url = REPLACE(REPLACE(cover_url, ?, ?), ?, ?) WHERE INSTR(cover_url, ?) > 0 OR INSTR(cover_url, ?) > 0`,
 		oldO, newO, oldT, newT, oldO, oldT); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE museum_configs SET config_json=CAST(REPLACE(REPLACE(CAST(config_json AS CHAR), ?, ?), ?, ?) AS JSON) WHERE INSTR(CAST(config_json AS CHAR), ?) > 0 OR INSTR(CAST(config_json AS CHAR), ?) > 0`, oldO, newO, oldT, newT, oldO, oldT); err != nil {
 		return err
 	}
 	return tx.Commit()

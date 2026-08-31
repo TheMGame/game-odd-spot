@@ -10,6 +10,19 @@ const { AssetManager } = require('./services/assets')
 const { SyncQueue } = require('./services/sync_queue')
 const { Analytics } = require('./services/analytics')
 const { CatalogRepository } = require('./services/catalog')
+const { renderHome: renderLobby, renderMuseum } = require('./ui/home')
+
+const HOME_ART = {
+  logo: 'assets/home/branding/logo.png', header: 'assets/home/branding/header_texture.png',
+  hero: 'assets/home/fallback/case_hero.png', collection: 'assets/home/fallback/collection.png', scroll: 'assets/home/collections/scroll_luoshen.png',
+  daily_mystery: 'assets/home/worlds/daily_mystery.png', ancient_china: 'assets/home/worlds/ancient_china.png',
+  world_journey: 'assets/home/worlds/world_journey.png', fantasy_world: 'assets/home/worlds/fantasy_world.png', brainstorm: 'assets/home/worlds/brainstorm.png',
+}
+const HOME_WORLDS = [
+  ['ancient_china', '神韵华章', '千载风华', 80], ['daily_mystery', '日常奇案', '城市谜踪', 80],
+  ['world_journey', '环球奇遇', '发现世界的错位', 64], ['fantasy_world', '幻境奇闻', '奇幻世界的秘密', 40],
+  ['brainstorm', '脑洞异闻录', '有点不对劲…', 36],
+]
 
 class OddSpotApp {
   constructor() {
@@ -34,11 +47,12 @@ class OddSpotApp {
     this.covers = {}
     this.selectedSeriesId = ''
     this.selectedLevelId = ''
-    this.scroll = { home: 0, levels: 0, settings: 0, privacy: 0, knowledge: 0 }
+    this.scroll = { home: 0, museum: 0, levels: 0, settings: 0, privacy: 0, knowledge: 0 }
     this.modal = ''
     this.touch = null
     this.game = null
     this.logo = null
+    this.homeArt = {}
     this.avatar = null
     this.running = true
     this.frame = this.frame.bind(this)
@@ -52,11 +66,16 @@ class OddSpotApp {
     this.bindEvents()
     this.audio.start()
     this.assets.bundled('assets/branding/guagua-rabbit-logo.png').then((image) => { this.logo = image }).catch(() => {})
+    this.loadHomeArt()
     this.assets.bundled('assets/branding/default-avatar.png').then((image) => { this.avatar = image }).catch(() => {})
     this.loadHomeBunny()
     this.analytics.track('app_open')
     this.scheduleFrame()
     await this.bootstrap()
+  }
+
+  loadHomeArt() {
+    for (const [key, path] of Object.entries(HOME_ART)) this.assets.bundled(path).then((image) => { this.homeArt[key] = image }).catch(() => {})
   }
 
   async loadHomeBunny() {
@@ -178,6 +197,8 @@ class OddSpotApp {
       try { this.covers[series.id] = await this.assets.loadUrl(preview, 'series') } catch (_) {}
       if (full && full !== preview) try { this.covers[series.id] = await this.assets.loadUrl(full, 'series_full') } catch (_) {}
     }
+    const museumItems = this.catalogData && this.catalogData.museum && Array.isArray(this.catalogData.museum.items) ? this.catalogData.museum.items : []
+    for (const item of museumItems) if (item.image_url) try { this.covers[`museum:${item.id}`] = await this.assets.loadUrl(item.image_url, 'museum') } catch (_) {}
   }
 
   enabledSeries() { return this.catalogData ? (Array.isArray(this.catalogData.series) ? this.catalogData.series : []).filter((series) => series.enabled !== false) : [] }
@@ -325,6 +346,7 @@ class OddSpotApp {
     if (this.scene === 'loading') this.renderLoading()
     else if (this.scene === 'login') this.renderLogin()
     else if (this.scene === 'home') this.renderHome()
+    else if (this.scene === 'museum') renderMuseum(this)
     else if (this.scene === 'levels') this.renderLevels()
     else if (this.scene === 'settings') this.renderSettings()
     else if (this.scene === 'game') this.renderGame()
@@ -391,6 +413,7 @@ class OddSpotApp {
     adviceLines.forEach((line, index) => r.text(line, 540, adviceLinesY + lineSize / 2 + index * (lineSize + lineGap), lineSize, '#8ca9a4', 'center'))
   }
   renderHome() {
+    return renderLobby(this)
     const r = this.renderer, h = r.height, top = r.safeTop, c = r.ctx
     r.rect(0, 0, 1080, 146 + top, COLORS.header)
     const identity = this.session.data.username || `玩家 · ${String(this.session.data.user_id || '').slice(-6)}`
@@ -753,7 +776,7 @@ class OddSpotApp {
     if(this.touch.puzzleSource>=0){const p=this.game.puzzle,src=this.touch.puzzleSource,group=groupForCell(p.order,p.rows,p.cols,src),target=this.puzzleCellAt(point),drag={dx:point.x-this.touch.start.x,dy:point.y-this.touch.start.y,target:null,valid:false};if(target>=0&&target!==src){const dr2=Math.floor(target/p.cols)-Math.floor(src/p.cols),dc2=target%p.cols-src%p.cols;drag.target=group.map(cell=>{const r=Math.floor(cell/p.cols)+dr2,cc=cell%p.cols+dc2;return(r>=0&&r<p.rows&&cc>=0&&cc<p.cols)?r*p.cols+cc:-1});drag.valid=!!movePuzzleGroup(p.order,p.rows,p.cols,src,target)}p.drag=drag;return}
     if (this.modal === 'privacy') { this.scroll.privacy = clamp(this.touch.scrollStart - dy, 0, this.privacyMaxScroll || 0); return }
     if (this.knowledgeScrollActive()) { this.scroll.knowledge = clamp(this.touch.scrollStart - dy, 0, this.knowledgeMaxScroll || 0); return }
-    if (!this.modal && ['home', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
+    if (!this.modal && ['home', 'museum', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
     if (!this.modal && this.scene === 'game' && this.game && this.game.imageRects.some((item) => item && inside(point, item.panel))) {
       if (points.length >= 2 && this.touch.pinchDistance > 1) {
         const next = clamp(this.touch.pinchZoom * distance(points[0], points[1]) / this.touch.pinchDistance, 1, 4); this.game.view.zoom = next; this.clampGameView()
@@ -800,6 +823,9 @@ class OddSpotApp {
     else if (id === 'wechatLogin') this.loginWechat()
     else if (id === 'identity' || id === 'settings') this.showSettings()
     else if (id === 'daily') this.openDaily()
+    else if (id === 'continueCase') { const item = this.enabledSeries().flatMap((series) => (series.levels || []).map((level) => ({ series, level }))).find((item) => !this.isLevelCompleted(item.level)); if (item) { this.selectedSeriesId = item.series.id; this.loadGame(item.level.id) } }
+    else if (id === 'museum') { this.scene = 'museum'; this.scroll.museum = 0; this.modal = '' }
+    else if (id === 'profile') this.showSettings()
     else if (id === 'home') this.showHome()
     else if (id === 'levels') this.showLevelSelect(this.selectedSeriesId)
     else if (id.startsWith('series:')) this.showLevelSelect(id.slice(7))

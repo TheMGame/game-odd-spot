@@ -135,6 +135,36 @@ paths:
                         required: [items]
                         properties:
                           items: {type: array, items: {$ref: '#/components/schemas/LevelSummary'}}
+  /v1/catalog:
+    get:
+      operationId: getCatalog
+      responses:
+        '200':
+          description: Published content series and user-specific museum configuration
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/Envelope'}
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [series, museum]
+                        properties:
+                          series: {type: array, items: {type: object, additionalProperties: true}}
+                          museum: {$ref: '#/components/schemas/MuseumConfig'}
+  /admin/v1/museum:
+    post:
+      operationId: upsertMuseum
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MuseumConfig'}
+      responses:
+        '200': {description: Museum configuration saved}
   /v1/levels/{levelId}:
     get:
       operationId: getLevel
@@ -324,6 +354,27 @@ components:
     Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 512}}
     IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
   schemas:
+    MuseumItem:
+      type: object
+      required: [id, name, sort_order, enabled, unlock_type]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        group: {type: string}
+        image_url: {type: string}
+        sort_order: {type: integer}
+        enabled: {type: boolean}
+        unlock_type: {enum: [always, level_complete, series_complete]}
+        unlock_value: {type: string}
+        unlocked: {type: boolean, readOnly: true}
+    MuseumConfig:
+      type: object
+      required: [title, items]
+      properties:
+        title: {type: string}
+        subtitle: {type: string}
+        items: {type: array, items: {$ref: '#/components/schemas/MuseumItem'}}
     LevelSummary:
       type: object
       required: [level_id, level_version, mode, difficulty, content_count]

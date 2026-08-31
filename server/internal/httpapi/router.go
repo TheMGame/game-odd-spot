@@ -104,6 +104,7 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /v1/config/{version}", a.requireAuth(http.HandlerFunc(a.getConfig)))
 	mux.Handle("GET /admin/v1/levels", a.requireAdmin(http.HandlerFunc(a.adminLevels)))
 	mux.Handle("GET /admin/v1/catalog", a.requireAdmin(http.HandlerFunc(a.adminCatalog)))
+	mux.Handle("POST /admin/v1/museum", a.requireAdmin(http.HandlerFunc(a.upsertMuseum)))
 	mux.Handle("POST /admin/v1/series", a.requireAdmin(http.HandlerFunc(a.upsertSeries)))
 	mux.Handle("DELETE /admin/v1/series/{seriesId}/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.removeLevelFromSeries)))
 	mux.Handle("GET /admin/v1/levels/{levelId}", a.requireAdmin(http.HandlerFunc(a.adminGetLevel)))
@@ -191,7 +192,14 @@ func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeCatalogAssetURLs(items, a.deps.Config.PublicBaseURL)
-	writeJSON(w, 200, newEnvelope(map[string]any{"locale": locale, "series": items}))
+	museum, museumErr := a.deps.Catalog.Museum(r.Context(), catalog.PublicQuery{UserID: userID, Locale: locale, DefaultLocale: a.deps.Config.Locale}, false)
+	if museumErr != nil {
+		a.deps.Logger.Error("museum query failed", "error", museumErr)
+		writeError(w, 500, "INTERNAL_ERROR", "could not load museum")
+		return
+	}
+	normalizeMuseumAssetURLs(&museum, a.deps.Config.PublicBaseURL)
+	writeJSON(w, 200, newEnvelope(map[string]any{"locale": locale, "series": items, "museum": museum}))
 }
 
 func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
@@ -202,7 +210,26 @@ func (a *api) adminCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	normalizeCatalogAssetURLs(items, a.deps.Config.PublicBaseURL)
-	writeJSON(w, 200, newEnvelope(map[string]any{"series": items}))
+	museum, museumErr := a.deps.Catalog.Museum(r.Context(), catalog.PublicQuery{}, true)
+	if museumErr != nil {
+		a.deps.Logger.Error("admin museum query failed", "error", museumErr)
+		writeError(w, 500, "INTERNAL_ERROR", "could not load museum")
+		return
+	}
+	normalizeMuseumAssetURLs(&museum, a.deps.Config.PublicBaseURL)
+	writeJSON(w, 200, newEnvelope(map[string]any{"series": items, "museum": museum}))
+}
+
+func (a *api) upsertMuseum(w http.ResponseWriter, r *http.Request) {
+	var input catalog.MuseumConfig
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	if err := a.deps.Catalog.UpsertMuseum(r.Context(), input); err != nil {
+		writeError(w, 400, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	writeJSON(w, 200, newEnvelope(input))
 }
 
 func (a *api) upsertSeries(w http.ResponseWriter, r *http.Request) {
@@ -592,6 +619,12 @@ func normalizeCatalogAssetURLs(items []catalog.Series, publicBaseURL string) {
 				publicBaseURL,
 			)
 		}
+	}
+}
+
+func normalizeMuseumAssetURLs(value *catalog.MuseumConfig, publicBaseURL string) {
+	for index := range value.Items {
+		value.Items[index].ImageURL = normalizeAssetURL(value.Items[index].ImageURL, publicBaseURL)
 	}
 }
 
