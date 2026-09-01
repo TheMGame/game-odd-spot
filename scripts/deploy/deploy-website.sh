@@ -56,4 +56,16 @@ if ! curl --fail --silent --show-error --insecure --max-time 15 \
   echo "website health check failed; current was rolled back" >&2
   exit 1
 fi
+current_version="$(basename -- "$(readlink -f "$install_root/current")")"
+previous_version=""
+if [[ -n "$old_target" ]]; then previous_version="$(basename -- "$old_target")"; fi
+releases_real="$(readlink -f "$releases")"
+for candidate in "$releases"/*; do
+  [[ -d "$candidate" ]] || continue
+  candidate_version="$(basename -- "$candidate")"
+  [[ "$candidate_version" == "$current_version" || "$candidate_version" == "$previous_version" ]] && continue
+  [[ "$candidate_version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]{0,63}$ ]] || { echo "skip unsafe release name: $candidate_version" >&2; continue; }
+  candidate_real="$(readlink -f "$candidate")"
+  case "$candidate_real" in "$releases_real"/*) rm -rf -- "$candidate_real" ;; *) echo "skip release outside root: $candidate_real" >&2 ;; esac
+done
 echo "website $version deployed to $release"

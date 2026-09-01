@@ -37,3 +37,4 @@ content-tools/daily-challenges/
 scripts/import-daily-task-*.ps1
 
 .DS_Store
+deploy.env

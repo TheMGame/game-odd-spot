@@ -61,6 +61,7 @@ app.scene = 'login'; app.render()
 app.scene = 'home'; app.catalogData = { series: [{ id: 's1', title: '系列', enabled: true, levels: [] }] }; app.render()
 app.selectedSeriesId = 's1'; app.scene = 'levels'; app.render()
 app.scene = 'settings'; app.render()
+app.scene = 'leaderboard'; app.playerStats = { player_level: 2, total_points: 135, completed_levels: 1, average_score: 90 }; app.leaderboard = { scope: 'overall', entries: [{ rank: 1, user_id: 'u1', display_name: '侦探·u1', score: 90, points: 135, completed_levels: 1, is_me: true }], my_entry: { rank: 1, score: 90, points: 135 } }; app.render()
 app.scene = 'game'; app.game = {
   loading: false,
   level: validLevel(),

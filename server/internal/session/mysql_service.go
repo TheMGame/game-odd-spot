@@ -187,6 +187,51 @@ func (s *MySQLService) Profile(ctx context.Context, userID string) (string, stri
 	return market, locale, err
 }
 
+func (s *MySQLService) UserProfile(ctx context.Context, userID string) (Profile, error) {
+	var (
+		market, locale          sql.NullString
+		displayName, avatarURL  sql.NullString
+	)
+	err := s.db.QueryRowContext(ctx, `SELECT market_id,locale,display_name,avatar_url FROM users WHERE id=?`, userID).
+		Scan(&market, &locale, &displayName, &avatarURL)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Profile{}, ErrUserNotFound
+	}
+	if err != nil {
+		return Profile{}, err
+	}
+	return Profile{
+		Market:      market.String,
+		Locale:      locale.String,
+		DisplayName: displayName.String,
+		AvatarURL:   avatarURL.String,
+	}, nil
+}
+
+func (s *MySQLService) UpsertUserProfile(ctx context.Context, userID, displayName, avatarURL string) error {
+	result, err := s.db.ExecContext(ctx, `INSERT INTO users(id,market_id,locale,display_name,avatar_url,updated_at)
+		VALUES(?,'','',?,?,UTC_TIMESTAMP(3))
+		ON DUPLICATE KEY UPDATE
+		  display_name=VALUES(display_name),
+		  avatar_url=VALUES(avatar_url),
+		  updated_at=UTC_TIMESTAMP(3)`,
+		userID, nullStr(displayName), nullStr(avatarURL))
+	if err != nil {
+		return fmt.Errorf("upsert user profile: %w", err)
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func nullStr(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
 func (s *MySQLService) UpdateLocale(ctx context.Context, userID, locale string) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE users SET locale=? WHERE id=?`, normalizeLocale(locale), userID)
 	if err != nil {

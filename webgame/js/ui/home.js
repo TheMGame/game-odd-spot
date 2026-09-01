@@ -6,12 +6,27 @@ function icon(r, kind, x, y, color) {
   if (kind === 'star') return r.text('★', x, y, 38, color, 'center', 'bold')
   if (kind === 'search') { r.circle(x - 7, y - 6, 15, 'transparent', color, 5); r.line(x + 4, y + 6, x + 21, y + 23, color, 6); return }
   if (kind === 'museum') { r.line(x - 24, y - 13, x, y - 28, color, 5); r.line(x, y - 28, x + 24, y - 13, color, 5); r.line(x - 29, y + 24, x + 29, y + 24, color, 5); for (let i = -1; i <= 1; i++) r.line(x + i * 18, y - 9, x + i * 18, y + 19, color, 4); return }
+  if (kind === 'trophy') { r.rect(x - 20, y - 22, 40, 28, color, 6); r.rect(x - 20, y - 22, 10, 28, color, 0, color, 4); r.rect(x + 10, y - 22, 10, 28, color, 0, color, 4); r.ctx.beginPath(); r.ctx.moveTo(x - 30, y - 18); r.ctx.quadraticCurveTo(x - 44, y - 4, x - 30, y + 2); r.ctx.lineTo(x - 20, y + 2); r.ctx.lineTo(x - 20, y - 18); r.ctx.closePath(); r.ctx.fillStyle = color; r.ctx.fill(); r.ctx.beginPath(); r.ctx.moveTo(x + 30, y - 18); r.ctx.quadraticCurveTo(x + 44, y - 4, x + 30, y + 2); r.ctx.lineTo(x + 20, y + 2); r.ctx.lineTo(x + 20, y - 18); r.ctx.closePath(); r.ctx.fillStyle = color; r.ctx.fill(); r.rect(x - 8, y + 6, 16, 10, color, 2); r.rect(x - 20, y + 16, 40, 8, color, 2); return }
   r.circle(x, y - 12, 11, color); r.ctx.beginPath(); r.ctx.arc(x, y + 22, 24, Math.PI, Math.PI * 2); r.ctx.fillStyle = color; r.ctx.fill()
+}
+function renderBunny(app) {
+  const r = app.renderer, c = r.ctx, top = r.safeTop, anim = app._homeBunnyAnim
+  if (!(top > 40 && anim && anim.loaded && anim.frames.length)) { app._homeBunnyArea = null; return }
+  const size = Math.max(140, Math.min(Math.round(top * 1.1), 320)), left = 18, right = r.width - 18 - size
+  app._homeBunnyArea = { y: 0, h: top, left, right, size }
+  anim.x = Math.max(left, Math.min(right, anim.x))
+  const image = anim.frames[anim.frame % anim.frames.length]
+  if (!image || !(image.width > 0 && image.height > 0)) return
+  const y = (top - size) / 2, fit = Math.min(size / image.width, size / image.height), w = Math.round(image.width * fit), h = Math.round(image.height * fit), x = Math.round(anim.x + (size - w) / 2), dy = Math.round(y + (size - h) / 2)
+  c.save(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1
+  if (anim.dir < 0) { const cx = anim.x + size / 2, cy = y + size / 2; c.translate(cx, cy); c.scale(-1, 1); c.translate(-cx, -cy) }
+  c.drawImage(image, 0, 0, image.width, image.height, x, dy, w, h); c.restore()
 }
 function renderHome(app) {
   const r = app.renderer, c = r.ctx, h = r.height, top = r.safeTop, art = app.homeArt || {}, home = app.catalogData && app.catalogData.home || {}, scroll = app.scroll.home || 0
   r.rect(0, 0, 1080, h, '#f4ead7'); r.rect(0, 0, 1080, 214 + top, '#0e1b2b')
   if (art.header) { c.save(); c.globalAlpha = .08; r.image(art.header, { x: 0, y: 0, w: 1080, h: 214 + top }, 'cover'); c.restore() }
+  renderBunny(app)
   if (art.logo) r.image(art.logo, { x: 38, y: 24 + top, w: 104, h: 104 }, 'contain')
   r.text(home.brand_title || '', 154, 67 + top, 45, '#f1d28e', 'left', 'bold'); r.text(home.brand_subtitle || '', 157, 112 + top, 14, '#e4c879', 'left', 'bold')
   const stats = app.homeStats || { completed: 0, total: 0 }, exp = Math.min(520, 280 + stats.completed * 15), level = Math.max(1, Math.floor(exp / 45))
@@ -36,7 +51,7 @@ function renderHome(app) {
   const museum = { x: 42, y, w: 996, h: 150 }; r.rect(museum.x, museum.y, museum.w, museum.h, '#f2e2c4', 16, '#dcc59d', 2); const recentImage = recent && app.covers[`museum:${recent.id}`] || art.collection; if (recentImage) r.image(recentImage, { x: museum.x + 14, y: museum.y + 8, w: 132, h: 132 }, 'contain'); r.text(recent ? recent.name : '', museum.x + 150, museum.y + 55, 25, '#2d261f', 'left', 'bold'); r.text(recent ? recent.description : '', museum.x + 150, museum.y + 93, 18, '#746554')
   for (let i = 0; i < 2; i++) { const x = museum.x + 485 + i * 225; if (art.collection) { c.save(); c.globalAlpha = .24; r.image(art.collection, { x, y: museum.y + 22, w: 92, h: 92 }, 'contain'); c.restore() } r.text('???', x + 112, museum.y + 52, 23, '#635748'); r.text('收集进度', x + 112, museum.y + 88, 17, '#766956') }
   r.register('museum', museum); y += 178; c.restore(); app.maxScroll = Math.max(0, y + scroll - clip.y - clip.h)
-  const navY = h - navH; r.rect(0, navY, 1080, navH, '#0d1a2a', 0, '#c3a769', 2); [['home', 'search', '案件', '开始调查'], ['museum', 'museum', '博物馆', '珍藏与成就'], ['profile', 'profile', '我的', '侦探档案']].forEach((n, i) => { const x = i * 360, activeNav = i === 0; if (activeNav) r.rect(x + 18, navY + 12, 324, 82, 'rgba(255,246,222,.14)', 13, 'rgba(239,211,150,.4)', 1); icon(r, n[1], x + 78, navY + 53, '#f0d28f'); r.text(n[2], x + 128, navY + 41, 25, activeNav ? '#f2d68f' : '#fff', 'left', 'bold'); r.text(n[3], x + 128, navY + 72, 17, activeNav ? '#dbae4d' : '#9ea7b0'); r.register(n[0], { x, y: navY, w: 360, h: navH }) })
+  const navY = h - navH; r.rect(0, navY, 1080, navH, '#0d1a2a', 0, '#c3a769', 2); [['home', 'search', '案件', '开始调查'], ['museum', 'museum', '博物馆', '珍藏与成就'], ['leaderboard', 'trophy', '排行榜', '侦探风云榜'], ['profile', 'profile', '我的', '侦探档案']].forEach((n, i) => { const x = i * 270, activeNav = i === 0; if (activeNav) r.rect(x + 15, navY + 12, 240, 82, 'rgba(255,246,222,.14)', 13, 'rgba(239,211,150,.4)', 1); icon(r, n[1], x + 60, navY + 53, '#f0d28f'); r.text(n[2], x + 100, navY + 41, 25, activeNav ? '#f2d68f' : '#fff', 'left', 'bold'); r.text(n[3], x + 100, navY + 72, 17, activeNav ? '#dbae4d' : '#9ea7b0'); r.register(n[0], { x, y: navY, w: 270, h: navH }) })
 }
 
 function renderMuseum(app) {
@@ -63,7 +78,7 @@ function renderMuseum(app) {
   if (!configuredItems.length) r.text('后台尚未配置藏品', 540, y + 100, 26, '#786a58', 'center')
   y += Math.max(1, Math.ceil(configuredItems.length / 2)) * 250 + 30; c.restore(); app.maxScroll = Math.max(0, y + scroll - clip.y - clip.h)
   const navY = h - navH; r.rect(0, navY, 1080, navH, '#0d1a2a', 0, '#c3a769', 2)
-  ;[['home', 'search', '案件', '开始调查'], ['museum', 'museum', '博物馆', '珍藏与成就'], ['profile', 'profile', '我的', '侦探档案']].forEach((n, i) => { const x = i * 360, active = i === 1; if (active) r.rect(x + 18, navY + 12, 324, 82, 'rgba(255,246,222,.14)', 13, 'rgba(239,211,150,.4)', 1); icon(r, n[1], x + 78, navY + 53, '#f0d28f'); r.text(n[2], x + 128, navY + 41, 25, active ? '#f2d68f' : '#fff', 'left', 'bold'); r.text(n[3], x + 128, navY + 72, 17, active ? '#dbae4d' : '#9ea7b0'); r.register(n[0], { x, y: navY, w: 360, h: navH }) })
+  ;[['home', 'search', '案件', '开始调查'], ['museum', 'museum', '博物馆', '珍藏与成就'], ['leaderboard', 'trophy', '排行榜', '侦探风云榜'], ['profile', 'profile', '我的', '侦探档案']].forEach((n, i) => { const x = i * 270, active = i === 1; if (active) r.rect(x + 15, navY + 12, 240, 82, 'rgba(255,246,222,.14)', 13, 'rgba(239,211,150,.4)', 1); icon(r, n[1], x + 60, navY + 53, '#f0d28f'); r.text(n[2], x + 100, navY + 41, 25, active ? '#f2d68f' : '#fff', 'left', 'bold'); r.text(n[3], x + 100, navY + 72, 17, active ? '#dbae4d' : '#9ea7b0'); r.register(n[0], { x, y: navY, w: 270, h: navH }) })
 }
 
 module.exports = { renderHome, renderMuseum }

@@ -226,6 +226,7 @@ paths:
                       found_at_ms: {type: integer, minimum: 0}
                 hints_used: {type: integer, minimum: 0, maximum: 12}
                 duration_ms: {type: integer, minimum: 0}
+                wrong_taps: {type: integer, minimum: 0, maximum: 10000}
       responses:
         '200':
           description: Merged progress
@@ -252,11 +253,33 @@ paths:
                 puzzle_moves: {type: integer, minimum: 0}
                 duration_ms: {type: integer, minimum: 500}
                 hints_used: {type: integer, minimum: 0, maximum: 12}
+                wrong_taps: {type: integer, minimum: 0, maximum: 10000}
       responses:
         '200':
           description: Completion and reward result; replayed for duplicates
           content: {application/json: {schema: {$ref: '#/components/schemas/AttemptEnvelope'}}}
         '409': {$ref: '#/components/responses/Conflict'}
+  /v1/leaderboards/levels/{levelId}:
+    get:
+      operationId: getLevelLeaderboard
+      parameters:
+        - {$ref: '#/components/parameters/LevelId'}
+        - {$ref: '#/components/parameters/LeaderboardLimit'}
+      responses:
+        '200': {description: Best score per player for the latest published level version, content: {application/json: {schema: {$ref: '#/components/schemas/LeaderboardEnvelope'}}}}
+        '404': {description: Published level not found}
+  /v1/leaderboards/overall:
+    get:
+      operationId: getOverallLeaderboard
+      parameters:
+        - {$ref: '#/components/parameters/LeaderboardLimit'}
+      responses:
+        '200': {description: Permanent difficulty-weighted points summed from each player's all-time best score per level, content: {application/json: {schema: {$ref: '#/components/schemas/LeaderboardEnvelope'}}}}
+  /v1/users/me/stats:
+    get:
+      operationId: getMyPlayerStats
+      responses:
+        '200': {description: Permanent score totals, player level, rank, and per-level best scores for the authenticated user, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/Envelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/PlayerStats'}}}]}}}}
   /v1/rewards/ad:
     post:
       operationId: claimAdReward
@@ -353,6 +376,7 @@ components:
     LevelId: {name: levelId, in: path, required: true, schema: {type: string}}
     Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 512}}
     IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+    LeaderboardLimit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
   schemas:
     MuseumItem:
       type: object
@@ -396,12 +420,67 @@ components:
         hints_used: {type: integer, minimum: 0}
         duration_ms: {type: integer, minimum: 0}
         rewarded_hints: {type: integer, minimum: 0}
+        wrong_taps: {type: integer, minimum: 0}
+        score: {type: integer, minimum: 0, maximum: 100, description: Normalized per-level score}
+        best_score: {type: integer, minimum: 0, maximum: 100}
+        points: {type: integer, minimum: 0, maximum: 150, description: Difficulty-weighted leaderboard points}
     AttemptEnvelope:
       allOf:
         - {$ref: '#/components/schemas/Envelope'}
         - type: object
           properties:
             data: {$ref: '#/components/schemas/AttemptResult'}
+    LeaderboardEntry:
+      type: object
+      required: [rank, user_id, score, points, is_me]
+      properties:
+        rank: {type: integer, minimum: 1}
+        user_id: {type: string}
+        score: {type: integer, minimum: 0, maximum: 100}
+        points: {type: integer, minimum: 0}
+        completed_levels: {type: integer, minimum: 0}
+        duration_ms: {type: integer, minimum: 0}
+        hints_used: {type: integer, minimum: 0}
+        wrong_taps: {type: integer, minimum: 0}
+        is_me: {type: boolean}
+    Leaderboard:
+      type: object
+      required: [scope, entries]
+      properties:
+        scope: {enum: [level, overall]}
+        level_id: {type: string}
+        level_version: {type: integer, minimum: 1}
+        entries: {type: array, items: {$ref: '#/components/schemas/LeaderboardEntry'}}
+        my_entry: {$ref: '#/components/schemas/LeaderboardEntry'}
+    LeaderboardEnvelope:
+      allOf:
+        - {$ref: '#/components/schemas/Envelope'}
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/Leaderboard'}
+    PlayerStats:
+      type: object
+      required: [user_id, display_name, total_points, player_level, level_progress, next_level_points, completed_levels, average_score, level_scores]
+      properties:
+        user_id: {type: string}
+        display_name: {type: string}
+        total_points: {type: integer, minimum: 0}
+        player_level: {type: integer, minimum: 1}
+        level_progress: {type: integer, minimum: 0}
+        next_level_points: {type: integer, minimum: 1}
+        completed_levels: {type: integer, minimum: 0}
+        average_score: {type: integer, minimum: 0, maximum: 100}
+        global_rank: {type: integer, minimum: 1}
+        level_scores:
+          type: array
+          items:
+            type: object
+            required: [level_id, level_version, score, points]
+            properties:
+              level_id: {type: string}
+              level_version: {type: integer, minimum: 1}
+              score: {type: integer, minimum: 40, maximum: 100}
+              points: {type: integer, minimum: 40, maximum: 150}
     Envelope:
       type: object
       required: [request_id, server_time, config_version, data]

@@ -213,6 +213,21 @@ func TestLevelFlow(t *testing.T) {
 	if decoded.Data.State != "completed" || decoded.Data.Reward != 1 {
 		t.Fatalf("complete result=%+v", decoded.Data)
 	}
+	if decoded.Data.Score != 100 || decoded.Data.Points != 110 || decoded.Data.BestScore != 100 {
+		t.Fatalf("score result=%+v", decoded.Data)
+	}
+	for _, path := range []string{"/v1/leaderboards/levels/global_demo_001", "/v1/leaderboards/overall"} {
+		leaderboardResponse := httptest.NewRecorder()
+		handler.ServeHTTP(leaderboardResponse, authorizedRequest(http.MethodGet, path, nil, sessionData.AccessToken, ""))
+		if leaderboardResponse.Code != http.StatusOK || !bytes.Contains(leaderboardResponse.Body.Bytes(), []byte(`"is_me":true`)) {
+			t.Fatalf("leaderboard %s status=%d body=%s", path, leaderboardResponse.Code, leaderboardResponse.Body.String())
+		}
+	}
+	statsResponse := httptest.NewRecorder()
+	handler.ServeHTTP(statsResponse, authorizedRequest(http.MethodGet, "/v1/users/me/stats", nil, sessionData.AccessToken, ""))
+	if statsResponse.Code != http.StatusOK || !bytes.Contains(statsResponse.Body.Bytes(), []byte(`"player_level":2`)) || !bytes.Contains(statsResponse.Body.Bytes(), []byte(`"total_points":110`)) {
+		t.Fatalf("player stats status=%d body=%s", statsResponse.Code, statsResponse.Body.String())
+	}
 
 	reset := authorizedRequest(http.MethodPost, "/v1/levels/global_demo_001/reset", []byte(`{}`), sessionData.AccessToken, "019f8b77-1111-7000-8000-111111111115")
 	resetResponse := httptest.NewRecorder()
@@ -479,6 +494,38 @@ func TestContentResponsesAreLongLived(t *testing.T) {
 	}
 	if got := response.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Fatalf("content Cache-Control = %q", got)
+	}
+}
+
+func TestBatchAssetHashes(t *testing.T) {
+	contentDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(contentDir, "cached.png"), []byte("image-bytes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(contentDir)
+	created := createSession(t, handler)
+	request := authorizedRequest(http.MethodPost, "/v1/assets/hashes", []byte(`{"urls":["https://oddspot.example/content/cached.png","https://oddspot.example/not-content.png"]}`), created.AccessToken, "")
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("hash status=%d body=%s", response.Code, response.Body.String())
+	}
+	var decoded struct {
+		Data struct {
+			Items []struct {
+				URL    string `json:"url"`
+				SHA256 string `json:"sha256"`
+				SHA1   string `json:"sha1"`
+				Bytes  int    `json:"bytes"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.Data.Items) != 1 || len(decoded.Data.Items[0].SHA256) != 64 || len(decoded.Data.Items[0].SHA1) != 40 || decoded.Data.Items[0].Bytes != len("image-bytes") {
+		t.Fatalf("unexpected manifest: %+v", decoded.Data.Items)
 	}
 }
 

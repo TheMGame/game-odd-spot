@@ -11,6 +11,7 @@ const { SyncQueue } = require('./services/sync_queue')
 const { Analytics } = require('./services/analytics')
 const { CatalogRepository } = require('./services/catalog')
 const { renderHome: renderLobby, renderMuseum } = require('./ui/home')
+const { renderLeaderboard } = require('./ui/leaderboard')
 
 class OddSpotApp {
   constructor() {
@@ -35,7 +36,7 @@ class OddSpotApp {
     this.covers = {}
     this.selectedSeriesId = ''
     this.selectedLevelId = ''
-    this.scroll = { home: 0, museum: 0, levels: 0, settings: 0, privacy: 0, knowledge: 0 }
+    this.scroll = { home: 0, museum: 0, levels: 0, settings: 0, leaderboard: 0, privacy: 0, knowledge: 0 }
     this.modal = ''
     this.touch = null
     this.game = null
@@ -46,6 +47,8 @@ class OddSpotApp {
     this.frame = this.frame.bind(this)
     this.api.onSessionExpired = () => this.showLogin()
     this.homeBunny = null
+    this.playerStats = { total_points: 0, player_level: 1, level_progress: 0, next_level_points: 100, completed_levels: 0, average_score: 0, global_rank: 0, level_scores: [] }
+    this.leaderboard = { loading: false, scope: 'overall', levelId: '', entries: [], my_entry: null, error: '' }
     this._homeBunnyAnim = { frames: [], frame: 0, loaded: false, total: 49, fps: 12, frameAccum: 0, x: 140, dir: 1, vx: 0.32, nextSpeedAt: 0 }
     this._homeBunnyArea = { y: 0, h: 0 }
   }
@@ -154,6 +157,8 @@ class OddSpotApp {
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
+    const statsResult = await this.api.getPlayerStats()
+    if (statsResult.ok) this.playerStats = Object.assign({}, this.playerStats, statsResult.data.data || {})
     {
       let completed = 0, total = 0
       for (const series of this.enabledSeries()) {
@@ -249,7 +254,7 @@ class OddSpotApp {
 
   async loadGame(levelId) {
     this.audio.click(); this.scene = 'game'; this.selectedLevelId = levelId; this.modal = ''; this.status = '加载关卡…'
-    this.game = { loading: true, level: null, image: null, baseImage: null, found: {}, markers: [], attempt: null, startedAt: Date.now(), elapsedBefore: 0, imageRects: [], view: { zoom: 1, x: 0, y: 0 }, foundInfo: null, complete: false, finishing: false }
+    this.game = { loading: true, level: null, image: null, baseImage: null, found: {}, markers: [], attempt: null, startedAt: Date.now(), elapsedBefore: 0, imageRects: [], view: { zoom: 1, x: 0, y: 0 }, foundInfo: null, complete: false, finishing: false, scoreResult: null }
     const result = await this.api.getLevel(levelId)
     if (!result.ok) { this.status = `关卡加载失败：${result.error}`; return }
     const level = result.data.data || {}
@@ -299,6 +304,8 @@ class OddSpotApp {
       if (!this.game.found[id] && this.containsDifference(difference, point)) { this.markFound(difference); return }
     }
     this.status = this.i18n.t('noDifference')
+    this.game.attempt.wrong_taps = Number(this.game.attempt.wrong_taps || 0) + 1
+    this.saveAttempt()
     this.analytics.track('wrong_tap', { level_id: this.game.level.level_id, x: point.x, y: point.y })
   }
   movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='无法向该方向移动：已到边界，或会拆散已拼好的组合';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
@@ -308,7 +315,7 @@ class OddSpotApp {
     this.status = this.i18n.t('found'); this.saveAttempt()
     if (this.preferences.data.vibration && wx.vibrateShort) wx.vibrateShort({ type: 'light' })
     this.analytics.track('difference_found', { level_id: this.game.level.level_id, difference_id: id, found_at_ms: this.elapsed() })
-    this.sync.submit(`/v1/levels/${encodeURIComponent(this.game.level.level_id)}/progress`, { attempt_id: this.game.attempt.attempt_id, found: [{ difference_id: id, found_at_ms: this.elapsed() }], hints_used: Number(this.game.attempt.hints_used || 0), duration_ms: this.elapsed() })
+    this.sync.submit(`/v1/levels/${encodeURIComponent(this.game.level.level_id)}/progress`, { attempt_id: this.game.attempt.attempt_id, found: [{ difference_id: id, found_at_ms: this.elapsed() }], hints_used: Number(this.game.attempt.hints_used || 0), wrong_taps: Number(this.game.attempt.wrong_taps || 0), duration_ms: this.elapsed() })
     if (Object.keys(this.game.found).length === this.game.level.differences.length) this.finishAfterFeedback()
   }
   saveAttempt() {
@@ -345,9 +352,10 @@ class OddSpotApp {
   async finishLevel() {
     if (!this.game) return
     const level = this.game.level, elapsed = this.elapsed()
-    const body={attempt_id:this.game.attempt.attempt_id,hints_used:Number(this.game.attempt.hints_used||0),duration_ms:elapsed};if(level.mode==='image_puzzle'){body.puzzle_order=this.game.puzzle.order.slice();body.puzzle_moves=this.game.puzzle.moves}else body.difference_ids=Object.keys(this.game.found);const result = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/complete`, body)
+    const body={attempt_id:this.game.attempt.attempt_id,hints_used:Number(this.game.attempt.hints_used||0),wrong_taps:Number(this.game.attempt.wrong_taps||0),duration_ms:elapsed};if(level.mode==='image_puzzle'){body.puzzle_order=this.game.puzzle.order.slice();body.puzzle_moves=this.game.puzzle.moves}else body.difference_ids=Object.keys(this.game.found);const result = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/complete`, body)
     if (result.state === 'rejected') { this.status = `完成提交被服务器拒绝：${result.error}`; this.game.attempt.state = 'rejected'; this.progress.save(level.level_id, this.game.attempt); return }
-    this.game.complete = true; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
+    const scoreResult = result.response && result.response.data || null
+    this.game.complete = true; this.game.scoreResult = scoreResult; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; if(scoreResult)Object.assign(this.game.attempt,{score:Number(scoreResult.score||0),points:Number(scoreResult.points||0),best_score:Number(scoreResult.best_score||0)}); this.progress.save(level.level_id, this.game.attempt)
     this.analytics.track('level_complete', { level_id: level.level_id, duration_ms: elapsed, hints_used: this.game.attempt.hints_used, sync_state: result.state }); this.analytics.flush()
     this.prefetchNext()
   }
@@ -357,6 +365,7 @@ class OddSpotApp {
   nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id); else this.showLevelSelect(this.selectedSeriesId) }
 
   showSettings() { this.audio.click(); this.scene = 'settings'; this.scroll.settings = 0; this.modal = ''; this.loadLocales() }
+  async showLeaderboard(scope = 'overall', levelId = '') { this.audio.click(); this.scene = 'leaderboard'; this.scroll.leaderboard = 0; this.modal = ''; this.leaderboard = { loading: true, scope, levelId, entries: [], my_entry: null, error: '' }; const result = scope === 'level' && levelId ? await this.api.getLevelLeaderboard(levelId) : await this.api.getOverallLeaderboard(); if (result.ok) this.leaderboard = Object.assign({}, result.data.data || {}, { loading: false, levelId }); else this.leaderboard = Object.assign({}, this.leaderboard, { loading: false, error: result.error || '排行榜加载失败' }) }
   async loadLocales() { const result = await this.api.getLocales(); this.locales = result.ok ? ((result.data.data || {}).locales || []) : [{ locale: 'zh-CN', native_name: '简体中文' }, { locale: 'en-US', native_name: 'English' }] }
   async toggleLanguage() {
     const next = this.preferences.data.locale === 'zh-CN' ? 'en-US' : 'zh-CN'
@@ -374,6 +383,7 @@ class OddSpotApp {
     else if (this.scene === 'museum') renderMuseum(this)
     else if (this.scene === 'levels') this.renderLevels()
     else if (this.scene === 'settings') this.renderSettings()
+    else if (this.scene === 'leaderboard') renderLeaderboard(this)
     else if (this.scene === 'game') this.renderGame()
     if (this.modal) this.renderModal()
   }
@@ -606,7 +616,8 @@ class OddSpotApp {
       r.wrappedText(level.title || level.id, tx, rect.y + 90, 650, 35, locked ? COLORS.subtle : COLORS.text, 45, 2)
       r.text(`${Number(level.content_count ?? level.difference_count ?? 0)} ${level.mode==='image_puzzle'?this.i18n.t('misplaced'):this.i18n.t('targets')}`, tx, rect.y + 166, 25, COLORS.muted)
       r.text(`${this.i18n.t('difficulty')} ${'◆'.repeat(clamp(Number(level.difficulty || 1), 1, 5))}`, tx, rect.y + 205, 25, locked ? '#555' : COLORS.cinnabar)
-      r.text(completed ? this.i18n.t('completed') : locked ? this.i18n.t('locked') : this.i18n.t('current'), rect.x + rect.w - 30, rect.y + 205, 25, completed ? COLORS.jade : COLORS.gold, 'right')
+      const savedScore = ((this.playerStats && this.playerStats.level_scores) || []).find((item) => String(item.level_id) === String(level.id))
+      r.text(savedScore ? `${Number(savedScore.score || 0)} 分` : completed ? this.i18n.t('completed') : locked ? this.i18n.t('locked') : this.i18n.t('current'), rect.x + rect.w - 30, rect.y + 205, 25, completed ? COLORS.jade : COLORS.gold, 'right', savedScore ? 'bold' : 'normal')
       if (rect.y + rect.h >= clip.y && rect.y <= clip.y + clip.h) r.register(locked ? `locked:${level.id}` : `level:${level.id}`, rect)
       y += 268
     })
@@ -709,25 +720,29 @@ class OddSpotApp {
     const knowledge = String(this.game.level.background_knowledge || '').trim()
     const summary = this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`
     const statusText = this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete')
-    const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
+    const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 误触 ${this.game.attempt.wrong_taps || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
+    const score = this.game.scoreResult || this.game.attempt || {}, scoreText = Number(score.score || 0) > 0 ? `${Number(score.score)} 分  ·  +${Number(score.points || 0)} 积分  ·  最高 ${Number(score.best_score || score.score)} 分` : '成绩等待联网同步'
     if (!knowledge) {
       const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
       r.text(this.i18n.t('complete'), 540, rect.y + 115, 64, COLORS.navy, 'center', 'bold')
       r.text(statusText, 540, rect.y + 225, 32, '#2e2921', 'center')
-      r.text(stat, 540, rect.y + 295, 22, '#574d3d', 'center')
-      r.iconButton('replay', 340, rect.y + 380, 88, 'replay'); r.iconButton('map', 496, rect.y + 380, 88, 'map'); r.iconButton('next', 648, rect.y + 376, 96, 'next', true)
+      r.text(scoreText, 540, rect.y + 286, 27, '#a33d2e', 'center', 'bold')
+      r.text(stat, 540, rect.y + 330, 20, '#574d3d', 'center')
+      r.button('levelRank', { x: 300, y: rect.y + 365, w: 480, h: 64 }, '查看本关排行榜', { fill: '#182638', border: '#c7a86b', size: 23 })
+      r.iconButton('replay', 340, rect.y + 445, 72, 'replay'); r.iconButton('map', 504, rect.y + 445, 72, 'map'); r.iconButton('next', 668, rect.y + 441, 80, 'next', true)
       return
     }
     const top = r.safeTop, rect = { x: 70, y: Math.max(40 + top, h / 2 - 440), w: 940, h: Math.min(h - 80 - top, 900) }
     r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
     r.text(this.i18n.t('complete'), 540, rect.y + 70, 56, COLORS.navy, 'center', 'bold')
-    r.text(stat, 540, rect.y + 124, 22, '#574d3d', 'center')
-    const clip = { x: rect.x + 46, y: rect.y + 164, w: rect.w - 92, h: rect.h - 164 - 124 }, c = r.ctx
+    r.text(scoreText, 540, rect.y + 118, 25, '#a33d2e', 'center', 'bold')
+    r.text(stat, 540, rect.y + 150, 18, '#574d3d', 'center')
+    const clip = { x: rect.x + 46, y: rect.y + 184, w: rect.w - 92, h: rect.h - 184 - 124 }, c = r.ctx
     c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
     const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 16 - (this.scroll.knowledge || 0), clip.w, 34, '#2b2418', 50, 400)
     c.restore(); this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 30)
     const by = rect.y + rect.h - 104
-    r.iconButton('replay', 340, by, 88, 'replay'); r.iconButton('map', 496, by, 88, 'map'); r.iconButton('next', 648, by, 96, 'next', true)
+    r.iconButton('replay', 285, by, 88, 'replay'); r.iconButton('map', 425, by, 88, 'map'); r.button('levelRank', { x: 548, y: by + 9, w: 250, h: 68 }, '本关排名', { fill: '#182638', border: '#c7a86b', size: 22 }); r.iconButton('next', 820, by - 4, 96, 'next', true)
   }
   renderKnowledgeIntro() {
     const r = this.renderer, h = r.height, ctx = r.ctx, intro = this.game.knowledgeIntro
@@ -801,7 +816,7 @@ class OddSpotApp {
     if(this.touch.puzzleSource>=0){const p=this.game.puzzle,src=this.touch.puzzleSource,group=groupForCell(p.order,p.rows,p.cols,src),target=this.puzzleCellAt(point),drag={dx:point.x-this.touch.start.x,dy:point.y-this.touch.start.y,target:null,valid:false};if(target>=0&&target!==src){const dr2=Math.floor(target/p.cols)-Math.floor(src/p.cols),dc2=target%p.cols-src%p.cols;drag.target=group.map(cell=>{const r=Math.floor(cell/p.cols)+dr2,cc=cell%p.cols+dc2;return(r>=0&&r<p.rows&&cc>=0&&cc<p.cols)?r*p.cols+cc:-1});drag.valid=!!movePuzzleGroup(p.order,p.rows,p.cols,src,target)}p.drag=drag;return}
     if (this.modal === 'privacy') { this.scroll.privacy = clamp(this.touch.scrollStart - dy, 0, this.privacyMaxScroll || 0); return }
     if (this.knowledgeScrollActive()) { this.scroll.knowledge = clamp(this.touch.scrollStart - dy, 0, this.knowledgeMaxScroll || 0); return }
-    if (!this.modal && ['home', 'museum', 'levels', 'settings'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
+    if (!this.modal && ['home', 'museum', 'levels', 'settings', 'leaderboard'].includes(this.scene)) { this.setCurrentScroll(clamp(this.touch.scrollStart - dy, 0, this.maxScroll || 0)); return }
     if (!this.modal && this.scene === 'game' && this.game && this.game.imageRects.some((item) => item && inside(point, item.panel))) {
       if (points.length >= 2 && this.touch.pinchDistance > 1) {
         const next = clamp(this.touch.pinchZoom * distance(points[0], points[1]) / this.touch.pinchDistance, 1, 4); this.game.view.zoom = next; this.clampGameView()
@@ -842,7 +857,7 @@ class OddSpotApp {
     this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
-    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next'].includes(id)) return
+    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank'].includes(id)) return
     if (id) this.audio.click()
     if (id === 'retry') this.bootstrap()
     else if (id === 'wechatLogin') this.loginWechat()
@@ -850,6 +865,7 @@ class OddSpotApp {
     else if (id === 'daily') this.openDaily()
     else if (id === 'continueCase') { const item = this.enabledSeries().flatMap((series) => (series.levels || []).map((level) => ({ series, level }))).find((item) => !this.isLevelCompleted(item.level)); if (item) { this.selectedSeriesId = item.series.id; this.loadGame(item.level.id) } }
     else if (id === 'museum') { this.scene = 'museum'; this.scroll.museum = 0; this.modal = ''; this.loadMuseumImages() }
+    else if (id === 'leaderboard' || id === 'topLeaderboard') this.showLeaderboard('overall')
     else if (id === 'profile') this.showSettings()
     else if (id === 'home') this.showHome()
     else if (id === 'levels') this.showLevelSelect(this.selectedSeriesId)
@@ -861,6 +877,9 @@ class OddSpotApp {
     else if (id === 'replay') this.replay()
     else if (id === 'map') this.showLevelSelect(this.selectedSeriesId)
     else if (id === 'next') this.nextLevel()
+    else if (id === 'levelRank') this.showLeaderboard('level', this.game && this.game.level ? this.game.level.level_id : this.selectedLevelId)
+    else if (id === 'rank:overall') this.showLeaderboard('overall')
+    else if (id === 'rank:level') this.showLeaderboard('level', this.selectedLevelId)
     else if (id === 'language') this.toggleLanguage()
     else if (id === 'privacy') { this.scroll.privacy = 0; this.modal = 'privacy' }
     else if (id === 'logout') this.logout()

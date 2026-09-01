@@ -132,6 +132,9 @@ class ApiClient {
   getCatalog() { return this.request('GET', '/v1/catalog') }
   getHome() { return this.request('GET', '/v1/home') }
   getLevel(id) { return this.request('GET', `/v1/levels/${encodeURIComponent(id)}`) }
+  getPlayerStats() { return this.request('GET', '/v1/users/me/stats') }
+  getOverallLeaderboard(limit = 50) { return this.request('GET', `/v1/leaderboards/overall?limit=${Math.max(1, Math.min(100, Number(limit) || 50))}`) }
+  getLevelLeaderboard(id, limit = 50) { return this.request('GET', `/v1/leaderboards/levels/${encodeURIComponent(id)}?limit=${Math.max(1, Math.min(100, Number(limit) || 50))}`) }
   getLocales() { return this.request('GET', '/v1/locales', {}, false, false) }
   updateLocale(locale) { return this.request('PUT', '/v1/session/locale', { locale }) }
   sendEvents(events) { return this.request('POST', '/v1/events/batch', { events }) }

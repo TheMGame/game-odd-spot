@@ -83,7 +83,7 @@ class ProgressStore {
     const levels = this.levels()
     const existing = levels[levelId]
     if (existing && !['synced', 'completed'].includes(existing.state) && Number(existing.level_version) === Number(version)) return deepClone(existing)
-    const created = { attempt_id: uuid(), start_idempotency_key: uuid(), level_version: Number(version), state: 'in_progress', found: [], hints_used: 0, elapsed_ms: 0, zoom: 1, view_offset_x: 0, view_offset_y: 0 }
+    const created = { attempt_id: uuid(), start_idempotency_key: uuid(), level_version: Number(version), state: 'in_progress', found: [], hints_used: 0, wrong_taps: 0, elapsed_ms: 0, score: 0, points: 0, best_score: 0, zoom: 1, view_offset_x: 0, view_offset_y: 0 }
     levels[levelId] = created
     this.saveLevels(levels)
     return deepClone(created)

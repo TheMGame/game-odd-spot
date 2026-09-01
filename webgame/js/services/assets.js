@@ -4,24 +4,31 @@ class AssetManager {
   constructor() {
     this.images = new Map()
     this.objectUrls = []
+    this.remoteHashes = new Map()
   }
 
   bundled(path) { return this.imageFromUrl(path, false) }
 
+  setRemoteHashes(items) {
+    this.remoteHashes.clear()
+    for (const item of Array.isArray(items) ? items : []) if (item && item.url && item.sha256) this.remoteHashes.set(normalizeRemoteUrl(item.url), String(item.sha256).toLowerCase())
+  }
+
   async loadDescriptor(asset) {
     if (!asset || !asset.asset_id || !asset.url) throw new Error('ASSET_DESCRIPTOR_INVALID')
-    const key = `${asset.asset_id}:${asset.sha256 || asset.url}`
+    const url = normalizeRemoteUrl(asset.url), key = `${asset.asset_id}:${asset.sha256 || url}`
     if (this.images.has(key)) return this.images.get(key)
-    const image = await this.fetchImage(asset.url, asset.sha256 || '')
+    const image = await this.fetchImage(url, asset.sha256 || '')
     this.images.set(key, image)
     return image
   }
 
   async loadUrl(url, variant = 'remote') {
     if (!url) throw new Error('ASSET_URL_MISSING')
+    url = normalizeRemoteUrl(url)
     const key = `${variant}:${url}`
     if (this.images.has(key)) return this.images.get(key)
-    const image = /^https?:\/\//i.test(url) ? await this.fetchImage(url, '') : await this.imageFromUrl(url, false)
+    const image = /^https?:\/\//i.test(url) ? await this.fetchImage(url, this.remoteHashes.get(url) || '') : await this.imageFromUrl(url, false)
     this.images.set(key, image)
     return image
   }
@@ -67,5 +74,7 @@ function mimeFromUrl(url) {
   if (clean.endsWith('.webp')) return 'image/webp'
   return 'image/jpeg'
 }
+
+function normalizeRemoteUrl(value) { return String(value).replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?=\/)/i, String(config.API_BASE_URL || '').replace(/\/$/, '')) }
 
 module.exports = { AssetManager, sha256Hex }

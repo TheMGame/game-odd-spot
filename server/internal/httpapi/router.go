@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -96,11 +98,15 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("PUT /v1/session/locale", a.requireAuth(http.HandlerFunc(a.updateSessionLocale)))
 	mux.Handle("GET /v1/home", a.requireAuth(http.HandlerFunc(a.home)))
 	mux.Handle("GET /v1/catalog", a.requireAuth(http.HandlerFunc(a.publicCatalog)))
+	mux.Handle("POST /v1/assets/hashes", a.requireAuth(http.HandlerFunc(a.assetHashes)))
 	mux.Handle("GET /v1/levels/{levelId}", a.requireAuth(http.HandlerFunc(a.getLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/start", a.requireAuth(http.HandlerFunc(a.startLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/progress", a.requireAuth(http.HandlerFunc(a.progressLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/complete", a.requireAuth(http.HandlerFunc(a.completeLevel)))
 	mux.Handle("POST /v1/levels/{levelId}/reset", a.requireAuth(http.HandlerFunc(a.resetLevel)))
+	mux.Handle("GET /v1/leaderboards/overall", a.requireAuth(http.HandlerFunc(a.overallLeaderboard)))
+	mux.Handle("GET /v1/leaderboards/levels/{levelId}", a.requireAuth(http.HandlerFunc(a.levelLeaderboard)))
+	mux.Handle("GET /v1/users/me/stats", a.requireAuth(http.HandlerFunc(a.playerStats)))
 	mux.Handle("GET /v1/config/{version}", a.requireAuth(http.HandlerFunc(a.getConfig)))
 	mux.Handle("GET /admin/v1/levels", a.requireAdmin(http.HandlerFunc(a.adminLevels)))
 	mux.Handle("GET /admin/v1/catalog", a.requireAdmin(http.HandlerFunc(a.adminCatalog)))
@@ -129,6 +135,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	mux.Handle("GET /admin/v1/metrics/summary", a.requireAdmin(http.HandlerFunc(a.metricsSummary)))
 	mux.Handle("POST /admin/v1/generation/jobs", a.requireAdmin(http.HandlerFunc(a.createGenerationJob)))
 	mux.Handle("GET /admin/v1/generation/jobs/{jobId}", a.requireAdmin(http.HandlerFunc(a.getGenerationJob)))
+	mux.Handle("POST /admin/v1/rebuild-scores", a.requireAdmin(http.HandlerFunc(a.adminRebuildScores)))
+	mux.Handle("GET /admin/v1/score-summaries", a.requireAdmin(http.HandlerFunc(a.adminScoreSummaries)))
 	_ = os.MkdirAll(deps.Config.ContentDir, 0755)
 	mux.Handle("GET /content/", http.StripPrefix("/content/", http.FileServer(http.Dir(deps.Config.ContentDir))))
 	mux.Handle("GET /admin/", http.StripPrefix("/admin/", http.FileServer(http.Dir(deps.Config.AdminDir))))
@@ -386,6 +394,44 @@ func (a *api) listAssets(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 	}
 	writeJSON(w, 200, newEnvelope(map[string]any{"items": items}))
+}
+
+func (a *api) assetHashes(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		URLs []string `json:"urls"`
+	}
+	if !decodeBody(w, r, &input) {
+		return
+	}
+	if len(input.URLs) > 256 {
+		writeError(w, http.StatusBadRequest, "TOO_MANY_ASSETS", "at most 256 asset URLs are allowed")
+		return
+	}
+	items := make([]map[string]any, 0, len(input.URLs))
+	seen := map[string]bool{}
+	for _, rawURL := range input.URLs {
+		if seen[rawURL] {
+			continue
+		}
+		seen[rawURL] = true
+		index := strings.Index(rawURL, "/content/")
+		if index < 0 {
+			continue
+		}
+		name := strings.SplitN(rawURL[index+len("/content/"):], "?", 2)[0]
+		name, err := url.PathUnescape(name)
+		if err != nil || name == "" || filepath.Base(name) != name {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(a.deps.Config.ContentDir, name))
+		if err != nil {
+			continue
+		}
+		sum := sha256.Sum256(data)
+		legacySum := sha1.Sum(data)
+		items = append(items, map[string]any{"url": normalizeAssetURL(rawURL, a.deps.Config.PublicBaseURL), "sha256": fmt.Sprintf("%x", sum), "sha1": fmt.Sprintf("%x", legacySum), "bytes": len(data)})
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{"items": items}))
 }
 
 // assetExtAndKind maps an upload Content-Type to a file extension and asset
@@ -650,6 +696,10 @@ func normalizeCatalogAssetURLs(items []catalog.Series, publicBaseURL string) {
 				items[seriesIndex].Levels[levelIndex].ThumbnailURL,
 				publicBaseURL,
 			)
+			items[seriesIndex].Levels[levelIndex].ImageURL = normalizeAssetURL(
+				items[seriesIndex].Levels[levelIndex].ImageURL,
+				publicBaseURL,
+			)
 		}
 	}
 }
@@ -744,6 +794,48 @@ func (a *api) completeLevel(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := a.deps.Levels.Complete(r.Context(), authenticatedUser(r), r.PathValue("levelId"), input)
 	writeLevelResult(w, result, err)
+}
+
+func leaderboardLimit(r *http.Request) int {
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit < 1 {
+		return 50
+	}
+	if limit > 100 {
+		return 100
+	}
+	return limit
+}
+
+func (a *api) levelLeaderboard(w http.ResponseWriter, r *http.Request) {
+	result, err := a.deps.Levels.LevelLeaderboard(r.Context(), authenticatedUser(r), r.PathValue("levelId"), leaderboardLimit(r))
+	if errors.Is(err, level.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "LEVEL_NOT_FOUND", "level not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load leaderboard")
+		return
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(result))
+}
+
+func (a *api) overallLeaderboard(w http.ResponseWriter, r *http.Request) {
+	result, err := a.deps.Levels.OverallLeaderboard(r.Context(), authenticatedUser(r), leaderboardLimit(r))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load leaderboard")
+		return
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(result))
+}
+
+func (a *api) playerStats(w http.ResponseWriter, r *http.Request) {
+	result, err := a.deps.Levels.PlayerStats(r.Context(), authenticatedUser(r))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load player stats")
+		return
+	}
+	writeJSON(w, http.StatusOK, newEnvelope(result))
 }
 
 func decodeBody(w http.ResponseWriter, r *http.Request, target any) bool {
@@ -1035,6 +1127,11 @@ func (a *api) userServerSession(w http.ResponseWriter, r *http.Request) {
 		)
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create game session")
 		return
+	}
+	if profile.Username != "" || profile.AvatarURL != "" {
+		if pErr := a.deps.Sessions.UpsertUserProfile(r.Context(), profile.UserID, profile.Username, profile.AvatarURL); pErr != nil {
+			a.deps.Logger.Warn("upsert user profile from user-server failed", "error", pErr, "user_id", profile.UserID)
+		}
 	}
 	writeJSON(w, http.StatusOK, newEnvelope(map[string]any{
 		"user_id": created.UserID, "access_token": created.AccessToken,
@@ -1341,6 +1438,55 @@ func (a *api) metricsSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, newEnvelope(item))
+}
+
+type rebuildScoresInput struct {
+	UserID string `json:"user_id"`
+}
+
+func (a *api) adminRebuildScores(w http.ResponseWriter, r *http.Request) {
+	input := rebuildScoresInput{}
+	if body := r.Body; body != nil {
+		if err := json.NewDecoder(body).Decode(&input); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, 400, "VALIDATION_FAILED", "invalid json body")
+			return
+		}
+	}
+	ctx := r.Context()
+	done := 0
+	failed := 0
+	if input.UserID != "" {
+		if err := a.deps.Levels.RebuildScoresFor(ctx, input.UserID); err != nil {
+			a.deps.Logger.Error("rebuild scores failed", "user_id", input.UserID, "error", err)
+			writeError(w, 500, "REBUILD_FAILED", err.Error())
+			return
+		}
+		done = 1
+	} else {
+		var err error
+		done, failed, err = a.deps.Levels.RebuildAllScores(ctx)
+		if err != nil {
+			writeError(w, 500, "INTERNAL_ERROR", err.Error())
+			return
+		}
+	}
+	writeJSON(w, 200, newEnvelope(map[string]any{"rebuilt": done, "failed": failed}))
+}
+
+func (a *api) adminScoreSummaries(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	items, err := a.deps.Levels.ListUserScoreSummaries(ctx, limit)
+	if err != nil {
+		writeError(w, 500, "INTERNAL_ERROR", "could not query score summaries")
+		return
+	}
+	writeJSON(w, 200, newEnvelope(map[string]any{"items": items, "count": len(items)}))
 }
 
 func (a *api) experiment(w http.ResponseWriter, r *http.Request) {

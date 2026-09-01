@@ -55,6 +55,8 @@ class ApiClient {
     return failure
   }
 
+  assetHashes(urls) { return this.request('POST', '/v1/assets/hashes', { urls: Array.from(new Set(urls.filter(Boolean))) }) }
+
   async userRequest(path, body) {
     const response = await this.fetchJson(config.USER_SERVER_BASE_URL + path, {
       method: 'POST',

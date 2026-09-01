@@ -159,6 +159,7 @@ class OddSpotApp {
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
+    await this.refreshAssetHashes(this.homeAssetUrls())
     this.loadHomeArt()
     {
       let completed = 0, total = 0
@@ -176,15 +177,31 @@ class OddSpotApp {
     if (this.session.data.avatar_url) this.assets.loadUrl(this.session.data.avatar_url, 'avatar').then((image) => { this.avatar = image }).catch(() => {})
   }
 
+  homeAssetUrls() {
+    const urls = [], home = this.catalogData && this.catalogData.home || {}
+    urls.push(home.logo_url, home.header_url, home.hero_fallback_url, home.collection_placeholder_url)
+    for (const series of this.enabledSeries()) {
+      const first = Array.isArray(series.levels) ? series.levels[0] || {} : {}
+      urls.push(first.thumbnail_url || first.image_url || series.cover_url)
+    }
+    const museum = this.catalogData && this.catalogData.museum
+    for (const item of museum && Array.isArray(museum.items) ? museum.items : []) urls.push(item.image_url)
+    return urls.filter(Boolean)
+  }
+
+  async refreshAssetHashes(urls) {
+    const result = await this.api.assetHashes(urls)
+    if (result.ok) this.assets.setRemoteHashes(result.data && result.data.data && result.data.data.items || [])
+  }
+
   async loadHomeCovers() {
     for (const series of this.enabledSeries()) {
       const levels = Array.isArray(series.levels) ? series.levels : []
       const first = levels[0] || {}
       const preview = first.thumbnail_url || first.image_url || series.cover_url || ''
-      const full = first.image_url || ''
       if (!preview) continue
       try { this.covers[series.id] = await this.assets.loadUrl(preview, 'series') } catch (_) {}
-      if (full && full !== preview) try { this.covers[series.id] = await this.assets.loadUrl(full, 'series_full') } catch (_) {}
+      // Keep home lightweight; the full-resolution image loads with the level.
     }
     const museumItems = this.catalogData && this.catalogData.museum && Array.isArray(this.catalogData.museum.items) ? this.catalogData.museum.items : []
     for (const item of museumItems) if (item.image_url) try { this.covers[`museum:${item.id}`] = await this.assets.loadUrl(item.image_url, 'museum') } catch (_) {}
@@ -200,6 +217,7 @@ class OddSpotApp {
   }
   async loadLevelPreviews() {
     const series = this.seriesById(this.selectedSeriesId); if (!series) return
+    await this.refreshAssetHashes((series.levels || []).flatMap((level) => [level.thumbnail_url, level.image_url]).filter(Boolean))
     for (const level of series.levels || []) {
       const url = level.thumbnail_url || level.image_url
       if (!url || this.covers[`level:${level.id}`]) continue
@@ -824,6 +842,7 @@ class OddSpotApp {
     else if (id === 'daily') this.openDaily()
     else if (id === 'continueCase') { const item = this.enabledSeries().flatMap((series) => (series.levels || []).map((level) => ({ series, level }))).find((item) => !this.isLevelCompleted(item.level)); if (item) { this.selectedSeriesId = item.series.id; this.loadGame(item.level.id) } }
     else if (id === 'museum') { this.scene = 'museum'; this.scroll.museum = 0; this.modal = '' }
+    else if (id === 'leaderboard' || id === 'topLeaderboard') this.showSettings()
     else if (id === 'profile') this.showSettings()
     else if (id === 'home') this.showHome()
     else if (id === 'levels') this.showLevelSelect(this.selectedSeriesId)

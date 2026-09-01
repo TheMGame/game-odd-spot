@@ -33,12 +33,16 @@ type Service interface {
 	IssueExternal(ctx context.Context, userID, market, locale string) (Session, error)
 	EnsureExternalUser(ctx context.Context, userID, market, locale string) error
 	Profile(ctx context.Context, userID string) (string, string, error)
+	UserProfile(ctx context.Context, userID string) (Profile, error)
+	UpsertUserProfile(ctx context.Context, userID string, displayName, avatarURL string) error
 	UpdateLocale(ctx context.Context, userID, locale string) error
 }
 
 type Profile struct {
-	Market string
-	Locale string
+	Market       string
+	Locale       string
+	DisplayName  string
+	AvatarURL    string
 }
 
 func (s *MemoryService) IssueExternal(ctx context.Context, userID, market string, locale string) (Session, error) {
@@ -57,6 +61,29 @@ func (s *MemoryService) EnsureExternalUser(_ context.Context, userID, market, lo
 	if _, exists := s.profiles[userID]; !exists {
 		s.profiles[userID] = Profile{Market: market, Locale: normalizeLocale(locale)}
 	}
+	return nil
+}
+
+func (s *MemoryService) UserProfile(_ context.Context, userID string) (Profile, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	profile, ok := s.profiles[userID]
+	if !ok {
+		return Profile{}, ErrUserNotFound
+	}
+	return profile, nil
+}
+
+func (s *MemoryService) UpsertUserProfile(_ context.Context, userID, displayName, avatarURL string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	profile, ok := s.profiles[userID]
+	if !ok {
+		return ErrUserNotFound
+	}
+	profile.DisplayName = displayName
+	profile.AvatarURL = avatarURL
+	s.profiles[userID] = profile
 	return nil
 }
 
