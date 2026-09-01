@@ -8,10 +8,24 @@ function icon(r, kind, x, y, color) {
   if (kind === 'museum') { r.line(x - 24, y - 13, x, y - 28, color, 5); r.line(x, y - 28, x + 24, y - 13, color, 5); r.line(x - 29, y + 24, x + 29, y + 24, color, 5); for (let i = -1; i <= 1; i++) r.line(x + i * 18, y - 9, x + i * 18, y + 19, color, 4); return }
   r.circle(x, y - 12, 11, color); r.ctx.beginPath(); r.ctx.arc(x, y + 22, 24, Math.PI, Math.PI * 2); r.ctx.fillStyle = color; r.ctx.fill()
 }
+function renderBunny(app) {
+  const r = app.renderer, c = r.ctx, top = r.safeTop, anim = app._homeBunnyAnim
+  if (!(top > 40 && anim && anim.loaded && anim.frames.length)) { app._homeBunnyArea = null; return }
+  const size = Math.max(140, Math.min(Math.round(top * 1.1), 320)), left = 18, right = r.width - 18 - size
+  app._homeBunnyArea = { y: 0, h: top, left, right, size }
+  anim.x = Math.max(left, Math.min(right, anim.x))
+  const image = anim.frames[anim.frame % anim.frames.length]
+  if (!image || !(image.width > 0 && image.height > 0)) return
+  const y = (top - size) / 2, fit = Math.min(size / image.width, size / image.height), w = Math.round(image.width * fit), h = Math.round(image.height * fit), x = Math.round(anim.x + (size - w) / 2), dy = Math.round(y + (size - h) / 2)
+  c.save(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1
+  if (anim.dir < 0) { const cx = anim.x + size / 2, cy = y + size / 2; c.translate(cx, cy); c.scale(-1, 1); c.translate(-cx, -cy) }
+  c.drawImage(image, 0, 0, image.width, image.height, x, dy, w, h); c.restore()
+}
 function renderHome(app) {
   const r = app.renderer, c = r.ctx, h = r.height, top = r.safeTop, art = app.homeArt || {}, home = app.catalogData && app.catalogData.home || {}, scroll = app.scroll.home || 0
   r.rect(0, 0, 1080, h, '#f4ead7'); r.rect(0, 0, 1080, 214 + top, '#0e1b2b')
   if (art.header) { c.save(); c.globalAlpha = .08; r.image(art.header, { x: 0, y: 0, w: 1080, h: 214 + top }, 'cover'); c.restore() }
+  renderBunny(app)
   if (art.logo) r.image(art.logo, { x: 38, y: 24 + top, w: 104, h: 104 }, 'contain')
   r.text(home.brand_title || '', 154, 67 + top, 45, '#f1d28e', 'left', 'bold'); r.text(home.brand_subtitle || '', 157, 112 + top, 14, '#e4c879', 'left', 'bold')
   const stats = app.homeStats || { completed: 0, total: 0 }, exp = Math.min(520, 280 + stats.completed * 15), level = Math.max(1, Math.floor(exp / 45))
