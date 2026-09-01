@@ -47,6 +47,8 @@ class ApiClient {
     return { ok: false, status: Number(response.statusCode || 0), error: response.data && response.data.message ? String(response.data.message) : 'USER_SERVER_UNAVAILABLE', data: response.data || {} }
   }
 
+  assetHashes(urls) { return this.request('POST', '/v1/assets/hashes', { urls: Array.from(new Set(urls.filter(Boolean))) }) }
+
   wechatLoginCode(withProfile = true) {
     return new Promise((resolve) => {
       const login = (profile) => wx.login({

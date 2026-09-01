@@ -61,11 +61,6 @@ class OddSpotApp {
     await this.bootstrap()
   }
 
-  loadHomeArt() {
-    const home = this.catalogData && this.catalogData.home || {}, urls = { logo: home.logo_url, header: home.header_url, hero: home.hero_fallback_url, collection: home.collection_placeholder_url }
-    for (const [key, url] of Object.entries(urls)) if (url) this.assets.loadUrl(url, `home_${key}`).then((image) => { this.homeArt[key] = image }).catch(() => {})
-  }
-
   async loadHomeBunny() {
     const fs = wx.getFileSystemManager()
     const dir = 'assets/animations'
@@ -159,7 +154,6 @@ class OddSpotApp {
     const result = await this.catalog.get()
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
-    this.loadHomeArt()
     {
       let completed = 0, total = 0
       for (const series of this.enabledSeries()) {
@@ -170,24 +164,62 @@ class OddSpotApp {
       this.homeStats = { completed, total }
     }
     this.status = this.sync.pendingCount() ? `${this.sync.pendingCount()} 条进度等待联网同步` : this.i18n.t('syncDone')
-    this.loadHomeCovers()
+    this.loadHomeImages()
     this.sync.flush().then(() => { this.status = this.sync.pendingCount() ? `${this.sync.pendingCount()} 条进度等待联网同步` : this.i18n.t('syncDone') })
     this.analytics.flush()
     if (this.session.data.avatar_url) this.assets.loadUrl(this.session.data.avatar_url, 'avatar').then((image) => { this.avatar = image }).catch(() => {})
   }
 
-  async loadHomeCovers() {
+  async refreshAssetHashes(urls) {
+    const unique = Array.from(new Set((urls || []).filter(Boolean)))
+    for (let offset = 0; offset < unique.length; offset += 256) {
+      const result = await this.api.assetHashes(unique.slice(offset, offset + 256))
+      if (result.ok) this.assets.setRemoteHashes(result.data && result.data.data && result.data.data.items || [])
+      else console.warn('asset hash manifest failed', result.error)
+    }
+  }
+
+  async loadImageBatch(requests) {
+    const list = (requests || []).filter((item) => item && (item.url || item.descriptor && item.descriptor.url))
+    await this.refreshAssetHashes(list.map((item) => item.url || item.descriptor.url))
+    return Promise.all(list.map(async (item) => {
+      try {
+        const image = item.descriptor
+          ? await this.assets.loadDescriptor(item.descriptor)
+          : await this.assets.loadUrl(item.url, item.variant || 'remote')
+        return { ok: true, key: item.key, image }
+      } catch (error) {
+        return { ok: false, key: item.key, error }
+      }
+    }))
+  }
+
+  async loadHomeImages() {
+    const home = this.catalogData && this.catalogData.home || {}
+    const requests = Object.entries({ logo: home.logo_url, header: home.header_url, hero: home.hero_fallback_url, collection: home.collection_placeholder_url })
+      .filter((entry) => entry[1])
+      .map(([key, url]) => ({ key: `art:${key}`, url, variant: `home_${key}` }))
     for (const series of this.enabledSeries()) {
       const levels = Array.isArray(series.levels) ? series.levels : []
       const first = levels[0] || {}
       const preview = first.thumbnail_url || first.image_url || series.cover_url || ''
-      const full = first.image_url || ''
       if (!preview) continue
-      try { this.covers[series.id] = await this.assets.loadUrl(preview, 'series') } catch (_) {}
-      if (full && full !== preview) try { this.covers[series.id] = await this.assets.loadUrl(full, 'series_full') } catch (_) {}
+      requests.push({ key: `cover:${series.id}`, url: preview, variant: 'series' })
     }
+    for (const result of await this.loadImageBatch(requests)) {
+      if (!result.ok) { console.warn('home image failed', result.key, result.error && result.error.message || result.error); continue }
+      if (result.key.startsWith('art:')) this.homeArt[result.key.slice(4)] = result.image
+      else this.covers[result.key.slice(6)] = result.image
+    }
+  }
+
+  async loadMuseumImages() {
     const museumItems = this.catalogData && this.catalogData.museum && Array.isArray(this.catalogData.museum.items) ? this.catalogData.museum.items : []
-    for (const item of museumItems) if (item.image_url) try { this.covers[`museum:${item.id}`] = await this.assets.loadUrl(item.image_url, 'museum') } catch (_) {}
+    const requests = museumItems.filter((item) => item.image_url).map((item) => ({ key: `museum:${item.id}`, url: item.image_url, variant: 'museum' }))
+    for (const result of await this.loadImageBatch(requests)) {
+      if (result.ok) this.covers[result.key] = result.image
+      else console.warn('museum image failed', result.key, result.error && result.error.message || result.error)
+    }
   }
 
   enabledSeries() { return this.catalogData ? (Array.isArray(this.catalogData.series) ? this.catalogData.series : []).filter((series) => series.enabled !== false) : [] }
@@ -200,11 +232,13 @@ class OddSpotApp {
   }
   async loadLevelPreviews() {
     const series = this.seriesById(this.selectedSeriesId); if (!series) return
+    const requests = []
     for (const level of series.levels || []) {
       const url = level.thumbnail_url || level.image_url
       if (!url || this.covers[`level:${level.id}`]) continue
-      try { this.covers[`level:${level.id}`] = await this.assets.loadUrl(url, 'level_thumbnail') } catch (_) {}
+      requests.push({ key: `level:${level.id}`, url, variant: 'level_thumbnail' })
     }
+    for (const result of await this.loadImageBatch(requests)) if (result.ok) this.covers[result.key] = result.image
   }
 
   async openDaily() {
@@ -224,7 +258,9 @@ class OddSpotApp {
     this.game.level = level
     this.audio.setLevelMusic(level.assets && level.assets.music ? level.assets.music.url : '')
     try {
-      this.game.image = await this.assets.loadDescriptor(level.assets.image)
+      const loaded = (await this.loadImageBatch([{ key: 'game', descriptor: level.assets.image }]))[0]
+      if (!loaded || !loaded.ok) throw loaded && loaded.error || new Error('ASSET_LOAD_FAILED')
+      this.game.image = loaded.image
     } catch (error) { this.status = `图片加载失败：${error.message || error}`; return }
     const attempt = this.progress.getOrCreate(level.level_id, level.level_version)
     this.game.attempt = attempt; this.game.elapsedBefore = Number(attempt.elapsed_ms || 0); this.game.startedAt = Date.now()
@@ -316,7 +352,7 @@ class OddSpotApp {
     this.prefetchNext()
   }
   nextLevelId() { const series = this.seriesById(this.selectedSeriesId); if (!series) return ''; const levels = series.levels || []; const index = levels.findIndex((item) => String(item.id) === String(this.selectedLevelId)); return index >= 0 && index + 1 < levels.length ? String(levels[index + 1].id) : '' }
-  prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then((result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) this.assets.loadDescriptor(level.assets.image).catch(() => {}) }) }
+  prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then(async (result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) await this.loadImageBatch([{ key: `prefetch:${next}`, descriptor: level.assets.image }]) }).catch(() => {}) }
   async replay() { if (!this.game) return; const id = this.game.level.level_id; this.progress.clear(id); try { await this.sync.submit(`/v1/levels/${encodeURIComponent(id)}/reset`, {}) } catch (_) {} this.loadGame(id) }
   nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id); else this.showLevelSelect(this.selectedSeriesId) }
 
@@ -813,7 +849,7 @@ class OddSpotApp {
     else if (id === 'identity' || id === 'settings') this.showSettings()
     else if (id === 'daily') this.openDaily()
     else if (id === 'continueCase') { const item = this.enabledSeries().flatMap((series) => (series.levels || []).map((level) => ({ series, level }))).find((item) => !this.isLevelCompleted(item.level)); if (item) { this.selectedSeriesId = item.series.id; this.loadGame(item.level.id) } }
-    else if (id === 'museum') { this.scene = 'museum'; this.scroll.museum = 0; this.modal = '' }
+    else if (id === 'museum') { this.scene = 'museum'; this.scroll.museum = 0; this.modal = ''; this.loadMuseumImages() }
     else if (id === 'profile') this.showSettings()
     else if (id === 'home') this.showHome()
     else if (id === 'levels') this.showLevelSelect(this.selectedSeriesId)

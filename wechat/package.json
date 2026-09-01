@@ -3,6 +3,6 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "check": "node tests/check-syntax.js && node tests/run-tests.js"
+    "check": "node tests/check-syntax.js && node tests/run-tests.js && node tests/assets.test.js && node tests/asset-layer.test.js && node tests/package-size.test.js"
   }
 }
