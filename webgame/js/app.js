@@ -156,7 +156,7 @@ class OddSpotApp {
     if (!this._homeBunnyLoadStarted) { this._homeBunnyLoadStarted = true; this.loadHomeBunny() }
     if (!this.avatar) this.assets.bundled('assets/branding/default-avatar.png').then((image) => { this.avatar = image }).catch(() => {})
     this.analytics.track('home_impression')
-    const result = await this.catalog.get()
+    const result = await this.catalog.get(true)
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
     await this.refreshAssetHashes(this.homeAssetUrls())

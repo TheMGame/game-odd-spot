@@ -27,11 +27,7 @@ function renderLeaderboard(app) {
   r.text('侦探排行榜', 540, 65 + top, 44, '#f1d28e', 'center', 'bold')
   r.text(levelScope ? '当前案件 · 单关最高分' : '全球永久榜 · 难度积分', 540, 116 + top, 22, '#c9b990', 'center')
 
-  const tabsY = 196 + top
-  r.button('rank:overall', { x: 60, y: tabsY, w: 460, h: 72 }, '全球总榜', { fill: levelScope ? '#eee4d2' : '#182638', border: '#c7a86b', color: levelScope ? '#4d4438' : '#f4d58d', size: 27 })
-  r.button('rank:level', { x: 560, y: tabsY, w: 460, h: 72 }, '当前关卡榜', { fill: levelScope ? '#182638' : '#eee4d2', border: '#c7a86b', color: levelScope ? '#f4d58d' : '#4d4438', size: 27, disabled: !app.selectedLevelId })
-
-  const mine = board.my_entry || null, myY = tabsY + 92
+  const mine = board.my_entry || null, myY = 196 + top
   r.rect(42, myY, 996, 170, '#182638', 22, '#c7a86b', 3)
   r.circle(112, myY + 85, 48, '#a63c2d', '#e1bd70', 3)
   r.text(`Lv.${Number(stats.player_level || 1)}`, 112, myY + 85, 25, '#fff6dd', 'center', 'bold')

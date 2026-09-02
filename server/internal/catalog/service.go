@@ -232,6 +232,9 @@ func (s *MySQLService) UpsertMuseum(ctx context.Context, value MuseumConfig) err
 		if item.UnlockType != "always" && item.UnlockType != "level_complete" && item.UnlockType != "series_complete" {
 			return errors.New("unsupported museum unlock type")
 		}
+		// Unlocked is derived per user when serving the public catalog. Never
+		// persist the admin preview value as content configuration.
+		item.Unlocked = false
 		seen[item.ID] = true
 	}
 	raw, err := json.Marshal(value)

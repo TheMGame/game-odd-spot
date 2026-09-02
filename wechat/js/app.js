@@ -154,7 +154,7 @@ class OddSpotApp {
   async showHome() {
     this.audio.clearLevelMusic(); this.scene = 'home'; this.status = '正在加载系列…'; this.scroll.home = 0; this.modal = ''; this.catalogData = null; this.covers = {}
     this.analytics.track('home_impression')
-    const result = await this.catalog.get()
+    const result = await this.catalog.get(true)
     if (!result.ok) { this.status = `系列加载失败：${result.error}`; return }
     this.catalogData = result.data.data || {}
     const statsResult = await this.api.getPlayerStats()
@@ -211,10 +211,15 @@ class OddSpotApp {
       if (!preview) continue
       requests.push({ key: `cover:${series.id}`, url: preview, variant: 'series' })
     }
+    const museumItems = this.catalogData && this.catalogData.museum && Array.isArray(this.catalogData.museum.items) ? this.catalogData.museum.items : []
+    for (const item of museumItems.filter((entry) => entry.unlocked).slice(0, 3)) {
+      if (item.image_url) requests.push({ key: `museum:${item.id}`, url: item.image_url, variant: 'museum' })
+    }
     for (const result of await this.loadImageBatch(requests)) {
       if (!result.ok) { console.warn('home image failed', result.key, result.error && result.error.message || result.error); continue }
       if (result.key.startsWith('art:')) this.homeArt[result.key.slice(4)] = result.image
-      else this.covers[result.key.slice(6)] = result.image
+      else if (result.key.startsWith('cover:')) this.covers[result.key.slice(6)] = result.image
+      else this.covers[result.key] = result.image
     }
   }
 
@@ -878,8 +883,6 @@ class OddSpotApp {
     else if (id === 'map') this.showLevelSelect(this.selectedSeriesId)
     else if (id === 'next') this.nextLevel()
     else if (id === 'levelRank') this.showLeaderboard('level', this.game && this.game.level ? this.game.level.level_id : this.selectedLevelId)
-    else if (id === 'rank:overall') this.showLeaderboard('overall')
-    else if (id === 'rank:level') this.showLeaderboard('level', this.selectedLevelId)
     else if (id === 'language') this.toggleLanguage()
     else if (id === 'privacy') { this.scroll.privacy = 0; this.modal = 'privacy' }
     else if (id === 'logout') this.logout()

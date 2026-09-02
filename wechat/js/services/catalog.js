@@ -2,7 +2,7 @@ const config = require('../config')
 
 class CatalogRepository {
   constructor(api, preferences) { this.api = api; this.preferences = preferences; this.loading = null }
-  key() { return `oddspot.catalog.v2.${this.preferences.data.locale}` }
+  key() { return `oddspot.catalog.v3.${this.preferences.data.locale}` }
   cached() { return wx.getStorageSync(this.key()) || null }
   clear() { wx.removeStorageSync(this.key()) }
   async get(force = false) {

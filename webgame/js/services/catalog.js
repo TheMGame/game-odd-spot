@@ -3,7 +3,7 @@ const { read, write, remove } = require('../core/storage')
 
 class CatalogRepository {
   constructor(api, preferences) { this.api = api; this.preferences = preferences; this.loading = null }
-  key() { return `oddspot.catalog.v2.${this.preferences.data.locale}` }
+  key() { return `oddspot.catalog.v3.${this.preferences.data.locale}` }
   cached() { return read(this.key(), null) }
   clear() { remove(this.key()) }
   async get(force = false) {
