@@ -55,6 +55,7 @@ class OddSpotApp {
 
   async start() {
     this.bindEvents()
+    this.setupSharing()
     this.audio.start()
     this.assets.bundled('assets/branding/guagua-rabbit-logo.png').then((image) => { this.logo = image }).catch(() => {})
     this.assets.bundled('assets/branding/default-avatar.png').then((image) => { this.avatar = image }).catch(() => {})
@@ -62,6 +63,25 @@ class OddSpotApp {
     this.analytics.track('app_open')
     this.scheduleFrame()
     await this.bootstrap()
+  }
+
+  sharePayload() {
+    const level = this.game && this.game.level
+    return {
+      title: level && level.title ? `我在《错位大侦探》破解了「${level.title}」，你也来试试！` : '穿越历史找出错位之处，来挑战《错位大侦探》！',
+      query: level && level.level_id ? `from=share&level_id=${encodeURIComponent(level.level_id)}` : 'from=share',
+    }
+  }
+
+  setupSharing() {
+    if (typeof wx.showShareMenu === 'function') wx.showShareMenu({ menus: ['shareAppMessage'] })
+    if (typeof wx.onShareAppMessage === 'function') wx.onShareAppMessage(() => this.sharePayload())
+  }
+
+  shareGame() {
+    if (typeof wx.shareAppMessage !== 'function') { this.status = '当前微信版本暂不支持分享'; return }
+    wx.shareAppMessage(this.sharePayload())
+    this.analytics.track('game_share', { scene: this.scene, level_id: this.game && this.game.level ? this.game.level.level_id : '' })
   }
 
   async loadHomeBunny() {
@@ -647,6 +667,7 @@ class OddSpotApp {
     section(this.i18n.t('privacySupport')); r.rect(36, y, 1008, 340, COLORS.card, 20, COLORS.cardBorder, 1)
     r.toggle('toggle:analytics', 70, y + 20, this.i18n.t('analytics'), this.preferences.data.analytics); r.wrappedText(this.i18n.t('analyticsNote'), 70, y + 130, 890, 20, COLORS.muted, 30, 2)
     r.button('privacy', { x: 70, y: y + 220, w: 930, h: 78 }, this.i18n.t('privacyPolicy'), { fill: COLORS.surface, border: COLORS.cardBorder, color: COLORS.text, size: 24 }); y += 375
+    r.button('shareGame', { x: 36, y, w: 1008, h: 76 }, this.i18n.t('shareGame'), { fill: COLORS.navy, border: COLORS.gold, color: COLORS.paper, size: 25 }); y += 100
     r.button('logout', { x: 36, y, w: 1008, h: 76 }, this.i18n.t('logout'), { fill: COLORS.surface, border: COLORS.cardBorder, color: COLORS.danger, size: 24 }); y += 105
     r.text(`${this.i18n.t('app')} · 版本 ${config.APP_VERSION}`, 540, y, 18, '#94aeaa', 'center'); y += 55
     if (this.status) r.text(this.status, 540, y, 20, '#d8b470', 'center')
@@ -733,7 +754,8 @@ class OddSpotApp {
       r.text(statusText, 540, rect.y + 225, 32, '#2e2921', 'center')
       r.text(scoreText, 540, rect.y + 286, 27, '#a33d2e', 'center', 'bold')
       r.text(stat, 540, rect.y + 330, 20, '#574d3d', 'center')
-      r.button('levelRank', { x: 300, y: rect.y + 365, w: 480, h: 64 }, '查看本关排行榜', { fill: '#182638', border: '#c7a86b', size: 23 })
+      r.button('levelRank', { x: 280, y: rect.y + 365, w: 250, h: 64 }, '本关排行榜', { fill: '#182638', border: '#c7a86b', size: 22 })
+      r.button('shareGame', { x: 550, y: rect.y + 365, w: 250, h: 64 }, this.i18n.t('shareResult'), { fill: '#a33d2e', border: '#c7a86b', size: 22 })
       r.iconButton('replay', 340, rect.y + 445, 72, 'replay'); r.iconButton('map', 504, rect.y + 445, 72, 'map'); r.iconButton('next', 668, rect.y + 441, 80, 'next', true)
       return
     }
@@ -862,7 +884,7 @@ class OddSpotApp {
     this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
-    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank'].includes(id)) return
+    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank', 'shareGame'].includes(id)) return
     if (id) this.audio.click()
     if (id === 'retry') this.bootstrap()
     else if (id === 'wechatLogin') this.loginWechat()
@@ -883,6 +905,7 @@ class OddSpotApp {
     else if (id === 'map') this.showLevelSelect(this.selectedSeriesId)
     else if (id === 'next') this.nextLevel()
     else if (id === 'levelRank') this.showLeaderboard('level', this.game && this.game.level ? this.game.level.level_id : this.selectedLevelId)
+    else if (id === 'shareGame') this.shareGame()
     else if (id === 'language') this.toggleLanguage()
     else if (id === 'privacy') { this.scroll.privacy = 0; this.modal = 'privacy' }
     else if (id === 'logout') this.logout()

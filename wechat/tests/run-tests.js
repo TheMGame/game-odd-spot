@@ -1,6 +1,9 @@
 const assert = require('assert')
 
 const memory = new Map()
+let shareMenuOptions = null
+let shareHandler = null
+let sharedPayload = null
 global.wx = {
   env: { USER_DATA_PATH: '/tmp/oddspot-test' },
   getRandomValues(bytes) { for (let i = 0; i < bytes.length; i += 1) bytes[i] = i + 1; return bytes },
@@ -16,6 +19,9 @@ global.wx = {
     }, { get(target, key) { return key in target ? target[key] : () => {} }, set(target, key, value) { target[key] = value; return true } })
     return { width: 0, height: 0, getContext() { return context } }
   },
+  showShareMenu(options) { shareMenuOptions = options },
+  onShareAppMessage(handler) { shareHandler = handler },
+  shareAppMessage(payload) { sharedPayload = payload },
 }
 
 const { SessionStore, Preferences, ProgressStore } = require('../js/core/storage')
@@ -62,6 +68,12 @@ session.update({ user_id: 'u2', access_token: 'b', refresh_token: 'r2', expires_
 assert.deepStrictEqual(progress.levels(), {})
 
 const app = new OddSpotApp()
+app.setupSharing()
+assert.deepStrictEqual(shareMenuOptions, { menus: ['shareAppMessage'] })
+assert.strictEqual(typeof shareHandler, 'function')
+assert.strictEqual(shareHandler().query, 'from=share')
+app.shareGame()
+assert.strictEqual(sharedPayload.query, 'from=share')
 app.scene = 'login'; app.render()
 app.scene = 'home'; app.catalogData = { series: [{ id: 's1', title: '系列', enabled: true, levels: [] }] }; app.render()
 app.selectedSeriesId = 's1'; app.scene = 'levels'; app.render()
