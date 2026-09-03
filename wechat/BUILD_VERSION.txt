@@ -1,4 +1,4 @@
-0.1.1-media-entry-fixed
+0.1.2-inventory-rewards
 
 Required subpackage entry:
 subpackages/media/game.js

@@ -89,5 +89,9 @@ app.scene = 'game'; app.game = {
   attempt: { hints_used: 0, elapsed_ms: 0 },
 }
 app.render()
+app.game.complete = true
+app.game.itemReward = { item: { id: 'scroll_luoshen', name: '洛神赋卷' }, startedAt: Date.now() }
+app.render()
+assert(app.renderer.hitboxes.some((item) => item.id === 'dismissReward'), 'item reward reveal must be dismissible')
 
 console.log('wechat unit tests passed')

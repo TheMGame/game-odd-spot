@@ -200,6 +200,11 @@ func (s *MySQLService) Museum(ctx context.Context, query PublicQuery, admin bool
 			continue
 		}
 		item.Unlocked = admin || item.UnlockType == "" || item.UnlockType == "always"
+		if !item.Unlocked && query.UserID != "" {
+			var owned int
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_museum_items WHERE user_id=? AND item_id=?`, query.UserID, item.ID).Scan(&owned)
+			item.Unlocked = owned > 0
+		}
 		if !item.Unlocked && query.UserID != "" && item.UnlockType == "level_complete" {
 			var count int
 			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_best_scores WHERE user_id=? AND level_id=?`, query.UserID, item.UnlockValue).Scan(&count)
@@ -210,6 +215,9 @@ func (s *MySQLService) Museum(ctx context.Context, query PublicQuery, admin bool
 			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM content_series_levels WHERE series_id=? AND enabled=TRUE`, item.UnlockValue).Scan(&total)
 			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT sl.level_id) FROM content_series_levels sl JOIN level_best_scores b ON b.level_id=sl.level_id AND b.user_id=? WHERE sl.series_id=? AND sl.enabled=TRUE`, query.UserID, item.UnlockValue).Scan(&completed)
 			item.Unlocked = total > 0 && completed >= total
+		}
+		if item.Unlocked && !admin && query.UserID != "" && item.UnlockType != "" && item.UnlockType != "always" {
+			_, _ = s.db.ExecContext(ctx, `INSERT IGNORE INTO user_museum_items(user_id,item_id,source_type,source_id) VALUES(?,?,?,?)`, query.UserID, item.ID, item.UnlockType, item.UnlockValue)
 		}
 		filtered = append(filtered, item)
 	}

@@ -381,8 +381,20 @@ class OddSpotApp {
     if (result.state === 'rejected') { this.status = `完成提交被服务器拒绝：${result.error}`; this.game.attempt.state = 'rejected'; this.progress.save(level.level_id, this.game.attempt); return }
     const scoreResult = result.response && result.response.data || null
     this.game.complete = true; this.game.scoreResult = scoreResult; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; if(scoreResult)Object.assign(this.game.attempt,{score:Number(scoreResult.score||0),points:Number(scoreResult.points||0),best_score:Number(scoreResult.best_score||0)}); this.progress.save(level.level_id, this.game.attempt)
+    if (result.state === 'synced') await this.refreshNewMuseumItems()
     this.analytics.track('level_complete', { level_id: level.level_id, duration_ms: elapsed, hints_used: this.game.attempt.hints_used, sync_state: result.state }); this.analytics.flush()
     this.prefetchNext()
+  }
+  async refreshNewMuseumItems() {
+    const previous = new Set((((this.catalogData || {}).museum || {}).items || []).filter((item) => item.unlocked).map((item) => String(item.id)))
+    this.catalog.clear()
+    const refreshed = await this.catalog.get(true)
+    if (!refreshed.ok || !this.game) return
+    this.catalogData = refreshed.data.data || {}
+    const item = ((((this.catalogData || {}).museum || {}).items) || []).find((entry) => entry.unlocked && !previous.has(String(entry.id)))
+    if (!item) return
+    if (item.image_url) try { this.covers[`museum:${item.id}`] = await this.assets.loadUrl(item.image_url, 'museum') } catch (_) {}
+    this.game.itemReward = { item, startedAt: Date.now() }
   }
   nextLevelId() { const series = this.seriesById(this.selectedSeriesId); if (!series) return ''; const levels = series.levels || []; const index = levels.findIndex((item) => String(item.id) === String(this.selectedLevelId)); return index >= 0 && index + 1 < levels.length ? String(levels[index + 1].id) : '' }
   prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then(async (result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) await this.loadImageBatch([{ key: `prefetch:${next}`, descriptor: level.assets.image }]) }).catch(() => {}) }
@@ -710,7 +722,7 @@ class OddSpotApp {
     }
     r.text(this.status, 540, h - 35, 25, COLORS.muted, 'center', 'normal', 980)
     this.clampGameView()
-    if (game.complete) { if (game.knowledgeIntro && !game.knowledgeIntro.done) this.renderKnowledgeIntro(); else this.renderComplete() }
+    if (game.complete) { if (game.itemReward) this.renderItemReward(); else if (game.knowledgeIntro && !game.knowledgeIntro.done) this.renderKnowledgeIntro(); else this.renderComplete() }
     else if (game.timedOut) this.renderTimeout()
   }
   renderGameImage(image, rect, game) {
@@ -740,6 +752,21 @@ class OddSpotApp {
     if (age < .65) r.circle(center.x, center.y, radius + age * 75, 'rgba(0,0,0,0)', `rgba(245,173,56,${.75 - age})`, 4)
     const pulse = age < 1 ? 1 + Math.sin(age * 9) * .08 : 1
     r.circle(center.x, center.y, radius * pulse, 'rgba(168,36,20,.20)', '#c64b2f', 5); r.circle(center.x, center.y, radius * pulse + 4, 'rgba(0,0,0,0)', 'rgba(242,171,64,.72)', 2)
+  }
+  renderItemReward() {
+    const r = this.renderer, h = r.height, reward = this.game.itemReward, item = reward.item
+    if (Date.now() - reward.startedAt > 3800) { this.game.itemReward = null; return }
+    const age = Math.min(1, (Date.now() - reward.startedAt) / 900), pulse = 1 + Math.sin(Date.now() / 180) * .025
+    r.rect(0, 0, 1080, h, 'rgba(5,10,17,.94)')
+    for (let i = 0; i < 18; i++) { const angle = i * Math.PI / 9; r.line(540, h * .43, 540 + Math.cos(angle) * 430 * age, h * .43 + Math.sin(angle) * 430 * age, `rgba(229,183,82,${.12 * age})`, 18) }
+    r.text('新藏品入库', 540, h * .18, 34, COLORS.gold, 'center', 'bold')
+    const image = this.covers[`museum:${item.id}`]
+    const size = 390 * age * pulse
+    if (image) r.image(image, { x: 540 - size / 2, y: h * .43 - size / 2, w: size, h: size }, 'contain')
+    else { r.rect(365, h * .43 - 175, 350, 350, '#efe0bd', 24, COLORS.gold, 4); r.text('卷', 540, h * .43, 110, COLORS.cinnabar, 'center', 'bold') }
+    r.text(item.name || '珍贵藏品', 540, h * .69, 50, COLORS.paper, 'center', 'bold', 920)
+    r.text('已永久收藏 · 不会因章节调整而失去', 540, h * .75, 23, '#d9c69b', 'center')
+    r.button('dismissReward', { x: 270, y: h * .82, w: 540, h: 82 }, '收下藏品', { fill: COLORS.cinnabar, border: COLORS.gold, size: 29 })
   }
   renderComplete() {
     const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
@@ -884,7 +911,7 @@ class OddSpotApp {
     this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
-    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank', 'shareGame'].includes(id)) return
+    if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank', 'shareGame', 'dismissReward'].includes(id)) return
     if (id) this.audio.click()
     if (id === 'retry') this.bootstrap()
     else if (id === 'wechatLogin') this.loginWechat()
@@ -906,6 +933,7 @@ class OddSpotApp {
     else if (id === 'next') this.nextLevel()
     else if (id === 'levelRank') this.showLeaderboard('level', this.game && this.game.level ? this.game.level.level_id : this.selectedLevelId)
     else if (id === 'shareGame') this.shareGame()
+    else if (id === 'dismissReward' && this.game) this.game.itemReward = null
     else if (id === 'language') this.toggleLanguage()
     else if (id === 'privacy') { this.scroll.privacy = 0; this.modal = 'privacy' }
     else if (id === 'logout') this.logout()

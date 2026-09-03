@@ -1,6 +1,6 @@
 module.exports = {
   APP_NAME: '错位大侦探',
-  APP_VERSION: '0.1.0',
+  APP_VERSION: '0.1.2',
   API_BASE_URL: 'https://oddspot.guaguatu.com',
   USER_SERVER_BASE_URL: 'https://api.guaguatu.com',
   USER_SERVER_APP_ID: 'game_odd_spot',
