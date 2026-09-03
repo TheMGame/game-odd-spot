@@ -86,18 +86,23 @@ class ProgressStore {
     const levels = this.levels()
     const existing = levels[levelId]
     if (existing && !['synced', 'completed'].includes(existing.state) && Number(existing.level_version) === Number(version)) return deepClone(existing)
-    const created = { attempt_id: uuid(), start_idempotency_key: uuid(), level_version: Number(version), state: 'in_progress', found: [], hints_used: 0, elapsed_ms: 0, zoom: 1, view_offset_x: 0, view_offset_y: 0 }
+    const created = { attempt_id: uuid(), start_idempotency_key: uuid(), level_version: Number(version), state: 'in_progress', ever_completed: Boolean(existing && (existing.ever_completed || ['local_completed', 'sync_queued', 'synced', 'completed'].includes(existing.state))), found: [], hints_used: 0, elapsed_ms: 0, zoom: 1, view_offset_x: 0, view_offset_y: 0 }
     levels[levelId] = created
     this.saveLevels(levels)
     return deepClone(created)
+  }
+  restart(levelId, version) {
+    const levels = this.levels(), existing = levels[levelId]
+    const created = { attempt_id: uuid(), start_idempotency_key: uuid(), level_version: Number(version), state: 'in_progress', ever_completed: Boolean(existing && (existing.ever_completed || ['local_completed', 'sync_queued', 'synced', 'completed'].includes(existing.state))), found: [], hints_used: 0, elapsed_ms: 0, zoom: 1, view_offset_x: 0, view_offset_y: 0 }
+    levels[levelId] = created; this.saveLevels(levels); return deepClone(created)
   }
   save(levelId, attempt) { const levels = this.levels(); levels[levelId] = deepClone(attempt); this.saveLevels(levels) }
   clear(levelId) { const levels = this.levels(); delete levels[levelId]; this.saveLevels(levels) }
   isCompleted(levelId, version) {
     const saved = this.levels()[levelId] || {}
-    return ['local_completed', 'sync_queued', 'synced', 'completed'].includes(saved.state) && Number(saved.level_version) === Number(version)
+    return Boolean(saved.ever_completed || ['local_completed', 'sync_queued', 'synced', 'completed'].includes(saved.state)) && Number(saved.level_version) === Number(version)
   }
-  setState(levelId, state) { const levels = this.levels(); if (levels[levelId]) { levels[levelId].state = state; this.saveLevels(levels) } }
+  setState(levelId, state, attemptId) { const levels = this.levels(); if (levels[levelId] && (!attemptId || levels[levelId].attempt_id === attemptId)) { levels[levelId].state = state; if (['local_completed', 'sync_queued', 'synced', 'completed'].includes(state)) levels[levelId].ever_completed = true; this.saveLevels(levels) } }
 }
 
 module.exports = { KEYS, read, write, remove, SessionStore, Preferences, ProgressStore }

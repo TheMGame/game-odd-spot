@@ -366,7 +366,7 @@ class OddSpotApp {
   }
   nextLevelId() { const series = this.seriesById(this.selectedSeriesId); if (!series) return ''; const levels = series.levels || []; const index = levels.findIndex((item) => String(item.id) === String(this.selectedLevelId)); return index >= 0 && index + 1 < levels.length ? String(levels[index + 1].id) : '' }
   prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then(async (result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) await this.loadImageBatch([{ key: `prefetch:${next}`, descriptor: level.assets.image }]) }).catch(() => {}) }
-  async replay() { if (!this.game) return; const id = this.game.level.level_id; this.progress.clear(id); try { await this.sync.submit(`/v1/levels/${encodeURIComponent(id)}/reset`, {}) } catch (_) {} this.loadGame(id) }
+  async replay() { if (!this.game) return; const level = this.game.level; this.progress.restart(level.level_id, level.level_version); this.loadGame(level.level_id) }
   nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id); else this.showLevelSelect(this.selectedSeriesId) }
 
   showSettings() { this.audio.click(); this.scene = 'settings'; this.scroll.settings = 0; this.modal = ''; this.loadLocales() }

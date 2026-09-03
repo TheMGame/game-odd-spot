@@ -202,13 +202,13 @@ func (s *MySQLService) Museum(ctx context.Context, query PublicQuery, admin bool
 		item.Unlocked = admin || item.UnlockType == "" || item.UnlockType == "always"
 		if !item.Unlocked && query.UserID != "" && item.UnlockType == "level_complete" {
 			var count int
-			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_attempts WHERE user_id=? AND level_id=? AND state='completed'`, query.UserID, item.UnlockValue).Scan(&count)
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM level_best_scores WHERE user_id=? AND level_id=?`, query.UserID, item.UnlockValue).Scan(&count)
 			item.Unlocked = count > 0
 		}
 		if !item.Unlocked && query.UserID != "" && item.UnlockType == "series_complete" {
 			var total, completed int
 			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM content_series_levels WHERE series_id=? AND enabled=TRUE`, item.UnlockValue).Scan(&total)
-			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT sl.level_id) FROM content_series_levels sl JOIN level_attempts a ON a.level_id=sl.level_id AND a.user_id=? AND a.state='completed' WHERE sl.series_id=? AND sl.enabled=TRUE`, query.UserID, item.UnlockValue).Scan(&completed)
+			_ = s.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT sl.level_id) FROM content_series_levels sl JOIN level_best_scores b ON b.level_id=sl.level_id AND b.user_id=? WHERE sl.series_id=? AND sl.enabled=TRUE`, query.UserID, item.UnlockValue).Scan(&completed)
 			item.Unlocked = total > 0 && completed >= total
 		}
 		filtered = append(filtered, item)
@@ -350,8 +350,8 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			  DATE_FORMAT(COALESCE(lv.published_at,lv.created_at),'%Y-%m-%d')
 			),
 			EXISTS(
-			  SELECT 1 FROM level_attempts a
-			  WHERE a.user_id=? AND a.level_id=sl.level_id AND a.state='completed'
+			  SELECT 1 FROM level_best_scores b
+			  WHERE b.user_id=? AND b.level_id=sl.level_id
 			),
 			lv.status
 			FROM content_series_levels sl

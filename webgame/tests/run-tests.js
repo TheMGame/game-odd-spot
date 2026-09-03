@@ -5,6 +5,7 @@ const path = require('path')
 const { validateLevel } = require('../js/app')
 const { pointInPolygon } = require('../js/core/utils')
 const { validEmail } = require('../js/ui/login')
+const { SessionStore, ProgressStore } = require('../js/core/storage')
 require('./puzzle.test')
 
 const root = path.resolve(__dirname, '..')
@@ -29,6 +30,20 @@ assert.strictEqual(pointInPolygon({ x: .75, y: .74 }, level.differences[2].point
 assert.strictEqual(pointInPolygon({ x: .2, y: .8 }, level.differences[2].points), false)
 assert.strictEqual(validEmail('player@example.com'), true)
 assert.strictEqual(validEmail('not-an-email'), false)
+
+const browserStorage = new Map()
+global.window = { localStorage: { getItem(key) { return browserStorage.has(key) ? browserStorage.get(key) : null }, setItem(key, value) { browserStorage.set(key, value) }, removeItem(key) { browserStorage.delete(key) } } }
+const session = new SessionStore()
+session.update({ user_id: 'u1', access_token: 'token', expires_in: 3600 })
+const progress = new ProgressStore(session)
+const completedAttempt = progress.getOrCreate('level-1', 1)
+completedAttempt.state = 'synced'; progress.save('level-1', completedAttempt)
+const replayAttempt = progress.restart('level-1', 1)
+assert.notStrictEqual(replayAttempt.attempt_id, completedAttempt.attempt_id)
+assert.strictEqual(replayAttempt.state, 'in_progress')
+assert.strictEqual(progress.isCompleted('level-1', 1), true, 'replaying must preserve historical completion')
+progress.setState('level-1', 'rejected', completedAttempt.attempt_id)
+assert.strictEqual(progress.levels()['level-1'].state, 'in_progress', 'a previous attempt must not overwrite the active replay')
 
 const expectedHashes = {
   'assets/audio/complete.wav': '8f12fcfdb0764656980058116ed96cbf57967b57e54ead3acdac7b50ac6fd558',

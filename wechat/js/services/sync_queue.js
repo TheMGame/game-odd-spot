@@ -46,7 +46,7 @@ class SyncQueue {
   onResolved(item, result) {
     if (!item.path.endsWith('/complete')) return
     const levelId = decodeURIComponent(item.path.split('/')[3] || '')
-    this.progress.setState(levelId, result.state === 'synced' ? 'synced' : 'rejected')
+    this.progress.setState(levelId, result.state === 'synced' ? 'synced' : 'rejected', item.body && item.body.attempt_id)
   }
 }
 
