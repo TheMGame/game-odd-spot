@@ -16,6 +16,18 @@ func TestValidatePuzzleRuntime(t *testing.T) {
 	}
 }
 
+func TestValidateSharedTimeLimit(t *testing.T) {
+	runtime := puzzleRuntime()
+	runtime["time_limit_seconds"] = 180.0
+	if err := validateRuntimeLevel(runtime, true); err != nil {
+		t.Fatalf("shared time limit should be valid: %v", err)
+	}
+	runtime["time_limit_seconds"] = 3601.0
+	if err := validateRuntimeLevel(runtime, true); err == nil {
+		t.Fatal("out-of-range shared time limit should be rejected")
+	}
+}
+
 func TestValidatePuzzleRejectsDuplicateAndOutOfRangeCells(t *testing.T) {
 	for name, operations := range map[string][]any{
 		"duplicate":    {map[string]any{"type": "swap", "cells": []any{1.0, 2.0}}, map[string]any{"type": "swap", "cells": []any{2.0, 3.0}}},

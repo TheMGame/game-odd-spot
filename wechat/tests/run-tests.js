@@ -26,7 +26,8 @@ global.wx = {
 
 const { SessionStore, Preferences, ProgressStore } = require('../js/core/storage')
 const { pointInPolygon } = require('../js/core/utils')
-const { OddSpotApp, validateLevel } = require('../js/app')
+const { OddSpotApp, validateLevel, scoreToStars } = require('../js/app')
+const config = require('../js/config')
 require('./puzzle.test')
 
 function validLevel() {
@@ -48,6 +49,12 @@ assert.strictEqual(validateLevel({...validLevel(),mode:'spot_difference'}).ok,fa
 const invalid = validLevel(); invalid.differences[0].radius = .5
 assert.strictEqual(validateLevel(invalid).ok, false)
 assert.strictEqual(pointInPolygon({ x: .5, y: .5 }, [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]), true)
+assert.deepStrictEqual([0, 17, 50, 84, 100, 120].map(scoreToStars), [0, .5, 1.5, 2.5, 3, 3])
+assert.strictEqual(config.GAME_TIME_LIMIT_SECONDS, 180)
+assert.strictEqual(OddSpotApp.prototype.gameTimeLimitMs({ level: validLevel() }), 180000)
+assert.strictEqual(OddSpotApp.prototype.gameTimeLimitMs({ level: { ...validLevel(), time_limit_seconds: 90 } }), 90000)
+assert.strictEqual(OddSpotApp.prototype.gameTimeLimitMs({ level: { ...validLevel(), mode: 'image_puzzle', puzzle: { time_limit_seconds: 45 } } }), 45000)
+assert.strictEqual(OddSpotApp.prototype.gameTimeLimitMs({ level: { ...validLevel(), time_limit_seconds: 0 } }), 0)
 
 const session = new SessionStore()
 session.update({ user_id: 'u1', access_token: 'a', refresh_token: 'r', expires_in: 3600 })

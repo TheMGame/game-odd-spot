@@ -6,6 +6,12 @@ import (
 )
 
 func validateRuntimeLevel(runtime map[string]any, published bool) error {
+	if raw, ok := runtime["time_limit_seconds"]; ok && raw != nil {
+		seconds, valid := integerNumber(raw)
+		if !valid || seconds < 0 || seconds > 3600 {
+			return errors.New("invalid time_limit_seconds")
+		}
+	}
 	mode, _ := runtime["mode"].(string)
 	if mode != "find_anachronism" && mode != "image_puzzle" {
 		return errors.New("unsupported level mode")

@@ -308,8 +308,14 @@ class OddSpotApp {
   }
 
   elapsed() { if (this.game && this.game.frozenElapsed != null) return this.game.frozenElapsed; return this.game ? this.game.elapsedBefore + Date.now() - this.game.startedAt : 0 }
-  puzzleTimeLimitMs(game) { const g = game || this.game; if (!g || !g.level || g.level.mode !== 'image_puzzle') return 0; const s = Math.floor(Number(g.level.puzzle && g.level.puzzle.time_limit_seconds || 0)); return s > 0 ? s * 1000 : 0 }
-  checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.puzzleTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
+  gameTimeLimitMs(game) {
+    const g = game || this.game
+    if (!g || !g.level) return 0
+    const level = g.level
+    const configured = level.time_limit_seconds != null ? level.time_limit_seconds : (level.mode === 'image_puzzle' && level.puzzle && level.puzzle.time_limit_seconds != null ? level.puzzle.time_limit_seconds : config.GAME_TIME_LIMIT_SECONDS)
+    return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
+  }
+  checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
   failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
     if (difference.shape === 'circle') return Math.hypot(point.x - Number(difference.x), point.y - Number(difference.y)) <= Number(difference.radius) + .012
@@ -696,7 +702,7 @@ class OddSpotApp {
     if (game && game.level && String(game.level.background_knowledge || '').trim()) r.iconButton('knowledge', 846, 12 + top, 96, 'book')
     r.progress(18, 125 + top, 1044, 16, found, total || 1)
     if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
-    const limitMs = this.puzzleTimeLimitMs(game)
+    const limitMs = this.gameTimeLimitMs(game)
     if (limitMs > 0) { const remain = Math.max(0, limitMs - this.elapsed()); r.text(`⏱ ${formatElapsed(remain)}`, 540, 175 + top, 44, remain <= 10000 ? '#e2513a' : COLORS.gold, 'center', 'bold') }
     else r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 26, COLORS.muted, 'center', 'normal', 940)
     let panelHeight = 0, reasonLines = 0
@@ -775,23 +781,26 @@ class OddSpotApp {
     const statusText = this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete')
     const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 误触 ${this.game.attempt.wrong_taps || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
     const score = this.game.scoreResult || this.game.attempt || {}, scoreText = Number(score.score || 0) > 0 ? `${Number(score.score)} 分  ·  +${Number(score.points || 0)} 积分  ·  最高 ${Number(score.best_score || score.score)} 分` : '成绩等待联网同步'
+    const stars = scoreToStars(score.score)
     if (!knowledge) {
       const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
       r.text(this.i18n.t('complete'), 540, rect.y + 115, 64, COLORS.navy, 'center', 'bold')
       r.text(statusText, 540, rect.y + 225, 32, '#2e2921', 'center')
-      r.text(scoreText, 540, rect.y + 286, 27, '#a33d2e', 'center', 'bold')
-      r.text(stat, 540, rect.y + 330, 20, '#574d3d', 'center')
-      r.button('levelRank', { x: 280, y: rect.y + 365, w: 250, h: 64 }, '本关排行榜', { fill: '#182638', border: '#c7a86b', size: 22 })
-      r.button('shareGame', { x: 550, y: rect.y + 365, w: 250, h: 64 }, this.i18n.t('shareResult'), { fill: '#a33d2e', border: '#c7a86b', size: 22 })
-      r.iconButton('replay', 340, rect.y + 445, 72, 'replay'); r.iconButton('map', 504, rect.y + 445, 72, 'map'); r.iconButton('next', 668, rect.y + 441, 80, 'next', true)
+      drawScoreStars(r, 540, rect.y + 280, stars)
+      r.text(scoreText, 540, rect.y + 322, 24, '#a33d2e', 'center', 'bold')
+      r.text(stat, 540, rect.y + 354, 19, '#574d3d', 'center')
+      r.button('levelRank', { x: 280, y: rect.y + 382, w: 250, h: 58 }, '本关排行榜', { fill: '#182638', border: '#c7a86b', size: 21 })
+      r.button('shareGame', { x: 550, y: rect.y + 382, w: 250, h: 58 }, this.i18n.t('shareResult'), { fill: '#a33d2e', border: '#c7a86b', size: 21 })
+      r.iconButton('replay', 340, rect.y + 462, 72, 'replay'); r.iconButton('map', 504, rect.y + 462, 72, 'map'); r.iconButton('next', 668, rect.y + 458, 80, 'next', true)
       return
     }
     const top = r.safeTop, rect = { x: 70, y: Math.max(40 + top, h / 2 - 440), w: 940, h: Math.min(h - 80 - top, 900) }
     r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
     r.text(this.i18n.t('complete'), 540, rect.y + 70, 56, COLORS.navy, 'center', 'bold')
-    r.text(scoreText, 540, rect.y + 118, 25, '#a33d2e', 'center', 'bold')
-    r.text(stat, 540, rect.y + 150, 18, '#574d3d', 'center')
-    const clip = { x: rect.x + 46, y: rect.y + 184, w: rect.w - 92, h: rect.h - 184 - 124 }, c = r.ctx
+    drawScoreStars(r, 540, rect.y + 122, stars, 48)
+    r.text(scoreText, 540, rect.y + 160, 23, '#a33d2e', 'center', 'bold')
+    r.text(stat, 540, rect.y + 190, 18, '#574d3d', 'center')
+    const clip = { x: rect.x + 46, y: rect.y + 220, w: rect.w - 92, h: rect.h - 220 - 124 }, c = r.ctx
     c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
     const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 16 - (this.scroll.knowledge || 0), clip.w, 34, '#2b2418', 50, 400)
     c.restore(); this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 30)
@@ -970,4 +979,15 @@ function validateLevel(level) {
 function inside(point, rect) { return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
 
-module.exports = { OddSpotApp, validateLevel }
+function scoreToStars(score) { return Math.round(clamp(Number(score) || 0, 0, 100) * .06) / 2 }
+function drawScoreStars(renderer, centerX, centerY, stars, size = 58) {
+  const ctx = renderer.ctx, gap = Math.round(size * .18), width = size * 3 + gap * 2, left = centerX - width / 2
+  ctx.save(); ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8f8879'
+  for (let i = 0; i < 3; i++) ctx.fillText('★', left + i * (size + gap), centerY)
+  const filledWidth = Math.floor(stars) * (size + gap) + (stars % 1) * size
+  ctx.beginPath(); ctx.rect(left, centerY - size, filledWidth, size * 2); ctx.clip(); ctx.fillStyle = '#f5c542'
+  for (let i = 0; i < 3; i++) ctx.fillText('★', left + i * (size + gap), centerY)
+  ctx.restore()
+}
+
+module.exports = { OddSpotApp, validateLevel, scoreToStars }

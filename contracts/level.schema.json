@@ -13,6 +13,7 @@
     "title": {"type": "string", "minLength": 1, "maxLength": 100},
     "instruction": {"type": "string", "minLength": 1, "maxLength": 160},
     "background_knowledge": {"type": "string", "maxLength": 8000},
+    "time_limit_seconds": {"type": "integer", "minimum": 0, "maximum": 3600, "default": 180},
     "assets": {
       "type": "object",
       "additionalProperties": false,

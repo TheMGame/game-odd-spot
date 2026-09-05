@@ -260,8 +260,14 @@ class OddSpotApp {
   }
 
   elapsed() { if (this.game && this.game.frozenElapsed != null) return this.game.frozenElapsed; return this.game ? this.game.elapsedBefore + Date.now() - this.game.startedAt : 0 }
-  puzzleTimeLimitMs(game) { const g = game || this.game; if (!g || !g.level || g.level.mode !== 'image_puzzle') return 0; const s = Math.floor(Number(g.level.puzzle && g.level.puzzle.time_limit_seconds || 0)); return s > 0 ? s * 1000 : 0 }
-  checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.puzzleTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
+  gameTimeLimitMs(game) {
+    const g = game || this.game
+    if (!g || !g.level) return 0
+    const level = g.level
+    const configured = level.time_limit_seconds != null ? level.time_limit_seconds : (level.mode === 'image_puzzle' && level.puzzle && level.puzzle.time_limit_seconds != null ? level.puzzle.time_limit_seconds : config.GAME_TIME_LIMIT_SECONDS)
+    return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
+  }
+  checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
   failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
     if (difference.shape === 'circle') return Math.hypot(point.x - Number(difference.x), point.y - Number(difference.y)) <= Number(difference.radius) + .012
@@ -329,7 +335,8 @@ class OddSpotApp {
     const level = this.game.level, elapsed = this.elapsed()
     const body={attempt_id:this.game.attempt.attempt_id,hints_used:Number(this.game.attempt.hints_used||0),duration_ms:elapsed};if(level.mode==='image_puzzle'){body.puzzle_order=this.game.puzzle.order.slice();body.puzzle_moves=this.game.puzzle.moves}else body.difference_ids=Object.keys(this.game.found);const result = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/complete`, body)
     if (result.state === 'rejected') { this.status = `完成提交被服务器拒绝：${result.error}`; this.game.attempt.state = 'rejected'; this.progress.save(level.level_id, this.game.attempt); return }
-    this.game.complete = true; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; this.progress.save(level.level_id, this.game.attempt)
+    const scoreResult = result.response && result.response.data || null
+    this.game.complete = true; this.game.scoreResult = scoreResult; this.scroll.knowledge = 0; if (String(level.background_knowledge || '').trim()) this.game.knowledgeIntro = { startedAt: Date.now(), done: false }; this.game.syncState = result.state; this.game.attempt.elapsed_ms = elapsed; this.game.attempt.state = result.state === 'synced' ? 'synced' : 'sync_queued'; if(scoreResult)Object.assign(this.game.attempt,{score:Number(scoreResult.score||0),points:Number(scoreResult.points||0),best_score:Number(scoreResult.best_score||0)}); this.progress.save(level.level_id, this.game.attempt)
     this.analytics.track('level_complete', { level_id: level.level_id, duration_ms: elapsed, hints_used: this.game.attempt.hints_used, sync_state: result.state }); this.analytics.flush()
     this.prefetchNext()
   }
@@ -621,7 +628,7 @@ class OddSpotApp {
     if (game && game.level && String(game.level.background_knowledge || '').trim()) r.iconButton('knowledge', 846, 12 + top, 96, 'book')
     r.text(`${found} / ${total}`, 540, 96 + top, 27, '#d6e3df', 'center')
     if (!game || game.loading || !game.level || !game.image) { r.text(this.status, 540, 320 + top, 28, COLORS.muted, 'center'); return }
-    const limitMs = this.puzzleTimeLimitMs(game)
+    const limitMs = this.gameTimeLimitMs(game)
     if (limitMs > 0) { const remain = Math.max(0, limitMs - this.elapsed()); r.text(`⏱ ${formatElapsed(remain)}`, 540, 175 + top, 44, remain <= 10000 ? '#e2513a' : COLORS.gold, 'center', 'bold') }
     else r.text(game.level.instruction || '圈出不属于这个年代的物件', 540, 175 + top, 26, COLORS.muted, 'center', 'normal', 940)
     let panelHeight = 0, reasonLines = 0
@@ -671,19 +678,22 @@ class OddSpotApp {
     const summary = this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`
     const statusText = this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete')
     const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
+    const score = this.game.scoreResult || this.game.attempt || {}, stars = scoreToStars(score.score)
     if (!knowledge) {
       const rect = { x: 245, y: h / 2 - 285, w: 590, h: 570 }; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
       r.text(this.i18n.t('complete'), 540, rect.y + 115, 64, COLORS.navy, 'center', 'bold')
       r.text(statusText, 540, rect.y + 225, 32, '#2e2921', 'center')
-      r.text(stat, 540, rect.y + 295, 22, '#574d3d', 'center')
+      drawScoreStars(r, 540, rect.y + 282, stars)
+      r.text(stat, 540, rect.y + 330, 22, '#574d3d', 'center')
       r.iconButton('replay', 340, rect.y + 380, 88, 'replay'); r.iconButton('map', 496, rect.y + 380, 88, 'map'); r.iconButton('next', 648, rect.y + 376, 96, 'next', true)
       return
     }
     const top = r.safeTop, rect = { x: 70, y: Math.max(40 + top, h / 2 - 440), w: 940, h: Math.min(h - 80 - top, 900) }
     r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.surface, 24, COLORS.cardBorder, 2)
     r.text(this.i18n.t('complete'), 540, rect.y + 70, 56, COLORS.navy, 'center', 'bold')
-    r.text(stat, 540, rect.y + 124, 22, '#574d3d', 'center')
-    const clip = { x: rect.x + 46, y: rect.y + 164, w: rect.w - 92, h: rect.h - 164 - 124 }, c = r.ctx
+    drawScoreStars(r, 540, rect.y + 126, stars, 48)
+    r.text(stat, 540, rect.y + 166, 22, '#574d3d', 'center')
+    const clip = { x: rect.x + 46, y: rect.y + 196, w: rect.w - 92, h: rect.h - 196 - 124 }, c = r.ctx
     c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
     const textHeight = r.wrappedText(knowledge, clip.x, clip.y + 16 - (this.scroll.knowledge || 0), clip.w, 34, '#2b2418', 50, 400)
     c.restore(); this.knowledgeMaxScroll = Math.max(0, textHeight - clip.h + 30)
@@ -889,6 +899,17 @@ function validateLevel(level) {
 }
 function inside(point, rect) { return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h }
 function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
+
+function scoreToStars(score) { return Math.round(clamp(Number(score) || 0, 0, 100) * .06) / 2 }
+function drawScoreStars(renderer, centerX, centerY, stars, size = 58) {
+  const ctx = renderer.ctx, gap = Math.round(size * .18), width = size * 3 + gap * 2, left = centerX - width / 2
+  ctx.save(); ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8f8879'
+  for (let i = 0; i < 3; i++) ctx.fillText('★', left + i * (size + gap), centerY)
+  const filledWidth = Math.floor(stars) * (size + gap) + (stars % 1) * size
+  ctx.beginPath(); ctx.rect(left, centerY - size, filledWidth, size * 2); ctx.clip(); ctx.fillStyle = '#f5c542'
+  for (let i = 0; i < 3; i++) ctx.fillText('★', left + i * (size + gap), centerY)
+  ctx.restore()
+}
 function pointerLike(event) { return { clientX: event.clientX, clientY: event.clientY, identifier: event.pointerId, pointerId: event.pointerId } }
 
-module.exports = { OddSpotApp, validateLevel }
+module.exports = { OddSpotApp, validateLevel, scoreToStars }
