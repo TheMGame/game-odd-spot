@@ -77,10 +77,12 @@ foreach ($name in $assetNames) {
 $nodes = [ordered]@{
   intro = @{ type="scene"; title="雨夜来客"; text="暴雨封山，白石民宿的主人沈老爷在书房离奇身亡。道路中断，在天亮之前，你必须找出凶手。"; image=(New-NodeImage $assetMap.ext); next="enter_study" }
   enter_study = @{ type="scene"; title="封锁的书房"; text="门窗没有强行闯入的痕迹，桌上的茶仍有余温。现场似乎在刻意讲述一个过于完整的故事。"; image=(New-NodeImage $assetMap.study); next="study_search" }
-  study_search = @{ type="hotspot"; title="勘查书房"; text="找出现场的三件关键物证。"; image=(New-NodeImage $assetMap.study); required=3; hotspots=@(
-    @{id="watch";x=0.23;y=0.63;radius=0.09;label="停走的手表";evidence_id="watch_2053"},
-    @{id="phone";x=0.52;y=0.55;radius=0.09;label="死者手机";evidence_id="phone_record"},
-    @{id="will";x=0.78;y=0.47;radius=0.09;label="被撕掉一页的遗嘱";evidence_id="missing_will"}
+  study_search = @{ type="hotspot"; title="勘查书房"; text="找出现场的五件关键物证。"; image=(New-NodeImage $assetMap.study); required=5; hotspots=@(
+    @{id="watch";x=0.69;y=0.45;radius=0.09;label="死者左腕的手表";evidence_id="watch_2053"},
+    @{id="phone";x=0.88;y=0.70;radius=0.09;label="桌面右侧的黑色手机";evidence_id="phone_record"},
+    @{id="cup";x=0.74;y=0.55;radius=0.09;label="桌上的咖啡杯";evidence_id="coffee_cup"},
+    @{id="glasses";x=0.61;y=0.62;radius=0.09;label="摊开书本旁的眼镜";evidence_id="glasses"},
+    @{id="lock";x=0.08;y=0.27;radius=0.09;label="左侧书房门锁";evidence_id="study_lock"}
   ); next="watch_evidence" }
   watch_evidence = @{ type="evidence"; title="停走的手表"; text="手表停在 20:53，但表面没有受到撞击。这更像是有人故意调整了时间。"; image=(New-NodeImage $assetMap.watch); evidence_id="watch_2053"; next="phone_evidence" }
   phone_evidence = @{ type="evidence"; title="最后一通电话"; text="通话记录显示：20:57，沈老爷与沈恒通话三分钟。死亡时间不可能早于 20:57。"; image=(New-NodeImage $assetMap.phone); evidence_id="phone_record"; next="room_choice" }
@@ -97,14 +99,20 @@ $nodes = [ordered]@{
   suyu_statement = @{ type="dialogue"; speaker="苏雨"; text="匿名纸条说维修间有父亲车祸的真相。我进来后，门就被从外面锁上了。"; image=(New-NodeImage $assetMap.sroom); next="call_evidence" }
   call_evidence = @{ type="evidence"; title="20:57 通话记录"; text="运营商记录证实沈恒在 20:57 与死者通话。他关于死亡时间的说法是假的。"; image=(New-NodeImage $assetMap.call); evidence_id="call_2057"; next="ask_qin" }
   ask_qin = @{ type="dialogue"; speaker="老秦"; text="备用钥匙今天被人动过。21:05 我去维修间时，看见走廊尽头有个人影。"; image=(New-NodeImage $assetMap.maint); next="maint_search" }
-  maint_search = @{ type="hotspot"; title="搜索维修间"; text="找出被忽略的两处痕迹。"; image=(New-NodeImage $assetMap.maint); required=2; hotspots=@(
-    @{id="blood";x=0.30;y=0.66;radius=0.09;label="擦拭过的血迹";evidence_id="cleaned_blood"},
-    @{id="camera";x=0.78;y=0.24;radius=0.09;label="备用摄像头";evidence_id="backup_camera"}
+  maint_search = @{ type="hotspot"; title="搜索维修间"; text="找出被忽略的五处痕迹。"; image=(New-NodeImage $assetMap.maint); required=5; hotspots=@(
+    @{id="bench";x=0.24;y=0.43;radius=0.09;label="左侧维修工作台";evidence_id="maintenance_bench"},
+    @{id="camera";x=0.80;y=0.16;radius=0.09;label="门上方的备用摄像头";evidence_id="backup_camera"},
+    @{id="glass";x=0.35;y=0.58;radius=0.09;label="地面散落的玻璃碎片";evidence_id="broken_glass"},
+    @{id="track";x=0.58;y=0.68;radius=0.09;label="泥地上的拖擦与鞋印";evidence_id="mud_track"},
+    @{id="door";x=0.91;y=0.42;radius=0.09;label="右侧通往室外的门";evidence_id="outside_door"}
   ); next="backup_camera" }
   backup_camera = @{ type="evidence"; title="21:05 备用监控"; text="备用摄像头拍到老秦抵达时苏雨仍被锁在维修间，也拍到另一个身影从书房方向离开。"; image=(New-NodeImage $assetMap.cgQ); evidence_id="camera_2105"; next="desk_search" }
-  desk_search = @{ type="hotspot"; title="管理员书桌"; text="调查是谁查阅并篡改了旧案资料。"; image=(New-NodeImage $assetMap.desk); required=2; hotspots=@(
-    @{id="file";x=0.35;y=0.55;radius=0.10;label="旧案档案";evidence_id="old_case_file"},
-    @{id="photo";x=0.73;y=0.43;radius=0.10;label="剪裁照片";evidence_id="cropped_photo"}
+  desk_search = @{ type="hotspot"; title="管理员书桌"; text="调查是谁查阅并篡改了旧案资料。"; image=(New-NodeImage $assetMap.desk); required=5; hotspots=@(
+    @{id="cards";x=0.48;y=0.62;radius=0.09;label="桌面的 SD 存储卡";evidence_id="sd_cards"},
+    @{id="drive";x=0.64;y=0.56;radius=0.09;label="笔记本前的移动硬盘";evidence_id="external_drive"},
+    @{id="trash";x=0.18;y=0.83;radius=0.09;label="垃圾桶里的废弃照片";evidence_id="discarded_photos"},
+    @{id="photos";x=0.72;y=0.70;radius=0.09;label="桌面散落的雨夜照片";evidence_id="rainy_photos"},
+    @{id="laptop";x=0.53;y=0.45;radius=0.09;label="笔记本中的照片目录";evidence_id="photo_directory"}
   ); next="photo_old" }
   photo_old = @{ type="evidence"; title="被剪裁的合影"; text="旧照片右侧被裁掉了一人，但玻璃反光里还留着他的轮廓。"; image=(New-NodeImage $assetMap.photoOld); evidence_id="cropped_photo"; next="photo_restore" }
   photo_restore = @{ type="puzzle"; title="恢复完整照片"; text="还原照片，找出被刻意抹去的人。"; image=(New-NodeImage $assetMap.photoFull); puzzle=@{rows=3;cols=3}; next="reflection_search" }
