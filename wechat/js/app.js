@@ -1083,7 +1083,6 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
     for (const spot of node.hotspots || []) if (!found.includes(spot.id) && draw) {
       const radius = Math.max(44, Math.max(.085, Number(spot.radius || 0)) * draw.w)
       const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }
-      r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(232,188,98,.08)', 'rgba(232,188,98,.28)', 2)
       r.register(`story:hotspot:${spot.id}`, rect)
     }
     r.text(`现场勘查 ${found.length}/${Number(node.required || (node.hotspots || []).length)}`, 540, y + 20, 25, found.length >= Number(node.required || 1) ? '#6acb9a' : muted, 'center', 'bold'); y += 68
