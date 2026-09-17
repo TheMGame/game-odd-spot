@@ -342,10 +342,11 @@ class OddSpotApp {
       const runtime = this.game.story, node = runtime && runtime.node()
       if (!node || node.type !== 'hotspot') { console.info('[OddSpot][StoryTap] image ignored', { node_id: runtime?.state?.node_id, node_type: node?.type, point }); return }
       const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
-      const candidates = (node.hotspots || []).filter((item) => !found.includes(item.id)).map((item) => ({ id: item.id, distance: Number(Math.hypot(point.x - Number(item.x), point.y - Number(item.y)).toFixed(4)), radius: Math.max(.085, Number(item.radius || 0)) }))
+      const candidates = (node.hotspots || []).map((item) => ({ id: item.id, label: item.label || item.id, found: found.includes(item.id), distance: Number(Math.hypot(point.x - Number(item.x), point.y - Number(item.y)).toFixed(4)), radius: Math.max(.085, Number(item.radius || 0)) }))
       const match = candidates.find((item) => item.distance <= item.radius)
-      console.info('[OddSpot][StoryTap] image test', { node_id: runtime.state.node_id, point, found, candidates, matched: match?.id || '' })
-      if (match) this.storyAction('hotspot', match.id)
+      console.info('[OddSpot][StoryTap] image test', { node_id: runtime.state.node_id, point, found, candidates, matched: match?.id || '', already_found: match?.found || false })
+      if (match?.found) this.status = `已发现：${match.label}`
+      else if (match) { this.status = `发现线索：${match.label}`; this.storyAction('hotspot', match.id) }
       else this.status = '这里没有发现线索，再观察画面中的异常物品'
       return
     }
@@ -1091,7 +1092,16 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
       const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }
       r.register(`story:hotspot:${spot.id}`, rect)
     }
-    r.text(`现场勘查 ${found.length}/${Number(node.required || (node.hotspots || []).length)}`, 540, y + 20, 25, found.length >= Number(node.required || 1) ? '#6acb9a' : muted, 'center', 'bold'); y += 68
+    r.text(`现场勘查 ${found.length}/${Number(node.required || (node.hotspots || []).length)}`, 540, y + 20, 25, found.length >= Number(node.required || 1) ? '#6acb9a' : muted, 'center', 'bold'); y += 62
+    const spots = node.hotspots || []
+    for (let i = 0; i < spots.length; i += 1) {
+      const spot = spots[i], selected = found.includes(spot.id), col = i % 2, row = Math.floor(i / 2)
+      const clueRect = { x: contentX + col * 514, y: y + row * 70, w: 500, h: 56 }
+      r.rect(clueRect.x, clueRect.y, clueRect.w, clueRect.h, selected ? '#173529' : panel, 10, selected ? '#3d765d' : line, 2)
+      r.text(selected ? `✓ ${spot.label || spot.id}` : '未发现', clueRect.x + 18, clueRect.y + 28, 21, selected ? '#e9f5ef' : muted, 'left', selected ? 'bold' : 'normal', 455)
+    }
+    y += Math.ceil(spots.length / 2) * 70
+    if (this.status) { r.text(this.status, 540, y + 20, 21, muted, 'center', 'normal', contentW); y += 52 }
   } else if (node.type === 'ending') {
     button('story:finish', '案件已解决', red)
   } else {
