@@ -337,7 +337,8 @@ class OddSpotApp {
   pressGameImage(point) {
     if (!this.game || this.game.complete || this.game.timedOut || this.game.loading) return
     if (this.game.level.mode === 'image_puzzle') { const p=this.game.puzzle,cell=cellFromNormalizedPoint(point.x,point.y,p.rows,p.cols); if(cell>=0)this.pressPuzzleCell(cell); return }
-    for (const difference of this.game.level.differences) {
+    if (this.game.level.mode === 'interactive_story') return
+    for (const difference of (this.game.level.differences || [])) {
       const id = String(difference.id)
       if (!this.game.found[id] && this.containsDifference(difference, point)) { this.markFound(difference); return }
     }
