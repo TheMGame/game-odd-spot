@@ -269,6 +269,7 @@ class OddSpotApp {
     const g = game || this.game
     if (!g || !g.level) return 0
     const level = g.level
+    if (level.mode === 'interactive_story' && level.time_limit_seconds == null) return 0
     const configured = level.time_limit_seconds != null ? level.time_limit_seconds : (level.mode === 'image_puzzle' && level.puzzle && level.puzzle.time_limit_seconds != null ? level.puzzle.time_limit_seconds : config.GAME_TIME_LIMIT_SECONDS)
     return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
   }

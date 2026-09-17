@@ -317,6 +317,7 @@ class OddSpotApp {
     const g = game || this.game
     if (!g || !g.level) return 0
     const level = g.level
+    if (level.mode === 'interactive_story' && level.time_limit_seconds == null) return 0
     const configured = level.time_limit_seconds != null ? level.time_limit_seconds : (level.mode === 'image_puzzle' && level.puzzle && level.puzzle.time_limit_seconds != null ? level.puzzle.time_limit_seconds : config.GAME_TIME_LIMIT_SECONDS)
     return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
   }
@@ -943,6 +944,7 @@ class OddSpotApp {
     this.game.view.y = clamp(this.game.view.y, -limitY, limitY)
   }
   handleAction(id) {
+    if (id?.startsWith('story:') && this.game?.story && !this.game.story.state.completed) { this.game.timedOut = false; this.game.finishing = false }
     if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next', 'levelRank', 'shareGame', 'dismissReward'].includes(id)) return
     if (id) this.audio.click()
     if(id.startsWith('story:')){const parts=id.split(':');if(parts[1]==='finish')this.finishAfterFeedback();else this.storyAction(parts[1],parts.slice(2).join(':'));return}
