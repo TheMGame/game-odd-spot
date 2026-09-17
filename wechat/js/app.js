@@ -275,10 +275,10 @@ class OddSpotApp {
   async openDaily() {
     const series = this.seriesById('daily_task')
     if (!series || !(series.levels || []).length) { this.status = '每日挑战系列中还没有已发布关卡'; return }
-    this.selectedSeriesId = 'daily_task'; this.analytics.track('theme_click', { source: 'daily_challenge', level_id: series.levels[0].id, fallback: false }); await this.loadGame(series.levels[0].id)
+    this.selectedSeriesId = 'daily_task'; this.analytics.track('theme_click', { source: 'daily_challenge', level_id: series.levels[0].id, fallback: false }); await this.loadGame(series.levels[0].id, { freshStory: true })
   }
 
-  async loadGame(levelId) {
+  async loadGame(levelId, options = {}) {
     this.audio.click(); this.scene = 'game'; this.selectedLevelId = levelId; this.modal = ''; this.status = '加载关卡…'
     this.game = { loading: true, level: null, image: null, baseImage: null, found: {}, markers: [], attempt: null, startedAt: Date.now(), elapsedBefore: 0, imageRects: [], view: { zoom: 1, x: 0, y: 0 }, foundInfo: null, complete: false, finishing: false, scoreResult: null }
     const result = await this.api.getLevel(levelId)
@@ -288,7 +288,8 @@ class OddSpotApp {
     if (!validation.ok) { this.status = `关卡加载失败：${validation.error}`; return }
     this.game.level = level
     this.audio.setLevelMusic(level.assets && level.assets.music ? level.assets.music.url : '')
-    const attempt = this.progress.getOrCreate(level.level_id, level.level_version)
+    const startFresh = options.restart || (options.freshStory && level.mode === 'interactive_story')
+    const attempt = startFresh ? this.progress.restart(level.level_id, level.level_version) : this.progress.getOrCreate(level.level_id, level.level_version)
     if (level.mode === 'interactive_story') {
       this.game.story = new StoryRuntime(level.story, attempt.story)
       this.game.storyImage = null; this.game.storyImageKey = ''
@@ -424,8 +425,8 @@ class OddSpotApp {
   }
   nextLevelId() { const series = this.seriesById(this.selectedSeriesId); if (!series) return ''; const levels = series.levels || []; const index = levels.findIndex((item) => String(item.id) === String(this.selectedLevelId)); return index >= 0 && index + 1 < levels.length ? String(levels[index + 1].id) : '' }
   prefetchNext() { const next = this.nextLevelId(); if (!next) return; this.api.getLevel(next).then(async (result) => { const level = result.ok ? result.data.data : null; if (level && level.assets?.image) await this.loadImageBatch([{ key: `prefetch:${next}`, descriptor: level.assets.image }]) }).catch(() => {}) }
-  async replay() { if (!this.game) return; const level = this.game.level; this.progress.restart(level.level_id, level.level_version); this.loadGame(level.level_id) }
-  nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id); else this.showLevelSelect(this.selectedSeriesId) }
+  async replay() { if (!this.game) return; this.loadGame(this.game.level.level_id, { restart: true }) }
+  nextLevel() { const id = this.nextLevelId(); if (id) this.loadGame(id, { freshStory: true }); else this.showLevelSelect(this.selectedSeriesId) }
 
   showSettings() { this.audio.click(); this.scene = 'settings'; this.scroll.settings = 0; this.modal = ''; this.loadLocales() }
   async showLeaderboard(scope = 'overall', levelId = '') { this.audio.click(); this.scene = 'leaderboard'; this.scroll.leaderboard = 0; this.modal = ''; this.leaderboard = { loading: true, scope, levelId, entries: [], my_entry: null, error: '' }; const result = scope === 'level' && levelId ? await this.api.getLevelLeaderboard(levelId) : await this.api.getOverallLeaderboard(); if (result.ok) this.leaderboard = Object.assign({}, result.data.data || {}, { loading: false, levelId }); else this.leaderboard = Object.assign({}, this.leaderboard, { loading: false, error: result.error || '排行榜加载失败' }) }
@@ -960,7 +961,7 @@ class OddSpotApp {
     else if (id === 'home') this.showHome()
     else if (id === 'levels') this.showLevelSelect(this.selectedSeriesId)
     else if (id.startsWith('series:')) this.showLevelSelect(id.slice(7))
-    else if (id.startsWith('level:')) this.loadGame(id.slice(6))
+    else if (id.startsWith('level:')) this.loadGame(id.slice(6), { freshStory: true })
     else if (id.startsWith('locked:')) this.modal = 'locked'
     else if (id === 'hint') this.useHint()
     else if (id === 'knowledge') { this.scroll.knowledge = 0; this.modal = 'knowledge' }
