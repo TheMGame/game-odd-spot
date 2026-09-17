@@ -321,7 +321,7 @@ class OddSpotApp {
     return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
   }
   async loadStoryNodeMedia() { if (!this.game?.story) return; const node=this.game.story.node(),descriptor=node&&node.image,key=descriptor&&(descriptor.asset_id||descriptor.url)||'';this.game.storyImage=null;this.game.storyImageKey=key;if(descriptor)try{const loaded=(await this.loadImageBatch([{key:`story:${key}`,descriptor}]))[0];if(loaded&&loaded.ok&&this.game?.storyImageKey===key)this.game.storyImage=loaded.image}catch(_){}if(node&&node.type==='puzzle'){const cfg=node.puzzle||{},rows=Number(cfg.rows||3),cols=Number(cfg.cols||3),saved=this.game.story.state.puzzles[this.game.story.state.node_id]||{},total=rows*cols,order=isPermutation(saved.order,total)?saved.order.slice():shuffleDerangement(rows,cols);this.game.puzzle={rows,cols,order,selectedCell:-1,moves:Number(saved.moves||0),initialMisplaced:total}}else this.game.puzzle=null;const music=node&&node.music&&node.music.url;if(music)this.audio.setLevelMusic(music,Number(node.music.volume||.35));if(node&&node.voice&&node.voice.url&&this.audio.playVoice)this.audio.playVoice(node.voice.url,Number(node.voice.volume||1))}
-  async storyAction(kind,id){const runtime=this.game?.story;if(!runtime)return;const before=runtime.state.node_id;if(kind==='next')runtime.next();else if(kind==='choice')runtime.choose(id);else if(kind==='hotspot')runtime.findHotspot(id);else if(kind==='sequence')runtime.selectSequence(id);if(runtime.state.node_id!==before)this.scroll.game=0;this.game.attempt.story=runtime.snapshot();this.saveAttempt();await this.loadStoryNodeMedia();const effect=runtime.node()?.effect;if(effect?.url&&this.audio.playAssetEffect)this.audio.playAssetEffect(effect.url,Number(effect.volume||.65));if(runtime.state.completed)this.finishAfterFeedback()}
+  async storyAction(kind,id){const runtime=this.game?.story;if(!runtime)return;const before=runtime.state.node_id;let accepted=false;if(kind==='next')accepted=runtime.next();else if(kind==='choice')accepted=runtime.choose(id);else if(kind==='hotspot')accepted=runtime.findHotspot(id);else if(kind==='sequence')accepted=runtime.selectSequence(id);console.info('[OddSpot][StoryTap] action',{kind,id,node_before:before,node_after:runtime.state.node_id,accepted,hotspots:runtime.state.hotspots[before]||[]});if(runtime.state.node_id!==before)this.scroll.game=0;this.game.attempt.story=runtime.snapshot();this.saveAttempt();await this.loadStoryNodeMedia();const effect=runtime.node()?.effect;if(effect?.url&&this.audio.playAssetEffect)this.audio.playAssetEffect(effect.url,Number(effect.volume||.65));if(runtime.state.completed)this.finishAfterFeedback()}
   checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
   failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
@@ -339,10 +339,12 @@ class OddSpotApp {
     if (this.game.level.mode === 'image_puzzle') { const p=this.game.puzzle,cell=cellFromNormalizedPoint(point.x,point.y,p.rows,p.cols); if(cell>=0)this.pressPuzzleCell(cell); return }
     if (this.game.level.mode === 'interactive_story') {
       const runtime = this.game.story, node = runtime && runtime.node()
-      if (!node || node.type !== 'hotspot') return
+      if (!node || node.type !== 'hotspot') { console.info('[OddSpot][StoryTap] image ignored', { node_id: runtime?.state?.node_id, node_type: node?.type, point }); return }
       const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
-      const spot = (node.hotspots || []).find((item) => !found.includes(item.id) && Math.hypot(point.x - Number(item.x), point.y - Number(item.y)) <= Math.max(.085, Number(item.radius || 0)))
-      if (spot) this.storyAction('hotspot', spot.id)
+      const candidates = (node.hotspots || []).filter((item) => !found.includes(item.id)).map((item) => ({ id: item.id, distance: Number(Math.hypot(point.x - Number(item.x), point.y - Number(item.y)).toFixed(4)), radius: Math.max(.085, Number(item.radius || 0)) }))
+      const match = candidates.find((item) => item.distance <= item.radius)
+      console.info('[OddSpot][StoryTap] image test', { node_id: runtime.state.node_id, point, found, candidates, matched: match?.id || '' })
+      if (match) this.storyAction('hotspot', match.id)
       else this.status = '这里没有发现线索，再观察画面中的异常物品'
       return
     }
@@ -888,6 +890,7 @@ class OddSpotApp {
     const points = Array.from(event.touches || []).map((touch) => this.renderer.logicalTouch(touch)); if (!points.length) return
     const point = points[0], hit = this.renderer.hit(point)
     this.touch = { start: point, last: point, moved: 0, hit, points, scrollStart: this.currentScroll(), gameViewStart: this.game ? Object.assign({}, this.game.view) : null, pinchDistance: points.length >= 2 ? distance(points[0], points[1]) : 0, pinchZoom: this.game ? this.game.view.zoom : 1 }
+    if (this.scene === 'game' && this.game?.story) console.info('[OddSpot][StoryTap] start', { node_id: this.game.story.state.node_id, point, hit: hit?.id || '', scroll: this.scroll.game || 0 })
     if(!this.modal&&this.scene==='game'&&this.game?.puzzle&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.game.puzzle.drag=null;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
   }
   onTouchMove(event) {
@@ -908,6 +911,7 @@ class OddSpotApp {
   onTouchEnd() {
     if (!this.touch) return
     const touch = this.touch; this.touch = null
+    if (this.scene === 'game' && this.game?.story) console.info('[OddSpot][StoryTap] end', { node_id: this.game.story.state.node_id, start: touch.start, end: touch.last, moved: Number(touch.moved.toFixed(2)), start_hit: touch.hit?.id || '', end_hit: this.renderer.hit(touch.last)?.id || '', image_rects: (this.game.imageRects || []).map((item) => ({ panel: item.panel, draw: item.draw })) })
     if (this.game && this.game.complete && this.game.knowledgeIntro && !this.game.knowledgeIntro.done) { this.game.knowledgeIntro.done = true; return }
     if(touch.puzzleSource>=0&&this.game?.puzzle){this.game.puzzle.drag=null;const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
     if (this.scene === 'game' && this.game) this.saveAttempt()
