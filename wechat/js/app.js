@@ -337,7 +337,15 @@ class OddSpotApp {
   pressGameImage(point) {
     if (!this.game || this.game.complete || this.game.timedOut || this.game.loading) return
     if (this.game.level.mode === 'image_puzzle') { const p=this.game.puzzle,cell=cellFromNormalizedPoint(point.x,point.y,p.rows,p.cols); if(cell>=0)this.pressPuzzleCell(cell); return }
-    if (this.game.level.mode === 'interactive_story') return
+    if (this.game.level.mode === 'interactive_story') {
+      const runtime = this.game.story, node = runtime && runtime.node()
+      if (!node || node.type !== 'hotspot') return
+      const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
+      const spot = (node.hotspots || []).find((item) => !found.includes(item.id) && Math.hypot(point.x - Number(item.x), point.y - Number(item.y)) <= Math.max(.085, Number(item.radius || 0)))
+      if (spot) this.storyAction('hotspot', spot.id)
+      else this.status = '这里没有发现线索，再观察画面中的异常物品'
+      return
+    }
     for (const difference of (this.game.level.differences || [])) {
       const id = String(difference.id)
       if (!this.game.found[id] && this.containsDifference(difference, point)) { this.markFound(difference); return }
@@ -1073,8 +1081,9 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
   } else if (node.type === 'hotspot') {
     const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
     for (const spot of node.hotspots || []) if (!found.includes(spot.id) && draw) {
-      const radius = Math.max(30, Number(spot.radius || .045) * draw.w)
+      const radius = Math.max(44, Math.max(.085, Number(spot.radius || 0)) * draw.w)
       const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }
+      r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(232,188,98,.08)', 'rgba(232,188,98,.28)', 2)
       r.register(`story:hotspot:${spot.id}`, rect)
     }
     r.text(`现场勘查 ${found.length}/${Number(node.required || (node.hotspots || []).length)}`, 540, y + 20, 25, found.length >= Number(node.required || 1) ? '#6acb9a' : muted, 'center', 'bold'); y += 68
