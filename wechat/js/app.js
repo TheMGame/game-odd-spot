@@ -1038,7 +1038,10 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
   r.rect(0, 106 + top, 1080 * (currentIndex + 1) / Math.max(1, nodeIds.length), 6, gold)
   if (!node) { r.text('故事节点加载失败', 540, 320, 28, red, 'center'); return }
 
-  const clip = { x: 0, y: 112 + top, w: 1080, h: h - 112 - top }
+  // Keep story controls above both the OS home indicator and the simulator's
+  // bottom gesture zone. Some WeChat runtimes report safeBottom as zero.
+  const bottomInset = Math.max(96, Number(r.safeBottom || 0) + 48)
+  const clip = { x: 0, y: 112 + top, w: 1080, h: h - 112 - top - bottomInset }
   const c = r.ctx; c.save(); c.beginPath(); c.rect(clip.x, clip.y, clip.w, clip.h); c.clip()
   let y = clip.y + 30 - (this.scroll.game || 0)
   const contentX = 28, contentW = 1024
@@ -1111,7 +1114,7 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
   } else {
     button('story:next', node.button || '继续', '#d5a64e')
   }
-  y += 140
+  y += bottomInset + 80
   c.restore()
   this.maxScroll = Math.max(0, y + (this.scroll.game || 0) - clip.y - clip.h)
 }
