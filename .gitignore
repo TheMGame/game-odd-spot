@@ -38,3 +38,4 @@ scripts/import-daily-task-*.ps1
 
 .DS_Store
 deploy.env
+.tmp-go-cache

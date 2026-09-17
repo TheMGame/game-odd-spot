@@ -60,7 +60,8 @@ class AudioManager {
     if (this.players.levelMusic) { this.players.levelMusic.pause(); this.players.levelMusic = null; this.levelMusicUrl = '' }
     if (this.preferences.data.music && this.unlocked) this.play(this.players.music)
   }
-  pause() { if (this.players.music) this.players.music.pause(); if (this.players.levelMusic) this.players.levelMusic.pause() }
+  playVoice(url, volume = 1) { if (!url) return; if (this.players.voice) this.players.voice.pause(); this.players.voice = this.create(url, false, volume); if (this.preferences.data.effects && this.unlocked) this.play(this.players.voice) }
+  pause() { if (this.players.music) this.players.music.pause(); if (this.players.levelMusic) this.players.levelMusic.pause(); if (this.players.voice) this.players.voice.pause() }
   resume() { if (this.preferences.data.music && this.unlocked) this.play(this.currentMusic()) }
 }
 

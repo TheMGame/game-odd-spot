@@ -26,6 +26,7 @@ import (
 	"time"
 
 	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 
 	"game-odd-spot/server/internal/account"
 	"game-odd-spot/server/internal/analytics"
@@ -188,6 +189,8 @@ func (a *api) publicCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := a.deps.Catalog.Public(r.Context(), catalog.PublicQuery{
 		UserID: userID, Locale: locale, DefaultLocale: a.deps.Config.Locale,
+		Platform:   strings.ToLower(strings.TrimSpace(r.Header.Get("X-Client-Platform"))),
+		AppVersion: strings.TrimSpace(r.Header.Get("X-App-Version")),
 	})
 	if err != nil {
 		a.deps.Logger.Error(
@@ -442,6 +445,8 @@ func assetExtAndKind(contentType string) (string, string) {
 		return ".png", "image"
 	case "image/jpeg":
 		return ".jpg", "image"
+	case "image/webp":
+		return ".webp", "image"
 	case "audio/mpeg", "audio/mp3":
 		return ".mp3", "audio"
 	case "audio/wav", "audio/x-wav", "audio/wave":
@@ -462,6 +467,8 @@ func contentTypeForExt(ext string) (string, string) {
 		return "image/jpeg", "image"
 	case ".png":
 		return "image/png", "image"
+	case ".webp":
+		return "image/webp", "image"
 	case ".mp3":
 		return "audio/mpeg", "audio"
 	case ".wav":
@@ -579,7 +586,7 @@ func (a *api) uploadAsset(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	ext, kind := assetExtAndKind(contentType)
 	if ext == "" {
-		writeError(w, 415, "UNSUPPORTED_MEDIA_TYPE", "only image/png, image/jpeg and audio (mp3/wav/ogg/m4a) are supported")
+		writeError(w, 415, "UNSUPPORTED_MEDIA_TYPE", "only image/png, image/jpeg, image/webp and audio (mp3/wav/ogg/m4a) are supported")
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 15<<20))

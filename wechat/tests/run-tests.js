@@ -27,6 +27,7 @@ global.wx = {
 const { SessionStore, Preferences, ProgressStore } = require('../js/core/storage')
 const { pointInPolygon } = require('../js/core/utils')
 const { OddSpotApp, validateLevel, scoreToStars } = require('../js/app')
+const { validateStory, StoryRuntime } = require('../js/core/story')
 const config = require('../js/config')
 require('./puzzle.test')
 
@@ -46,6 +47,10 @@ function validLevel() {
 assert.deepStrictEqual(validateLevel(validLevel()), { ok: true })
 assert.deepStrictEqual(validateLevel({...validLevel(),mode:'image_puzzle',differences:undefined,puzzle:{rows:2,cols:3,operations:[{type:'swap',cells:[0,3]},{type:'swap',cells:[1,4]},{type:'swap',cells:[2,5]}]}}),{ok:true})
 assert.strictEqual(validateLevel({...validLevel(),mode:'spot_difference'}).ok,false)
+const story={start_node:'intro',nodes:{intro:{type:'scene',next:'choice'},choice:{type:'choice',choices:[{id:'inspect',label:'调查',next:'search'}]},search:{type:'hotspot',required:1,hotspots:[{id:'clue',x:.5,y:.5,evidence_id:'e1'}],next:'ending'},ending:{type:'ending',ending_id:'solved'}}}
+assert.deepStrictEqual(validateStory(story),{ok:true})
+assert.deepStrictEqual(validateLevel({schema_version:1,level_id:'story-1',mode:'interactive_story',assets:{},story}),{ok:true})
+const storyRuntime=new StoryRuntime(story);storyRuntime.next();storyRuntime.choose('inspect');storyRuntime.findHotspot('clue');assert.strictEqual(storyRuntime.state.completed,true);assert.deepStrictEqual(storyRuntime.state.evidence,['e1'])
 const invalid = validLevel(); invalid.differences[0].radius = .5
 assert.strictEqual(validateLevel(invalid).ok, false)
 assert.strictEqual(pointInPolygon({ x: .5, y: .5 }, [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]), true)

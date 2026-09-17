@@ -2,7 +2,7 @@ const runtime = typeof window !== 'undefined' && window.ODDSPOT_CONFIG ? window.
 
 module.exports = {
   APP_NAME: '错位大侦探',
-  APP_VERSION: '0.2.0',
+  APP_VERSION: '0.3.0',
   API_BASE_URL: String(runtime.API_BASE_URL || 'https://oddspot.guaguatu.com').replace(/\/$/, ''),
   USER_SERVER_BASE_URL: String(runtime.USER_SERVER_BASE_URL || 'https://api.guaguatu.com').replace(/\/$/, ''),
   USER_SERVER_APP_ID: 'game_odd_spot',

@@ -16,6 +16,17 @@ func TestValidatePuzzleRuntime(t *testing.T) {
 	}
 }
 
+func TestValidateInteractiveStory(t *testing.T) {
+	runtime := map[string]any{"mode": "interactive_story", "assets": map[string]any{}, "story": map[string]any{"start_node": "intro", "nodes": map[string]any{"intro": map[string]any{"type": "scene", "next": "ending"}, "ending": map[string]any{"type": "ending", "ending_id": "solved"}}}}
+	if err := validateRuntimeLevel(runtime, true); err != nil {
+		t.Fatalf("valid story rejected: %v", err)
+	}
+	runtime["story"].(map[string]any)["start_node"] = "missing"
+	if err := validateRuntimeLevel(runtime, true); err == nil {
+		t.Fatal("missing start node accepted")
+	}
+}
+
 func TestValidateSharedTimeLimit(t *testing.T) {
 	runtime := puzzleRuntime()
 	runtime["time_limit_seconds"] = 180.0

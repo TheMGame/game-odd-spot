@@ -13,11 +13,17 @@ func validateRuntimeLevel(runtime map[string]any, published bool) error {
 		}
 	}
 	mode, _ := runtime["mode"].(string)
-	if mode != "find_anachronism" && mode != "image_puzzle" {
+	if mode != "find_anachronism" && mode != "image_puzzle" && mode != "interactive_story" {
 		return errors.New("unsupported level mode")
 	}
 	assets, ok := runtime["assets"].(map[string]any)
-	if !ok || assets["image"] == nil {
+	if !ok {
+		return errors.New("assets is required")
+	}
+	if mode == "interactive_story" {
+		return validateInteractiveStory(runtime)
+	}
+	if assets["image"] == nil {
 		return errors.New("assets.image is required")
 	}
 	width, wok := number(assets["width"])
@@ -91,6 +97,62 @@ func validateRuntimeLevel(runtime map[string]any, published bool) error {
 			return fmt.Errorf("puzzle cell is used more than once")
 		}
 		used[a], used[b] = true, true
+	}
+	return nil
+}
+
+func validateInteractiveStory(runtime map[string]any) error {
+	story, ok := runtime["story"].(map[string]any)
+	if !ok {
+		return errors.New("story is required")
+	}
+	start, _ := story["start_node"].(string)
+	nodes, ok := story["nodes"].(map[string]any)
+	if !ok || start == "" || len(nodes) == 0 || len(nodes) > 300 || nodes[start] == nil {
+		return errors.New("invalid story structure")
+	}
+	allowed := map[string]bool{"scene": true, "dialogue": true, "choice": true, "hotspot": true, "evidence": true, "sequence": true, "puzzle": true, "ending": true}
+	endings := 0
+	for id, raw := range nodes {
+		node, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid story node %s", id)
+		}
+		typeName, _ := node["type"].(string)
+		if !allowed[typeName] {
+			return fmt.Errorf("unsupported story node type %s", id)
+		}
+		if typeName == "ending" {
+			endings++
+		}
+		if next, _ := node["next"].(string); next != "" && nodes[next] == nil {
+			return fmt.Errorf("story node %s targets missing node %s", id, next)
+		}
+		if choices, exists := node["choices"].([]any); exists {
+			for _, choiceRaw := range choices {
+				choice, ok := choiceRaw.(map[string]any)
+				next, _ := choice["next"].(string)
+				choiceID, _ := choice["id"].(string)
+				label, _ := choice["label"].(string)
+				if !ok || choiceID == "" || label == "" || next == "" || nodes[next] == nil {
+					return fmt.Errorf("invalid story choice in %s", id)
+				}
+			}
+		}
+		if spots, exists := node["hotspots"].([]any); exists {
+			for _, spotRaw := range spots {
+				spot, ok := spotRaw.(map[string]any)
+				x, xok := number(spot["x"])
+				y, yok := number(spot["y"])
+				spotID, _ := spot["id"].(string)
+				if !ok || spotID == "" || !xok || !yok || x < 0 || x > 1 || y < 0 || y > 1 {
+					return fmt.Errorf("invalid story hotspot in %s", id)
+				}
+			}
+		}
+	}
+	if endings == 0 {
+		return errors.New("story requires an ending")
 	}
 	return nil
 }

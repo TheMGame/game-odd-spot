@@ -4,6 +4,7 @@ const { I18n } = require('./core/i18n')
 const { KEYS, read, write, SessionStore, Preferences, ProgressStore } = require('./core/storage')
 const { clamp, dateString, pointInPolygon, formatElapsed } = require('./core/utils')
 const { shuffleDerangement, isSolved, countMisplaced, isPermutation, cellFromNormalizedPoint, puzzleGroups, groupForCell, movePuzzleGroup, findHintMove, validatePuzzleConfig } = require('./core/puzzle')
+const { validateStory, StoryRuntime } = require('./core/story')
 const { ApiClient } = require('./services/api')
 const { AudioManager } = require('./services/audio')
 const { AssetManager } = require('./services/assets')
@@ -241,11 +242,15 @@ class OddSpotApp {
     if (!validation.ok) { this.status = `关卡加载失败：${validation.error}`; return }
     this.game.level = level
     this.audio.setLevelMusic(level.assets && level.assets.music ? level.assets.music.url : '')
-    try {
-      this.game.image = await this.assets.loadDescriptor(level.assets.image)
-    } catch (error) { this.status = `图片加载失败：${error.message || error}`; return }
     const attempt = this.progress.getOrCreate(level.level_id, level.level_version)
     this.game.attempt = attempt; this.game.elapsedBefore = Number(attempt.elapsed_ms || 0); this.game.startedAt = Date.now()
+    if (level.mode === 'interactive_story') {
+      this.game.story = new StoryRuntime(level.story, attempt.story)
+      this.game.storyImage = null; this.game.storyImageKey = ''
+      await this.loadStoryNodeMedia()
+    } else try {
+      this.game.image = await this.assets.loadDescriptor(level.assets.image)
+    } catch (error) { this.status = `图片加载失败：${error.message || error}`; return }
     this.game.view = { zoom: Number(attempt.zoom || 1), x: Number(attempt.view_offset_x || 0), y: Number(attempt.view_offset_y || 0) }
     if (level.mode === 'image_puzzle') { const total = level.puzzle.rows * level.puzzle.cols; const resumed = isPermutation(attempt.puzzle_order, total); const order = resumed ? attempt.puzzle_order.slice() : shuffleDerangement(level.puzzle.rows, level.puzzle.cols); this.game.puzzle = { rows: level.puzzle.rows, cols: level.puzzle.cols, order, selectedCell: -1, moves: resumed ? Number(attempt.puzzle_moves || 0) : 0, initialMisplaced: total }; if (!resumed) { this.game.attempt.puzzle_order = order.slice(); this.game.attempt.puzzle_moves = 0; this.progress.save(level.level_id, this.game.attempt) } }
     for (const id of attempt.found || []) {
@@ -253,7 +258,7 @@ class OddSpotApp {
       if (difference) this.restoreFound(difference)
     }
     this.game.loading = false
-    this.status = level.mode === 'image_puzzle' ? '拖动图片块；已拼接部分会整体移动' : '滚轮或双指缩放 · 放大后拖动查看'
+    this.status = level.mode === 'interactive_story' ? '点击继续故事' : level.mode === 'image_puzzle' ? '拖动图片块；已拼接部分会整体移动' : '滚轮或双指缩放 · 放大后拖动查看'
     const started = await this.sync.submit(`/v1/levels/${encodeURIComponent(level.level_id)}/start`, { attempt_id: attempt.attempt_id, level_version: Number(level.level_version) }, attempt.start_idempotency_key)
     if (started.queued) this.status = '离线模式：进度将在后续同步'
     this.analytics.track('level_start', { level_id: level.level_id, level_version: level.level_version })
@@ -266,6 +271,28 @@ class OddSpotApp {
     const level = g.level
     const configured = level.time_limit_seconds != null ? level.time_limit_seconds : (level.mode === 'image_puzzle' && level.puzzle && level.puzzle.time_limit_seconds != null ? level.puzzle.time_limit_seconds : config.GAME_TIME_LIMIT_SECONDS)
     return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
+  }
+
+  async loadStoryNodeMedia() {
+    if (!this.game?.story) return
+    const node = this.game.story.node(), descriptor = node && node.image
+    const key = descriptor && (descriptor.asset_id || descriptor.url) || ''
+    this.game.storyImage = null; this.game.storyImageKey = key
+    if (descriptor) try { const image = await this.assets.loadDescriptor(descriptor); if (this.game?.storyImageKey === key) this.game.storyImage = image } catch (_) {}
+    if(node&&node.type==='puzzle'){const cfg=node.puzzle||{},rows=Number(cfg.rows||3),cols=Number(cfg.cols||3),saved=this.game.story.state.puzzles[this.game.story.state.node_id]||{},total=rows*cols,order=isPermutation(saved.order,total)?saved.order.slice():shuffleDerangement(rows,cols);this.game.puzzle={rows,cols,order,selectedCell:-1,moves:Number(saved.moves||0),initialMisplaced:total}}
+    else this.game.puzzle=null
+    const music = node && node.music && node.music.url
+    if (music) this.audio.setLevelMusic(music, Number(node.music.volume || .35))
+    if (node && node.voice && node.voice.url && this.audio.playVoice) this.audio.playVoice(node.voice.url, Number(node.voice.volume || 1))
+  }
+  async storyAction(kind, id) {
+    const runtime = this.game?.story; if (!runtime) return
+    if (kind === 'next') runtime.next()
+    else if (kind === 'choice') runtime.choose(id)
+    else if (kind === 'hotspot') runtime.findHotspot(id)
+    else if (kind === 'sequence') runtime.selectSequence(id)
+    this.game.attempt.story = runtime.snapshot(); this.saveAttempt(); await this.loadStoryNodeMedia()
+    if (runtime.state.completed) this.finishAfterFeedback()
   }
   checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
   failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
@@ -289,7 +316,7 @@ class OddSpotApp {
     this.status = this.i18n.t('noDifference')
     this.analytics.track('wrong_tap', { level_id: this.game.level.level_id, x: point.x, y: point.y })
   }
-  movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='无法向该方向移动：已到边界，或会拆散已拼好的组合';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();this.finishAfterFeedback()}return true }
+  movePuzzle(source,target) { if(this.game.complete||this.game.timedOut)return false; const p=this.game.puzzle,next=movePuzzleGroup(p.order,p.rows,p.cols,source,target);p.selectedCell=-1;if(!next){this.status='无法向该方向移动：已到边界，或会拆散已拼好的组合';return false}const before=puzzleGroups(p.order,p.rows,p.cols).length;p.order=next;p.moves++;const after=puzzleGroups(p.order,p.rows,p.cols).length;this.status=after<before?'拼接成功，块组已合并':'拖动图片块；已拼接部分会整体移动';if(after<before)this.audio.correct();if(this.game.story){this.game.story.state.puzzles[this.game.story.state.node_id]={order:p.order.slice(),moves:p.moves}}this.analytics.track('puzzle_group_move',{level_id:this.game.level.level_id,source,target,group_size:groupForCell(next,p.rows,p.cols,target).length,moves:p.moves,groups_remaining:after});this.saveAttempt();if(isSolved(p.order)){this.audio.correct();if(this.game.story){this.game.story.completePuzzle(p.moves);this.storyAction('refresh')}else this.finishAfterFeedback()}return true }
   markFound(difference) {
     const id = String(difference.id); this.game.found[id] = true; this.game.markers.push({ point: this.differenceCenter(difference), at: Date.now() }); this.audio.correct()
     this.game.foundInfo = { title: `已找到：${difference.label || difference.id || '时代错误'}`, era: `${this.i18n.t('clue')}：${difference.era || '暂无线索'}`, reason: `${this.i18n.t('clueReasoning')}：${String(difference.explanation || '').trim() || '这条素材尚缺少推理说明，请通过举报反馈。'}` }
@@ -301,7 +328,7 @@ class OddSpotApp {
   }
   saveAttempt() {
     if (!this.game || !this.game.attempt || !this.game.level) return
-    Object.assign(this.game.attempt, { found: Object.keys(this.game.found), elapsed_ms: this.elapsed(), zoom: this.game.view.zoom, view_offset_x: this.game.view.x, view_offset_y: this.game.view.y }); if(this.game.puzzle){this.game.attempt.puzzle_order=this.game.puzzle.order.slice();this.game.attempt.puzzle_moves=this.game.puzzle.moves}
+    Object.assign(this.game.attempt, { found: Object.keys(this.game.found), elapsed_ms: this.elapsed(), zoom: this.game.view.zoom, view_offset_x: this.game.view.x, view_offset_y: this.game.view.y }); if(this.game.puzzle){this.game.attempt.puzzle_order=this.game.puzzle.order.slice();this.game.attempt.puzzle_moves=this.game.puzzle.moves}if(this.game.story)this.game.attempt.story=this.game.story.snapshot()
     this.progress.save(this.game.level.level_id, this.game.attempt)
   }
   businessDate() { return this.api.businessDate || dateString() }
@@ -619,6 +646,7 @@ class OddSpotApp {
 
   renderGame() {
     const r = this.renderer, h = r.height, top = r.safeTop, game = this.game
+    if (game?.level?.mode === 'interactive_story') { this.renderStoryGame(); return }
     r.text(game && game.level ? game.level.title || '时代寻错' : '加载关卡', 540, 52 + top, 36, COLORS.text, 'center', 'bold', 660)
     const total = game && game.level ? (game.level.mode==='image_puzzle'?(game.puzzle?.initialMisplaced||0):(game.level.differences||[]).length) : 0, found = game ? (game.level?.mode==='image_puzzle'?Math.max(0,total-countMisplaced(game.puzzle?.order||[])):Object.keys(game.found).length) : 0
     r.progress(18, 125 + top, 1044, 16, found, total || 1)
@@ -657,6 +685,36 @@ class OddSpotApp {
     if (game.complete) { if (game.knowledgeIntro && !game.knowledgeIntro.done) this.renderKnowledgeIntro(); else this.renderComplete() }
     else if (game.timedOut) this.renderTimeout()
   }
+  renderStoryGame() {
+    const r = this.renderer, h = r.height, top = r.safeTop, game = this.game, runtime = game && game.story, node = runtime && runtime.node()
+    r.iconButton('levels', 14, 12 + top, 96, 'back')
+    r.text(game?.level?.title || '互动故事', 540, 58 + top, 36, COLORS.text, 'center', 'bold', 760)
+    if (!node) { r.text('故事节点加载失败', 540, 320, 28, COLORS.danger, 'center'); return }
+    const imageRect = { x: 24, y: 120 + top, w: 1032, h: Math.min(720, Math.max(360, h * .46)) }
+    r.rect(imageRect.x, imageRect.y, imageRect.w, imageRect.h, COLORS.navy, 18, COLORS.cardBorder, 2)
+    let draw = null
+    if (game.storyImage) {
+      r.image(game.storyImage, imageRect, 'cover')
+      r.rect(imageRect.x, imageRect.y, imageRect.w, imageRect.h, 'rgba(10,20,31,.58)', 18)
+      draw = r.image(game.storyImage, imageRect, 'contain')
+    }
+    const cardY = imageRect.y + imageRect.h + 22
+    r.rect(24, cardY, 1032, h - cardY - 24, COLORS.surface, 18, COLORS.cardBorder, 2)
+    r.text(node.speaker || node.title || (node.type === 'ending' ? '案件已解决' : '调查记录'), 54, cardY + 52, 31, COLORS.cinnabar, 'left', 'bold', 950)
+    r.wrappedText(node.text || '', 54, cardY + 102, 972, 27, COLORS.text, 40, 6)
+    if (node.type === 'choice') (node.choices || []).slice(0, 5).forEach((choice, index) => r.button(`story:choice:${choice.id}`, { x: 54, y: cardY + 250 + index * 84, w: 972, h: 68 }, choice.label, { fill: COLORS.navySoft, border: COLORS.gold, size: 24 }))
+    else if (node.type === 'sequence') {
+      const selected = runtime.state.sequences[runtime.state.node_id] || []
+      ;(node.items || []).slice(0, 6).forEach((item, index) => r.button(`story:sequence:${item.id}`, { x: 54, y: cardY + 230 + index * 72, w: 972, h: 58 }, `${selected.includes(item.id) ? '✓ ' : ''}${item.label}`, { fill: COLORS.navySoft, border: COLORS.gold, size: 22 }))
+    } else if (node.type === 'puzzle' && game.puzzle && game.storyImage) {
+      game.imageRects=[];const puzzleRect={x:54,y:imageRect.y+4,w:972,h:imageRect.h-8};const puzzleDraw=r.puzzleImage(game.storyImage,puzzleRect,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,game.puzzle.selectedCell>=0?groupForCell(game.puzzle.order,game.puzzle.rows,game.puzzle.cols,game.puzzle.selectedCell):[],puzzleGroups(game.puzzle.order,game.puzzle.rows,game.puzzle.cols),1,{x:0,y:0},game.puzzle.drag||null);game.imageRects.push({panel:puzzleRect,draw:puzzleDraw});r.text(`移动 ${game.puzzle.moves} 次`,540,cardY+230,24,COLORS.muted,'center')
+    } else if (node.type === 'hotspot') {
+      const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
+      for (const spot of node.hotspots || []) if (!found.includes(spot.id) && draw) { const radius = Math.max(28, Number(spot.radius || .045) * draw.w); const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }; r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(232,188,98,.12)', COLORS.gold, 3); r.register(`story:hotspot:${spot.id}`, rect) }
+      r.text(`已发现 ${found.length} / ${Number(node.required || (node.hotspots || []).length)}`, 540, cardY + 230, 24, COLORS.muted, 'center')
+    } else if (node.type === 'ending') r.button('story:finish', { x: 80, y: cardY + 260, w: 920, h: 76 }, '完成故事', { fill: COLORS.cinnabar, border: COLORS.gold, size: 28 })
+    else r.button('story:next', { x: 80, y: h - 116, w: 920, h: 76 }, node.button || '继续', { fill: COLORS.cinnabar, border: COLORS.gold, size: 28 })
+  }
   renderGameImage(image, rect, game) {
     const r = this.renderer; r.rect(rect.x, rect.y, rect.w, rect.h, COLORS.navy, 16, COLORS.cardBorder, 2)
     const inner = { x: rect.x + 4, y: rect.y + 4, w: rect.w - 8, h: rect.h - 8 }
@@ -675,7 +733,7 @@ class OddSpotApp {
   renderComplete() {
     const r = this.renderer, h = r.height; r.rect(0, 0, 1080, h, 'rgba(4,9,13,.78)')
     const knowledge = String(this.game.level.background_knowledge || '').trim()
-    const summary = this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`
+    const summary = this.game.level.mode==='interactive_story'?`结局：${this.game.story?.state.ending_id||'完成'}`:this.game.level.mode==='image_puzzle'?`移动 ${this.game.puzzle.moves} 次`:`发现 ${Object.keys(this.game.found).length}/${this.game.level.differences.length}`
     const statusText = this.game.syncState === 'synced' ? (this.game.level.mode==='image_puzzle'?this.i18n.t('puzzleRestored'):this.i18n.t('allFound')) : this.i18n.t('localComplete')
     const stat = `${summary} · 提示 ${this.game.attempt.hints_used || 0} · 用时 ${formatElapsed(this.game.attempt.elapsed_ms)}`
     const score = this.game.scoreResult || this.game.attempt || {}, stars = scoreToStars(score.score)
@@ -763,7 +821,7 @@ class OddSpotApp {
     const points = Array.from(event.touches || []).map((touch) => this.renderer.logicalTouch(touch)); if (!points.length) return
     const point = points[0], hit = this.renderer.hit(point)
     this.touch = { start: point, last: point, moved: 0, hit, points, scrollStart: this.currentScroll(), gameViewStart: this.game ? Object.assign({}, this.game.view) : null, pinchDistance: points.length >= 2 ? distance(points[0], points[1]) : 0, pinchZoom: this.game ? this.game.view.zoom : 1 }
-    if(!this.modal&&this.scene==='game'&&this.game?.level?.mode==='image_puzzle'&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.game.puzzle.drag=null;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
+    if(!this.modal&&this.scene==='game'&&this.game?.puzzle&&!this.game.complete&&!this.game.timedOut&&points.length===1){const cell=this.puzzleCellAt(point);if(cell>=0){this.touch.puzzleSource=cell;this.game.puzzle.selectedCell=cell;this.game.puzzle.drag=null;this.status=`拖动整个块组（${groupForCell(this.game.puzzle.order,this.game.puzzle.rows,this.game.puzzle.cols,cell).length} 块）`}}
   }
   onTouchMove(event) {
     if (!this.touch) return
@@ -783,7 +841,7 @@ class OddSpotApp {
     if (!this.touch) return
     const touch = this.touch; this.touch = null
     if (this.game && this.game.complete && this.game.knowledgeIntro && !this.game.knowledgeIntro.done) { this.game.knowledgeIntro.done = true; return }
-    if(touch.puzzleSource>=0&&this.game?.level?.mode==='image_puzzle'){this.game.puzzle.drag=null;const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
+    if(touch.puzzleSource>=0&&this.game?.puzzle){this.game.puzzle.drag=null;const target=this.puzzleCellAt(touch.last);if(target>=0&&target!==touch.puzzleSource)this.movePuzzle(touch.puzzleSource,target);else{this.game.puzzle.selectedCell=-1;this.status='拖动图片块；已拼接部分会整体移动'}return}
     if (this.scene === 'game' && this.game) this.saveAttempt()
     if (touch.moved > 12) return
     if (this.modal && (!touch.hit || touch.hit.id !== 'modalClose')) return
@@ -847,6 +905,7 @@ class OddSpotApp {
   handleAction(id) {
     if (this.scene === 'game' && this.game && (this.game.complete || this.game.timedOut) && !['replay', 'map', 'next'].includes(id)) return
     if (id) this.audio.click()
+    if (id.startsWith('story:')) { const parts=id.split(':'); if(parts[1]==='finish')this.finishAfterFeedback();else this.storyAction(parts[1],parts.slice(2).join(':')); return }
     if (id === 'retry') this.bootstrap()
     else if (id === 'identity' || id === 'settings') this.showSettings()
     else if (id === 'daily') this.openDaily()
@@ -882,7 +941,8 @@ class OddSpotApp {
 function validateLevel(level) {
   if (!level || !level.level_id) return { ok: false, error: 'LEVEL_ID_MISSING' }
   if (Number(level.schema_version) !== 1) return { ok: false, error: 'LEVEL_SCHEMA_UNSUPPORTED' }
-  if (!['image_puzzle', 'find_anachronism'].includes(level.mode)) return { ok: false, error: 'LEVEL_MODE_UNSUPPORTED' }
+  if (!['image_puzzle', 'find_anachronism', 'interactive_story'].includes(level.mode)) return { ok: false, error: 'LEVEL_MODE_UNSUPPORTED' }
+  if (level.mode === 'interactive_story') return validateStory(level.story)
   if (!level.assets || Number(level.assets.width) < 1 || Number(level.assets.width) > 8192 || Number(level.assets.height) < 1 || Number(level.assets.height) > 8192) return { ok: false, error: 'LEVEL_ASSETS_INVALID' }
   const required = ['image']
   for (const key of required) if (!level.assets[key] || !level.assets[key].asset_id || !String(level.assets[key].url || '').startsWith('https://')) return { ok: false, error: `LEVEL_ASSET_INVALID_${key.toUpperCase()}` }

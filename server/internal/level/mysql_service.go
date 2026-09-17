@@ -20,6 +20,8 @@ func (s *MySQLService) Home(ctx context.Context, userID string) ([]Summary, erro
 	rows, err := s.db.QueryContext(ctx, `SELECT lv.level_id, lv.version, lv.difficulty,
       CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
       THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
+      WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='interactive_story'
+      THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.story.nodes')),0)
       ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=lv.level_id AND d.level_version=lv.version) END
       FROM level_versions lv
       LEFT JOIN users u ON u.id=?
@@ -73,6 +75,8 @@ func (s *MySQLService) Start(ctx context.Context, userID, levelID string, reques
 		err = tx.QueryRowContext(ctx, `SELECT a.user_id,a.state,a.level_version,
 		  CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
 		  THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
+		  WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='interactive_story'
+		  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.story.nodes')),0)
 		  ELSE (SELECT COUNT(*) FROM level_differences d WHERE d.level_id=a.level_id AND d.level_version=a.level_version) END
 		  FROM level_attempts a JOIN level_versions lv ON lv.level_id=a.level_id AND lv.version=a.level_version WHERE a.id=?`, request.AttemptID).Scan(&owner, &state, &version, &total)
 		if err != nil {

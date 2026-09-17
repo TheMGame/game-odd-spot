@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -29,14 +31,16 @@ type Level struct {
 }
 
 type Series struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	Mode        string  `json:"mode"`
-	CoverURL    string  `json:"cover_url"`
-	SortOrder   int     `json:"sort_order"`
-	Enabled     bool    `json:"enabled"`
-	Levels      []Level `json:"levels"`
+	ID               string  `json:"id"`
+	Title            string  `json:"title"`
+	Description      string  `json:"description"`
+	Mode             string  `json:"mode"`
+	CoverURL         string  `json:"cover_url"`
+	SortOrder        int     `json:"sort_order"`
+	Enabled          bool    `json:"enabled"`
+	MinWebVersion    string  `json:"min_web_version"`
+	MinWechatVersion string  `json:"min_wechat_version"`
+	Levels           []Level `json:"levels"`
 }
 
 type MuseumItem struct {
@@ -91,6 +95,8 @@ type PublicQuery struct {
 	UserID        string
 	Locale        string
 	DefaultLocale string
+	Platform      string
+	AppVersion    string
 }
 
 type Service interface {
@@ -180,7 +186,44 @@ type MySQLService struct{ db *sql.DB }
 
 func NewMySQLService(db *sql.DB) *MySQLService { return &MySQLService{db: db} }
 func (s *MySQLService) Public(ctx context.Context, query PublicQuery) ([]Series, error) {
-	return s.list(ctx, false, query)
+	items, err := s.list(ctx, false, query)
+	if err != nil {
+		return nil, err
+	}
+	out := items[:0]
+	for _, item := range items {
+		minimum := item.MinWebVersion
+		if query.Platform == "wechat" {
+			minimum = item.MinWechatVersion
+		}
+		if minimum == "" || versionAtLeast(query.AppVersion, minimum) {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func versionAtLeast(actual, minimum string) bool {
+	if minimum == "" {
+		return true
+	}
+	if actual == "" {
+		return false
+	}
+	a, m := strings.Split(actual, "."), strings.Split(minimum, ".")
+	for i := 0; i < 3; i++ {
+		av, mv := 0, 0
+		if i < len(a) {
+			av, _ = strconv.Atoi(strings.SplitN(a[i], "-", 2)[0])
+		}
+		if i < len(m) {
+			mv, _ = strconv.Atoi(strings.SplitN(m[i], "-", 2)[0])
+		}
+		if av != mv {
+			return av > mv
+		}
+	}
+	return true
 }
 func (s *MySQLService) Admin(ctx context.Context) ([]Series, error) {
 	return s.list(ctx, true, PublicQuery{})
@@ -302,7 +345,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 	rows, err := s.db.QueryContext(ctx, `SELECT s.id,
 		COALESCE(req.title,def.title,en.title,s.title,s.id),
 		COALESCE(req.description,def.description,en.description,s.description,''),
-		s.mode,s.cover_url,s.sort_order,s.enabled
+		s.mode,s.cover_url,s.sort_order,s.enabled,s.min_web_version,s.min_wechat_version
 		FROM content_series s
 		LEFT JOIN content_series_i18n req ON req.series_id=s.id AND req.locale=?
 		LEFT JOIN content_series_i18n def ON def.series_id=s.id AND def.locale=?
@@ -315,7 +358,7 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 	out := []Series{}
 	for rows.Next() {
 		var item Series
-		if err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Mode, &item.CoverURL, &item.SortOrder, &item.Enabled); err != nil {
+		if err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Mode, &item.CoverURL, &item.SortOrder, &item.Enabled, &item.MinWebVersion, &item.MinWechatVersion); err != nil {
 			return nil, err
 		}
 		item.Levels = []Level{}
@@ -345,13 +388,17 @@ func (s *MySQLService) list(ctx context.Context, admin bool, query PublicQuery) 
 			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode')),'find_anachronism'),
 			CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='image_puzzle'
 			  THEN (COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.rows') AS UNSIGNED),0)*COALESCE(CAST(JSON_EXTRACT(lv.runtime_json,'$.puzzle.cols') AS UNSIGNED),0))
+			  WHEN JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.mode'))='interactive_story'
+			  THEN COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.story.nodes')),0)
 			  ELSE COALESCE(JSON_LENGTH(JSON_EXTRACT(lv.runtime_json,'$.differences')),0) END,
 			COALESCE(
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.thumbnail.url')),
 			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),
+			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.cover.thumbnail.url')),
+			  JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.cover.url')),
 			  ''
 			),
-			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),''),
+			COALESCE(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.assets.image.url')),JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.cover.url')),''),
 			sl.sort_order,
 			COALESCE(
 			  NULLIF(JSON_UNQUOTE(JSON_EXTRACT(lv.runtime_json,'$.available_date')),'null'),
@@ -390,11 +437,15 @@ func (s *MySQLService) UpsertSeries(ctx context.Context, item Series) error {
 	if item.ID == "" || item.Title == "" {
 		return errors.New("series id and title are required")
 	}
-	item.Mode = "find_anachronism"
-	_, err := s.db.ExecContext(ctx, `INSERT INTO content_series(id,title,description,mode,cover_url,sort_order,enabled)
-		VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description),
-		mode=VALUES(mode),cover_url=VALUES(cover_url),sort_order=VALUES(sort_order),enabled=VALUES(enabled)`,
-		item.ID, item.Title, item.Description, item.Mode, item.CoverURL, item.SortOrder, item.Enabled)
+	switch item.Mode {
+	case "find_anachronism", "image_puzzle", "interactive_story":
+	default:
+		item.Mode = "find_anachronism"
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO content_series(id,title,description,mode,cover_url,sort_order,enabled,min_web_version,min_wechat_version)
+		VALUES(?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),description=VALUES(description),
+		mode=VALUES(mode),cover_url=VALUES(cover_url),sort_order=VALUES(sort_order),enabled=VALUES(enabled),min_web_version=VALUES(min_web_version),min_wechat_version=VALUES(min_wechat_version)`,
+		item.ID, item.Title, item.Description, item.Mode, item.CoverURL, item.SortOrder, item.Enabled, item.MinWebVersion, item.MinWechatVersion)
 	return err
 }
 

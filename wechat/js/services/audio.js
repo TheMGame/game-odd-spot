@@ -54,6 +54,8 @@ class AudioManager {
     this.destroyLevelMusic()
     if (this.preferences.data.music && this.players.music) this.players.music.play()
   }
+  playVoice(url, volume = 1) { if (!url) return; if (this.players.voice) { this.players.voice.stop(); if (this.players.voice.destroy) this.players.voice.destroy() } this.players.voice = this.create(url, false, volume); if (this.preferences.data.effects) this.players.voice.play() }
+  playAssetEffect(url, volume = 0.65) { if (!url || !this.preferences.data.effects) return; if (this.players.storyEffect) { this.players.storyEffect.stop(); if (this.players.storyEffect.destroy) this.players.storyEffect.destroy() } this.players.storyEffect = this.create(url, false, volume); this.players.storyEffect.play() }
   destroyLevelMusic() { if (this.players.levelMusic) { this.players.levelMusic.stop(); if (this.players.levelMusic.destroy) this.players.levelMusic.destroy(); this.players.levelMusic = null; this.levelMusicUrl = '' } }
   pause() { if (this.players.music) this.players.music.pause(); if (this.players.levelMusic) this.players.levelMusic.pause() }
   resume() { if (this.preferences.data.music) { const track = this.currentMusic(); if (track) track.play() } }

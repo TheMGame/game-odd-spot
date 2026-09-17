@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "level_id": "story_rainy_night_001",
+  "level_version": 1,
+  "mode": "interactive_story",
+  "title": "错位大侦探·雨夜来客",
+  "instruction": "调查现场，收集证据并还原真相",
+  "assets": {},
+  "story": {
+    "start_node": "intro",
+    "nodes": {
+      "intro": {"type": "scene", "title": "雨夜来客", "text": "暴雨封住了离开民宿的道路。", "next": "first_choice"},
+      "first_choice": {"type": "choice", "title": "从哪里开始？", "text": "选择调查方向。", "choices": [{"id": "study", "label": "检查书房", "next": "study_search"}, {"id": "hall", "label": "询问目击者", "next": "dialogue"}]},
+      "dialogue": {"type": "dialogue", "speaker": "许岚", "text": "我听见维修间有争吵声。", "next": "study_search"},
+      "study_search": {"type": "hotspot", "title": "书房调查", "text": "找出两处异常。", "required": 2, "hotspots": [{"id": "phone", "x": 0.31, "y": 0.46, "radius": 0.06, "label": "手机", "evidence_id": "phone_time"}, {"id": "will", "x": 0.72, "y": 0.61, "radius": 0.06, "label": "遗嘱", "evidence_id": "missing_will"}], "next": "photo_puzzle"},
+      "photo_puzzle": {"type": "puzzle", "title": "恢复原始照片", "text": "移动拼块，还原完整照片。", "puzzle": {"rows": 3, "cols": 3}, "next": "evidence_chain"},
+      "evidence_chain": {"type": "sequence", "title": "排列证据链", "text": "按时间顺序排列关键证据。", "items": [{"id": "A", "label": "20:53 苏雨离开"}, {"id": "B", "label": "20:57 沈恒通话"}, {"id": "C", "label": "21:05 老秦到达"}], "correct_order": ["A", "B", "C"], "next": "ending"},
+      "ending": {"type": "ending", "title": "完整真相", "text": "照片倒影证明陆铭当时就在维修间外。案件已解决。", "ending_id": "case_solved"}
+    }
+  },
+  "tags": {"regions": ["china"], "themes": ["detective"], "styles": ["noir"], "scenes": ["guesthouse"], "risk": []},
+  "difficulty": {"total": 3, "object_size": 3, "color_similarity": 3, "visual_density": 3, "edge_distance": 3, "semantic_obviousness": 3}
+}

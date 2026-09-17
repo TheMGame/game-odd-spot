@@ -143,7 +143,19 @@ class Renderer {
     const fit = mode === 'contain' ? Math.min(rect.w / image.width, rect.h / image.height) : Math.max(rect.w / image.width, rect.h / image.height)
     const w = image.width * fit * zoom, h = image.height * fit * zoom
     const draw = { x: rect.x + (rect.w - w) / 2 + offset.x, y: rect.y + (rect.h - h) / 2 + offset.y, w, h }
-    const c = this.ctx; c.save(); c.beginPath(); c.rect(rect.x, rect.y, rect.w, rect.h); c.clip(); c.drawImage(image, draw.x, draw.y, draw.w, draw.h); c.restore()
+    const c = this.ctx; c.save(); c.beginPath(); c.rect(rect.x, rect.y, rect.w, rect.h); c.clip()
+    // Story art is commonly portrait while the game panel is landscape. Fill
+    // the empty sides with a dimmed crop of the same image, then keep the
+    // complete foreground image and its hotspot coordinate space unchanged.
+    if (mode === 'contain' && image.width / image.height < 0.9 && rect.w / rect.h > 1.15) {
+      const backgroundFit = Math.max(rect.w / image.width, rect.h / image.height)
+      const backgroundWidth = image.width * backgroundFit
+      const backgroundHeight = image.height * backgroundFit
+      c.drawImage(image, rect.x + (rect.w - backgroundWidth) / 2, rect.y + (rect.h - backgroundHeight) / 2, backgroundWidth, backgroundHeight)
+      c.fillStyle = 'rgba(10,20,31,.58)'
+      c.fillRect(rect.x, rect.y, rect.w, rect.h)
+    }
+    c.drawImage(image, draw.x, draw.y, draw.w, draw.h); c.restore()
     return draw
   }
   puzzleImage(image, rect, rows, cols, order, selectedGroup, groups, zoom = 1, offset = { x: 0, y: 0 }, drag = null) {

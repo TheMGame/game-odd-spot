@@ -31,7 +31,7 @@ class ApiClient {
       const refreshed = await this.refreshSession()
       if (!refreshed.ok) return refreshed
     }
-    const headers = { Accept: 'application/json' }
+    const headers = { Accept: 'application/json', 'X-Client-Platform': 'web', 'X-App-Version': config.APP_VERSION }
     if (method !== 'GET') headers['Content-Type'] = 'application/json'
     if (authenticated) headers.Authorization = `Bearer ${this.session.data.access_token}`
     if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey
