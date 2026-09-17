@@ -31,7 +31,7 @@ assert.strictEqual(validateLevel({...level,mode:'spot_difference'}).ok,false)
 const story={start_node:'intro',nodes:{intro:{type:'scene',next:'choice'},choice:{type:'choice',choices:[{id:'inspect',label:'调查',next:'search'}]},search:{type:'hotspot',required:1,hotspots:[{id:'clue',x:.5,y:.5,evidence_id:'e1'}],next:'ending'},ending:{type:'ending',ending_id:'solved'}}}
 assert.deepStrictEqual(validateStory(story),{ok:true})
 assert.deepStrictEqual(validateLevel({schema_version:1,level_id:'story-1',mode:'interactive_story',assets:{},story}),{ok:true})
-const storyRuntime=new StoryRuntime(story);storyRuntime.next();storyRuntime.choose('inspect');storyRuntime.findHotspot('clue');assert.strictEqual(storyRuntime.state.completed,true);assert.deepStrictEqual(storyRuntime.state.evidence,['e1'])
+const storyRuntime=new StoryRuntime(story);storyRuntime.next();storyRuntime.choose('inspect');storyRuntime.findHotspot('clue');assert.strictEqual(storyRuntime.state.completed,false);assert.deepStrictEqual(storyRuntime.state.evidence,['e1']);storyRuntime.next();assert.strictEqual(storyRuntime.state.completed,true)
 assert.strictEqual(pointInPolygon({ x: .75, y: .74 }, level.differences[2].points), true)
 assert.strictEqual(pointInPolygon({ x: .2, y: .8 }, level.differences[2].points), false)
 assert.strictEqual(validEmail('player@example.com'), true)

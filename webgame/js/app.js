@@ -289,11 +289,17 @@ class OddSpotApp {
   }
   async storyAction(kind, id) {
     const runtime = this.game?.story; if (!runtime) return
-    if (kind === 'next') runtime.next()
-    else if (kind === 'choice') runtime.choose(id)
-    else if (kind === 'hotspot') runtime.findHotspot(id)
-    else if (kind === 'sequence') runtime.selectSequence(id)
-    this.game.attempt.story = runtime.snapshot(); this.saveAttempt(); await this.loadStoryNodeMedia()
+    const before = runtime.state.node_id
+    let accepted = false
+    if (kind === 'next') accepted = runtime.next()
+    else if (kind === 'choice') accepted = runtime.choose(id)
+    else if (kind === 'hotspot') accepted = runtime.findHotspot(id)
+    else if (kind === 'sequence') accepted = runtime.selectSequence(id)
+    if (!accepted) return
+    const changed = runtime.state.node_id !== before
+    if (kind === 'hotspot' && !changed) this.audio.correct()
+    if (changed) await this.loadStoryNodeMedia()
+    this.game.attempt.story = runtime.snapshot(); this.saveAttempt()
     if (runtime.state.completed) this.finishAfterFeedback()
   }
   checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
@@ -712,8 +718,9 @@ class OddSpotApp {
       game.imageRects=[];const puzzleRect={x:54,y:imageRect.y+4,w:972,h:imageRect.h-8};const puzzleDraw=r.puzzleImage(game.storyImage,puzzleRect,game.puzzle.rows,game.puzzle.cols,game.puzzle.order,game.puzzle.selectedCell>=0?groupForCell(game.puzzle.order,game.puzzle.rows,game.puzzle.cols,game.puzzle.selectedCell):[],puzzleGroups(game.puzzle.order,game.puzzle.rows,game.puzzle.cols),1,{x:0,y:0},game.puzzle.drag||null);game.imageRects.push({panel:puzzleRect,draw:puzzleDraw});r.text(`移动 ${game.puzzle.moves} 次`,540,cardY+230,24,COLORS.muted,'center')
     } else if (node.type === 'hotspot') {
       const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
-      for (const spot of node.hotspots || []) if (!found.includes(spot.id) && draw) { const radius = Math.max(28, Number(spot.radius || .045) * draw.w); const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }; r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(232,188,98,.12)', COLORS.gold, 3); r.register(`story:hotspot:${spot.id}`, rect) }
+      for (const spot of node.hotspots || []) if (draw) { const radius = Math.max(28, Number(spot.radius || .045) * draw.w); const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }; if (found.includes(spot.id)) r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(198,75,47,.18)', COLORS.cinnabar, 5); else r.register(`story:hotspot:${spot.id}`, rect) }
       r.text(`已发现 ${found.length} / ${Number(node.required || (node.hotspots || []).length)}`, 540, cardY + 230, 24, COLORS.muted, 'center')
+      if (found.length >= Number(node.required || (node.hotspots || []).length) && node.next) r.button('story:next', { x: 80, y: cardY + 280, w: 920, h: 76 }, '完成勘查', { fill: COLORS.cinnabar, border: COLORS.gold, size: 28 })
     } else if (node.type === 'ending') r.button('story:finish', { x: 80, y: cardY + 260, w: 920, h: 76 }, '完成故事', { fill: COLORS.cinnabar, border: COLORS.gold, size: 28 })
     else r.button('story:next', { x: 80, y: h - 116, w: 920, h: 76 }, node.button || '继续', { fill: COLORS.cinnabar, border: COLORS.gold, size: 28 })
   }

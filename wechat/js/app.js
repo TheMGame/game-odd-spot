@@ -323,7 +323,7 @@ class OddSpotApp {
     return Math.max(0, Math.floor(Number(configured) || 0)) * 1000
   }
   async loadStoryNodeMedia() { if (!this.game?.story) return; const node=this.game.story.node(),descriptor=node&&node.image,key=descriptor&&(descriptor.asset_id||descriptor.url)||'';this.game.storyImage=null;this.game.storyImageKey=key;if(descriptor)try{const loaded=(await this.loadImageBatch([{key:`story:${key}`,descriptor}]))[0];if(loaded&&loaded.ok&&this.game?.storyImageKey===key)this.game.storyImage=loaded.image}catch(_){}if(node&&node.type==='puzzle'){const cfg=node.puzzle||{},rows=Number(cfg.rows||3),cols=Number(cfg.cols||3),saved=this.game.story.state.puzzles[this.game.story.state.node_id]||{},total=rows*cols,order=isPermutation(saved.order,total)?saved.order.slice():shuffleDerangement(rows,cols);this.game.puzzle={rows,cols,order,selectedCell:-1,moves:Number(saved.moves||0),initialMisplaced:total}}else this.game.puzzle=null;const music=node&&node.music&&node.music.url;if(music)this.audio.setLevelMusic(music,Number(node.music.volume||.35));if(node&&node.voice&&node.voice.url&&this.audio.playVoice)this.audio.playVoice(node.voice.url,Number(node.voice.volume||1))}
-  async storyAction(kind,id){const runtime=this.game?.story;if(!runtime)return;const before=runtime.state.node_id;let accepted=false;if(kind==='next')accepted=runtime.next();else if(kind==='choice')accepted=runtime.choose(id);else if(kind==='hotspot')accepted=runtime.findHotspot(id);else if(kind==='sequence')accepted=runtime.selectSequence(id);console.info('[OddSpot][StoryTap] action',{kind,id,node_before:before,node_after:runtime.state.node_id,accepted,hotspots:runtime.state.hotspots[before]||[]});if(runtime.state.node_id!==before)this.scroll.game=0;this.game.attempt.story=runtime.snapshot();this.saveAttempt();await this.loadStoryNodeMedia();const effect=runtime.node()?.effect;if(effect?.url&&this.audio.playAssetEffect)this.audio.playAssetEffect(effect.url,Number(effect.volume||.65));if(runtime.state.completed)this.finishAfterFeedback()}
+  async storyAction(kind,id){const runtime=this.game?.story;if(!runtime)return;const before=runtime.state.node_id;let accepted=false;if(kind==='next')accepted=runtime.next();else if(kind==='choice')accepted=runtime.choose(id);else if(kind==='hotspot')accepted=runtime.findHotspot(id);else if(kind==='sequence')accepted=runtime.selectSequence(id);const changed=runtime.state.node_id!==before;console.info('[OddSpot][StoryTap] action',{kind,id,node_before:before,node_after:runtime.state.node_id,accepted,hotspots:runtime.state.hotspots[before]||[]});if(!accepted)return;if(kind==='hotspot'&&!changed)this.audio.correct();if(changed){this.scroll.game=0;await this.loadStoryNodeMedia();const effect=runtime.node()?.effect;if(effect?.url&&this.audio.playAssetEffect)this.audio.playAssetEffect(effect.url,Number(effect.volume||.65))}this.game.attempt.story=runtime.snapshot();this.saveAttempt();if(runtime.state.completed)this.finishAfterFeedback()}
   checkTimeLimit() { const game = this.game; if (this.scene !== 'game' || !game || game.loading || game.complete || game.finishing || game.timedOut) return; const limit = this.gameTimeLimitMs(game); if (limit > 0 && this.elapsed() >= limit) this.failByTimeout(limit) }
   failByTimeout(limit) { const game = this.game, level = game.level; game.timedOut = true; game.finishing = true; game.frozenElapsed = limit; if (game.puzzle) game.puzzle.selectedCell = -1; game.attempt.elapsed_ms = limit; game.attempt.state = 'timed_out'; this.progress.save(level.level_id, game.attempt); this.status = this.i18n.t('timeUp'); this.analytics.track('level_timeout', { level_id: level.level_id, duration_ms: limit }); this.analytics.flush() }
   containsDifference(difference, point) {
@@ -1088,10 +1088,11 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
     r.text(`移动 ${game.puzzle.moves} 次`, 540, y, 24, muted, 'center'); y += 55
   } else if (node.type === 'hotspot') {
     const found = runtime.state.hotspots[node.id || runtime.state.node_id] || []
-    for (const spot of node.hotspots || []) if (!found.includes(spot.id) && draw) {
+    for (const spot of node.hotspots || []) if (draw) {
       const radius = Math.max(44, Math.max(.085, Number(spot.radius || 0)) * draw.w)
       const rect = { x: draw.x + spot.x * draw.w - radius, y: draw.y + spot.y * draw.h - radius, w: radius * 2, h: radius * 2 }
-      r.register(`story:hotspot:${spot.id}`, rect)
+      if (found.includes(spot.id)) r.circle(rect.x + radius, rect.y + radius, radius, 'rgba(230,101,97,.12)', red, 5)
+      else r.register(`story:hotspot:${spot.id}`, rect)
     }
     r.text(`现场勘查 ${found.length}/${Number(node.required || (node.hotspots || []).length)}`, 540, y + 20, 25, found.length >= Number(node.required || 1) ? '#6acb9a' : muted, 'center', 'bold'); y += 62
     const spots = node.hotspots || []
@@ -1103,12 +1104,14 @@ OddSpotApp.prototype.renderStoryGame = function renderStoryGameDocument() {
     }
     y += Math.ceil(spots.length / 2) * 70
     if (this.status) { r.text(this.status, 540, y + 20, 21, muted, 'center', 'normal', contentW); y += 52 }
+    const required = Number(node.required || spots.length)
+    if (found.length >= required && node.next) button('story:next', '完成勘查', '#d5a64e')
   } else if (node.type === 'ending') {
     button('story:finish', '案件已解决', red)
   } else {
     button('story:next', node.button || '继续', '#d5a64e')
   }
-  y += 40
+  y += 140
   c.restore()
   this.maxScroll = Math.max(0, y + (this.scroll.game || 0) - clip.y - clip.h)
 }

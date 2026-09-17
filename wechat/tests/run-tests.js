@@ -50,7 +50,7 @@ assert.strictEqual(validateLevel({...validLevel(),mode:'spot_difference'}).ok,fa
 const story={start_node:'intro',nodes:{intro:{type:'scene',next:'choice'},choice:{type:'choice',choices:[{id:'inspect',label:'调查',next:'search'}]},search:{type:'hotspot',required:1,hotspots:[{id:'clue',x:.5,y:.5,evidence_id:'e1'}],next:'ending'},ending:{type:'ending',ending_id:'solved'}}}
 assert.deepStrictEqual(validateStory(story),{ok:true})
 assert.deepStrictEqual(validateLevel({schema_version:1,level_id:'story-1',mode:'interactive_story',assets:{},story}),{ok:true})
-const storyRuntime=new StoryRuntime(story);storyRuntime.next();storyRuntime.choose('inspect');storyRuntime.findHotspot('clue');assert.strictEqual(storyRuntime.state.completed,true);assert.deepStrictEqual(storyRuntime.state.evidence,['e1'])
+const storyRuntime=new StoryRuntime(story);storyRuntime.next();storyRuntime.choose('inspect');storyRuntime.findHotspot('clue');assert.strictEqual(storyRuntime.state.completed,false);assert.deepStrictEqual(storyRuntime.state.evidence,['e1']);storyRuntime.next();assert.strictEqual(storyRuntime.state.completed,true)
 const invalid = validLevel(); invalid.differences[0].radius = .5
 assert.strictEqual(validateLevel(invalid).ok, false)
 assert.strictEqual(pointInPolygon({ x: .5, y: .5 }, [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]), true)

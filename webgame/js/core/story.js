@@ -59,11 +59,10 @@ class StoryRuntime {
   findHotspot(id) {
     const node = this.node(), spot = (node.hotspots || []).find((item) => String(item.id) === String(id)); if (!spot) return false
     const found = this.state.hotspots[node.id || this.state.node_id] || []
-    if (!found.includes(spot.id)) found.push(spot.id)
+    if (found.includes(spot.id)) return false
+    found.push(spot.id)
     this.state.hotspots[node.id || this.state.node_id] = found
     if (spot.evidence_id && !this.state.evidence.includes(spot.evidence_id)) this.state.evidence.push(spot.evidence_id)
-    const required = Number(node.required || (node.hotspots || []).length)
-    if (found.length >= required && node.next) this.enter(node.next)
     return true
   }
   selectSequence(id) {
